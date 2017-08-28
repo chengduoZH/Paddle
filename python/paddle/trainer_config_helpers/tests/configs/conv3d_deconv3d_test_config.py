@@ -71,7 +71,7 @@ deconv3d_1 = img_conv3d_layer(
     groups=groups,
     bias_attr=True,
     shared_biases=True,
-    trans=False,
+    trans=True,
     layer_type="deconv3d",
     act=LinearActivation())
 # second
@@ -86,6 +86,6 @@ deconv3d_2 = img_conv3d_layer(
     groups=groups,
     bias_attr=True,
     shared_biases=True,
-    trans=False,
+    trans=True,
     layer_type="deconv3d",
     act=LinearActivation())
