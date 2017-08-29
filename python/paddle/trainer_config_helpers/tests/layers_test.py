@@ -18,4 +18,6 @@ if __name__ == '__main__':
     parse_config_and_serialize(
         'trainer_config_helpers/tests/configs/conv3d_deconv3d_test_config.py',
         '')
-# layers_test_config.py
+    parse_config_and_serialize(
+            'trainer_config_helpers/tests/configs/test_pooling3D_layer.py', '')
+
