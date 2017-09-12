@@ -46,7 +46,7 @@ protected:
   IntV N_;  /// channels_ * filterSizeZ_ * filterSize_ * filterSizeY_
   IntV K_;  /// outputD_ * outputH_ * outputW_
   IntV NOut_;
-  MatrixPtr colBuf_;
+  // MatrixPtr colBuf_;
 };
 
 }  // namespace paddle

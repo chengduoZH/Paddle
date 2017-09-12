@@ -91,32 +91,33 @@ void DeConv3DLayer::forward(PassType passType) {
     int N = N_[i];
     int K = K_[i];
     MatrixPtr wMat = weights_[i]->getW();
-    Matrix::resizeOrCreate(colBuf_, K * groups_[i], N, false, useGpu_);
+    MatrixPtr colBuf;
+    Matrix::resizeOrCreate(colBuf, K * groups_[i], N, false, useGpu_);
     for (int n = 0; n < batchSize; ++n) {
       real *inData = inMat->getData() + n * inMat->getStride();
       for (int g = 0; g < groups_[i]; ++g) {
         MatrixPtr inMatSub = Matrix::create(inData, M, N, false, useGpu_);
         MatrixPtr wMatSub = wMat->subMatrix(g * K, K);
-        MatrixPtr colBufDataSub = colBuf_->subMatrix(g * K, K);
+        MatrixPtr colBufDataSub = colBuf->subMatrix(g * K, K);
         colBufDataSub->mul(*wMatSub, *inMatSub, 1.0, 0.0);
         inData += M * N;
       }
-      colBuf_->col2Vol(outMat->getData() + n * outMat->getStride(),
-                       numFilters_,
-                       imgSizeD_[i],
-                       imgSizeH_[i],
-                       imgSizeW_[i],
-                       filterSizeZ_[i],
-                       filterSizeY_[i],
-                       filterSize_[i],
-                       strideZ_[i],
-                       strideY_[i],
-                       stride_[i],
-                       paddingZ_[i],
-                       paddingY_[i],
-                       padding_[i],
-                       1.0,
-                       1.0);
+      colBuf->col2Vol(outMat->getData() + n * outMat->getStride(),
+                      numFilters_,
+                      imgSizeD_[i],
+                      imgSizeH_[i],
+                      imgSizeW_[i],
+                      filterSizeZ_[i],
+                      filterSizeY_[i],
+                      filterSize_[i],
+                      strideZ_[i],
+                      strideY_[i],
+                      stride_[i],
+                      paddingZ_[i],
+                      paddingY_[i],
+                      padding_[i],
+                      1.0,
+                      1.0);
     }
   }
   if (nullptr != this->biasParameter_) {
@@ -138,10 +139,11 @@ void DeConv3DLayer::backward(const UpdateCallback &callback) {
       int M = M_[i];
       int N = N_[i];
       int K = K_[i];
-      Matrix::resizeOrCreate(colBuf_, K * groups_[i], N, false, useGpu_);
+      MatrixPtr colBuf;
+      Matrix::resizeOrCreate(colBuf, K * groups_[i], N, false, useGpu_);
       const MatrixPtr &inMat = getInputValue(i);
       for (int n = 0; n < batchSize; ++n) {
-        colBuf_->vol2Col(
+        colBuf->vol2Col(
             getOutputGrad()->getData() + n * getOutputGrad()->getStride(),
             numFilters_,
             imgSizeD_[i],
@@ -159,7 +161,7 @@ void DeConv3DLayer::backward(const UpdateCallback &callback) {
         if (weights_[i]->getWGrad()) {
           real *inData = inMat->getData() + n * inMat->getStride();
           for (int g = 0; g < groups_[i]; ++g) {
-            MatrixPtr colBufDataSub = colBuf_->subMatrix(g * K, K);
+            MatrixPtr colBufDataSub = colBuf->subMatrix(g * K, K);
             MatrixPtr wGradMatSub =
                 weights_[i]->getWGrad()->subMatrix(g * K, K);
             MatrixPtr inMatSub = Matrix::create(inData, M, N, false, useGpu_);
@@ -173,7 +175,7 @@ void DeConv3DLayer::backward(const UpdateCallback &callback) {
               getInputGrad(i)->getData() + n * getInputGrad(i)->getStride();
           for (int g = 0; g < groups_[i]; ++g) {
             MatrixPtr w = weights_[i]->getW()->subMatrix(g * K, K);
-            MatrixPtr outGradMat = colBuf_->subMatrix(g * K, K);
+            MatrixPtr outGradMat = colBuf->subMatrix(g * K, K);
             MatrixPtr inGradMatSub =
                 Matrix::create(preGrad, M, N, false, useGpu_);
             inGradMatSub->mul(*(w->getTranspose()), *outGradMat, 1.0, 1.0);

@@ -90,30 +90,31 @@ void Conv3DLayer::forward(PassType passType) {
     int M = M_[i];
     int N = N_[i];
     int K = K_[i];
-    Matrix::resizeOrCreate(colBuf_, K * groups_[i], N, false, useGpu_);
+    MatrixPtr colBuf;
+    Matrix::resizeOrCreate(colBuf, K * groups_[i], N, false, useGpu_);
     MatrixPtr wMat = weights_[i]->getW();
     for (int n = 0; n < batchSize; ++n) {
-      colBuf_->vol2Col(inMat->getData() + n * inMat->getStride(),
-                       channels_[i],
-                       imgSizeD_[i],
-                       imgSizeH_[i],
-                       imgSizeW_[i],
-                       filterSizeZ_[i],
-                       filterSizeY_[i],
-                       filterSize_[i],
-                       strideZ_[i],
-                       strideY_[i],
-                       stride_[i],
-                       paddingZ_[i],
-                       paddingY_[i],
-                       padding_[i]);
+      colBuf->vol2Col(inMat->getData() + n * inMat->getStride(),
+                      channels_[i],
+                      imgSizeD_[i],
+                      imgSizeH_[i],
+                      imgSizeW_[i],
+                      filterSizeZ_[i],
+                      filterSizeY_[i],
+                      filterSize_[i],
+                      strideZ_[i],
+                      strideY_[i],
+                      stride_[i],
+                      paddingZ_[i],
+                      paddingY_[i],
+                      padding_[i]);
 
       real *outData = outMat->getData() + n * outMat->getStride();
       MatrixPtr outMatSub =
           Matrix::create(outData, groups_[i] * M, N, false, useGpu_);
       for (int g = 0; g < groups_[i]; g++) {
         MatrixPtr wMatSub = wMat->subMatrix(g * M, M);
-        MatrixPtr in = colBuf_->subMatrix(g * K, K);
+        MatrixPtr in = colBuf->subMatrix(g * K, K);
         MatrixPtr out = outMatSub->subMatrix(g * M, M);
         out->mul(*wMatSub, *in, 1.0, 1.0);
       }
@@ -150,31 +151,32 @@ void Conv3DLayer::bpropWeights(int i) {
   int N = N_[i];
   int K = K_[i];
   const MatrixPtr &inMat = getInputValue(i);
-  Matrix::resizeOrCreate(colBuf_, K * groups_[i], N, false, useGpu_);
+  MatrixPtr colBuf;
+  Matrix::resizeOrCreate(colBuf, K * groups_[i], N, false, useGpu_);
   MatrixPtr wGradMat = weights_[i]->getWGrad();
   int batchSize = inputLayers_[0]->getOutputValue()->getHeight();
   for (int n = 0; n < batchSize; ++n) {
-    colBuf_->vol2Col(inMat->getData() + n * inMat->getStride(),
-                     channels_[i],
-                     imgSizeD_[i],
-                     imgSizeH_[i],
-                     imgSizeW_[i],
-                     filterSizeZ_[i],
-                     filterSizeY_[i],
-                     filterSize_[i],
-                     strideZ_[i],
-                     strideY_[i],
-                     stride_[i],
-                     paddingZ_[i],
-                     paddingY_[i],
-                     padding_[i]);
+    colBuf->vol2Col(inMat->getData() + n * inMat->getStride(),
+                    channels_[i],
+                    imgSizeD_[i],
+                    imgSizeH_[i],
+                    imgSizeW_[i],
+                    filterSizeZ_[i],
+                    filterSizeY_[i],
+                    filterSize_[i],
+                    strideZ_[i],
+                    strideY_[i],
+                    stride_[i],
+                    paddingZ_[i],
+                    paddingY_[i],
+                    padding_[i]);
 
     real *outGradData =
         getOutputGrad()->getData() + n * getOutputGrad()->getStride();
     MatrixPtr outGradSub =
         Matrix::create(outGradData, groups_[i] * M, N, false, useGpu_);
     for (int g = 0; g < groups_[i]; ++g) {
-      MatrixPtr inMatSub = colBuf_->subMatrix(g * K, K);
+      MatrixPtr inMatSub = colBuf->subMatrix(g * K, K);
       MatrixPtr outG = outGradSub->subMatrix(g * M, M);
       MatrixPtr wGradSub = wGradMat->subMatrix(g * M, M);
       wGradSub->mul(*outG, *(inMatSub->getTranspose()), 1.0, 1.0);
@@ -186,7 +188,8 @@ void Conv3DLayer::bpropData(int i) {
   int M = M_[i];
   int N = N_[i];
   int K = K_[i];
-  Matrix::resizeOrCreate(colBuf_, K * groups_[i], N, false, useGpu_);
+  MatrixPtr colBuf;
+  Matrix::resizeOrCreate(colBuf, K * groups_[i], N, false, useGpu_);
   MatrixPtr wMat = weights_[i]->getW();
   int batchSize = inputLayers_[0]->getOutputValue()->getHeight();
   for (int n = 0; n < batchSize; ++n) {
@@ -199,25 +202,25 @@ void Conv3DLayer::bpropData(int i) {
     for (int g = 0; g < groups_[i]; ++g) {
       MatrixPtr wMatSub = wMat->subMatrix(g * M, M);
       MatrixPtr outG = outGradSub->subMatrix(g * M, M);
-      MatrixPtr inGradMatSub = colBuf_->subMatrix(g * K, K);
+      MatrixPtr inGradMatSub = colBuf->subMatrix(g * K, K);
       inGradMatSub->mul(*(wMatSub->getTranspose()), *outG, 1.0, 0.0);
     }
-    colBuf_->col2Vol(preGradData,
-                     channels_[i],
-                     imgSizeD_[i],
-                     imgSizeH_[i],
-                     imgSizeW_[i],
-                     filterSizeZ_[i],
-                     filterSizeY_[i],
-                     filterSize_[i],
-                     strideZ_[i],
-                     strideY_[i],
-                     stride_[i],
-                     paddingZ_[i],
-                     paddingY_[i],
-                     padding_[i],
-                     1.0,
-                     1.0);
+    colBuf->col2Vol(preGradData,
+                    channels_[i],
+                    imgSizeD_[i],
+                    imgSizeH_[i],
+                    imgSizeW_[i],
+                    filterSizeZ_[i],
+                    filterSizeY_[i],
+                    filterSize_[i],
+                    strideZ_[i],
+                    strideY_[i],
+                    stride_[i],
+                    paddingZ_[i],
+                    paddingY_[i],
+                    padding_[i],
+                    1.0,
+                    1.0);
   }
 }
 
