@@ -55,17 +55,23 @@ function(op_library TARGET)
         set(pybind_flag 1)
     endif()
 
+    # activation_op contains several operators
+    if ("${TARGET}" STREQUAL "activation_op")
+        set(pybind_flag 1)
+        # It's enough to just adding one operator to pybind
+        file(APPEND ${pybind_file} "USE_OP(sigmoid);\n")
+    endif()
+
     if ("${TARGET}" STREQUAL "pool_op")
         set(pybind_flag 1)
         # It's enough to just adding one operator to pybind
         file(APPEND ${pybind_file} "USE_OP(pool2d);\n")
     endif()
 
-    # activation_op contains several operators
-    if ("${TARGET}" STREQUAL "activation_op")
+    if ("${TARGET}" STREQUAL "pool_with_index_op")
         set(pybind_flag 1)
         # It's enough to just adding one operator to pybind
-        file(APPEND ${pybind_file} "USE_OP(sigmoid);\n")
+        file(APPEND ${pybind_file} "USE_OP(maxPool2dWithIndex);\n")
     endif()
 
     # pybind USE_NO_KERNEL_OP
