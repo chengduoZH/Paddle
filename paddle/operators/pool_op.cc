@@ -75,8 +75,11 @@ class PoolOpGrad : public framework::OperatorWithKernel {
   void InferShape(const framework::InferShapeContext &ctx) const override {
     PADDLE_ENFORCE_NOT_NULL(ctx.InputVar("X"),
                             "X(Input) of Pooling should not be null.");
-    PADDLE_ENFORCE_NOT_NULL(ctx.OutputVar("Out"),
+    PADDLE_ENFORCE_NOT_NULL(ctx.InputVar("Out"),
                             "Out(Output) of Pooling should not be null.");
+    PADDLE_ENFORCE_NOT_NULL(
+        ctx.Output<Tensor>(framework::GradVarName("X")),
+        "X@GRAD(Input@GRAD) of Pooling should not be null.");
 
     auto in = ctx.Input<Tensor>("X");
     auto d_in = ctx.Output<Tensor>(framework::GradVarName("X"));
@@ -103,13 +106,13 @@ class Pool2dOpMaker : public framework::OpProtoAndCheckerMaker {
     AddAttr<std::vector<int>>(
         "ksize", "pooling size(height, width) of pooling operator.")
         .AddCustomChecker(GreaterThanChecker_pool({0, 0}));
-    AddAttr<int>(
+    AddAttr<bool>(
         "globalPooling",
         "whether to use the globalPooling."
-        "int constant equal to 0 or 1"
-        "default 0"
-        "If globalPooling = 1, ksize is ignored and need not be specified.")
-        .SetDefault(0);
+        "int constant equal to false or true"
+        "default false"
+        "If globalPooling = true, ksize is ignored and need not be specified.")
+        .SetDefault(false);
     AddAttr<std::vector<int>>("strides",
                               "strides(height, width) of pooling operator."
                               "default {1,1}")
@@ -177,13 +180,13 @@ class Pool3dOpMaker : public framework::OpProtoAndCheckerMaker {
     AddAttr<std::vector<int>>(
         "ksize", "pooling size(depth, height, width) of pooling operator.")
         .AddCustomChecker(GreaterThanChecker_pool({0, 0, 0}));
-    AddAttr<int>(
+    AddAttr<bool>(
         "globalPooling",
         "whether to use the globalPooling."
-        "int constant equal to 0 or 1"
-        "default 0"
-        "If globalPooling = 1, ksize is ignored and need not be specified.")
-        .SetDefault(0);
+        "int constant equal to false or true"
+        "default false"
+        "If globalPooling = true, ksize is ignored and need not be specified.")
+        .SetDefault(false);
     AddAttr<std::vector<int>>(
         "strides",
         "strides(depth, height, width) of pooling operator."

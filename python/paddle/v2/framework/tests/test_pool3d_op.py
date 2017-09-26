@@ -79,7 +79,7 @@ class TestPool3d_Op(OpTest):
             self.check_grad(set(['X']), 'Out', max_relative_error=0.07)
 
     def initTestCase(self):
-        self.global_pool = 0
+        self.global_pool = False
         self.pool_type = "avg"
         self.pool3D_forward_naive = avg_pool3D_forward_naive
         self.shape = [2, 3, 5, 5, 5]
@@ -90,7 +90,7 @@ class TestPool3d_Op(OpTest):
 
 class TestCase1(TestPool3d_Op):
     def initTestCase(self):
-        self.global_pool = 0
+        self.global_pool = False
         self.op_type = "pool3d"
         self.pool_type = "avg"
         self.pool3D_forward_naive = avg_pool3D_forward_naive
@@ -102,7 +102,7 @@ class TestCase1(TestPool3d_Op):
 
 class TestCase2(TestPool3d_Op):
     def initTestCase(self):
-        self.global_pool = 1
+        self.global_pool = True
         self.op_type = "pool3d"
         self.pool_type = "avg"
         self.pool3D_forward_naive = avg_pool3D_forward_naive
@@ -114,7 +114,7 @@ class TestCase2(TestPool3d_Op):
 
 class TestCase3(TestPool3d_Op):
     def initTestCase(self):
-        self.global_pool = 0
+        self.global_pool = False
         self.op_type = "pool3d"
         self.pool_type = "max"
         self.pool3D_forward_naive = max_pool3D_forward_naive
@@ -126,7 +126,7 @@ class TestCase3(TestPool3d_Op):
 
 class TestCase4(TestPool3d_Op):
     def initTestCase(self):
-        self.global_pool = 1
+        self.global_pool = True
         self.op_type = "pool3d"
         self.pool_type = "max"
         self.pool3D_forward_naive = max_pool3D_forward_naive
