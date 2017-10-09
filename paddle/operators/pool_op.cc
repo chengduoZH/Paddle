@@ -17,7 +17,13 @@ limitations under the License. */
 namespace paddle {
 namespace operators {
 
-void PoolOp::InferShape(framework::InferShapeContextBase *ctx) const override {
+inline int OutputSizePool(int input_size, int filter_size, int padding,
+                          int stride) {
+  int output_size = (input_size - filter_size + 2 * padding) / stride + 1;
+  return output_size;
+}
+
+void PoolOp::InferShape(framework::InferShapeContextBase *ctx) const {
   PADDLE_ENFORCE(ctx->HasInput("X"), "X(Input) of Pooling should not be null.");
   PADDLE_ENFORCE(ctx->HasOutput("Out"),
                  "Out(Output) of Pooling should not be null.");
@@ -57,8 +63,7 @@ void PoolOp::InferShape(framework::InferShapeContextBase *ctx) const override {
   ctx->SetOutputDim("Out", framework::make_ddim(output_shape));
 }
 
-void PoolOpGrad::InferShape(
-    framework::InferShapeContextBase *ctx) const override {
+void PoolOpGrad::InferShape(framework::InferShapeContextBase *ctx) const {
   PADDLE_ENFORCE(ctx->HasInput("X"), "X(Input) of Pooling should not be null.");
   PADDLE_ENFORCE(ctx->HasOutput(framework::GradVarName("X")),
                  "Input@Grad of Pooling should not be null.");

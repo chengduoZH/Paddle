@@ -24,11 +24,6 @@ namespace operators {
 
 using Tensor = framework::Tensor;
 
-int OutputSizePool(int input_size, int filter_size, int padding, int stride) {
-  int output_size = (input_size - filter_size + 2 * padding) / stride + 1;
-  return output_size;
-}
-
 class PoolOp : public framework::OperatorWithKernel {
  public:
   using framework::OperatorWithKernel::OperatorWithKernel;
