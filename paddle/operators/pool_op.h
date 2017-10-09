@@ -24,6 +24,39 @@ namespace operators {
 
 using Tensor = framework::Tensor;
 
+int OutputSizePool(int input_size, int filter_size, int padding, int stride) {
+  int output_size = (input_size - filter_size + 2 * padding) / stride + 1;
+  return output_size;
+}
+
+class PoolOp : public framework::OperatorWithKernel {
+ public:
+  using framework::OperatorWithKernel::OperatorWithKernel;
+
+ protected:
+  void InferShape(framework::InferShapeContextBase* ctx) const override;
+};
+
+class PoolOpGrad : public framework::OperatorWithKernel {
+ public:
+  using framework::OperatorWithKernel::OperatorWithKernel;
+
+ protected:
+  void InferShape(framework::InferShapeContextBase* ctx) const override;
+};
+
+class Pool2dOpMaker : public framework::OpProtoAndCheckerMaker {
+ public:
+  Pool2dOpMaker(framework::OpProto* proto,
+                framework::OpAttrChecker* op_checker);
+};
+
+class Pool3dOpMaker : public framework::OpProtoAndCheckerMaker {
+ public:
+  Pool3dOpMaker(framework::OpProto* proto,
+                framework::OpAttrChecker* op_checker);
+};
+
 template <typename Place, typename T>
 class PoolKernel : public framework::OpKernel<T> {
  public:
