@@ -278,9 +278,7 @@ class MaxPool2dGradFunctor<platform::GPUPlace, T> {
 };
 
 template class MaxPool2dGradFunctor<platform::GPUPlace, float>;
-// template class MaxPool2dGradFunctor<platform::GPUPlace, double>; // The
-// 64-bit floating-point version of atomicAdd() is only supported by devices of
-// compute capability 6.x and higher.
+template class MaxPool2dGradFunctor<platform::GPUPlace, double>;
 
 template class Pool2dFunctor<platform::GPUPlace,
                              paddle::operators::math::MaxPool<float>, float>;
@@ -609,9 +607,7 @@ class MaxPool3dGradFunctor<platform::GPUPlace, T> {
 };
 
 template class MaxPool3dGradFunctor<platform::GPUPlace, float>;
-// template class MaxPool3dGradFunctor<platform::GPUPlace, double>;  // The
-// 64-bit floating-point version of atomicAdd() is only supported by devices of
-// compute capability 6.x and higher.
+template class MaxPool3dGradFunctor<platform::GPUPlace, double>;
 
 template class Pool3dFunctor<platform::GPUPlace,
                              paddle::operators::math::MaxPool<float>, float>;
