@@ -84,12 +84,12 @@ class PoolCudnnOpKernel : public framework::OpKernel<T> {
       std::cout << "DataLayout::kNCHW\n" << std::endl;
 
     cudnnTensorDescriptor_t cudnn_input_desc =
-        input_desc.descriptor<T>(layout, Dims2Vector(input->dims()));
-    cudnnTensorDescriptor_t cudnn_output_desc =
-        output_desc.descriptor<T>(layout, Dims2Vector(output->dims()));
+        input_desc.descriptor<T>(DataLayout::kNCHW, Dims2Vector(input->dims()));
+    cudnnTensorDescriptor_t cudnn_output_desc = output_desc.descriptor<T>(
+        DataLayout::kNCHW, Dims2Vector(output->dims()));
 
     cudnnPoolingDescriptor_t cudnn_pool_desc =
-        pool_desc.descriptor(pooling_mode, ksize, paddings, strides);
+        pool_desc.descriptor(PoolingMode::kMaximum, ksize, paddings, strides);
 
     PADDLE_ENFORCE(platform::dynload::cudnnPoolingForward(
         handle, cudnn_pool_desc, &alpha, cudnn_input_desc, input_data, &beta,
@@ -164,19 +164,19 @@ class PoolCudnnGradOpKernel : public framework::OpKernel<T> {
         // TODO(chengduo): Add layout = DataLayout::kNCDHW
       }
 
-      cudnnTensorDescriptor_t cudnn_input_desc =
-          input_desc.descriptor<T>(layout, Dims2Vector(input->dims()));
-      cudnnTensorDescriptor_t cudnn_output_desc =
-          input_desc.descriptor<T>(layout, Dims2Vector(output->dims()));
+      cudnnTensorDescriptor_t cudnn_input_desc = input_desc.descriptor<T>(
+          DataLayout::kNCHW, Dims2Vector(input->dims()));
+      cudnnTensorDescriptor_t cudnn_output_desc = input_desc.descriptor<T>(
+          DataLayout::kNCHW, Dims2Vector(output->dims()));
       cudnnTensorDescriptor_t cudnn_input_grad_desc =
-          input_grad_desc.descriptor<T>(layout,
+          input_grad_desc.descriptor<T>(DataLayout::kNCHW,
                                         Dims2Vector(input_grad->dims()));
       cudnnTensorDescriptor_t cudnn_output_grad_desc =
-          output_grad_desc.descriptor<T>(layout,
+          output_grad_desc.descriptor<T>(DataLayout::kNCHW,
                                          Dims2Vector(output_grad->dims()));
 
       cudnnPoolingDescriptor_t cudnn_pool_desc =
-          pool_desc.descriptor(pooling_mode, ksize, paddings, strides);
+          pool_desc.descriptor(PoolingMode::kMaximum, ksize, paddings, strides);
 
       PADDLE_ENFORCE(platform::dynload::cudnnPoolingBackward(
           handle, cudnn_pool_desc, &alpha, cudnn_output_desc, output_data,
