@@ -77,8 +77,11 @@ class PoolCudnnOpKernel : public framework::OpKernel<T> {
     if (ksize.size() == 2) {
       layout = DataLayout::kNCHW;
     } else {
-      // TODO(chengduo)
+      // TODO(chengduo): Add layout = DataLayout::kNCDHW
     }
+
+    if (layout == DataLayout::kNCHW)
+      std::cout << "DataLayout::kNCHW\n" << std::endl;
 
     cudnnTensorDescriptor_t cudnn_input_desc =
         input_desc.descriptor<T>(layout, Dims2Vector(input->dims()));
@@ -158,7 +161,7 @@ class PoolCudnnGradOpKernel : public framework::OpKernel<T> {
       if (ksize.size() == 2) {
         layout = DataLayout::kNCHW;
       } else {
-        // TODO(chengduo)
+        // TODO(chengduo): Add layout = DataLayout::kNCDHW
       }
 
       cudnnTensorDescriptor_t cudnn_input_desc =
