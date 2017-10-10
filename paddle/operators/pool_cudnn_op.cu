@@ -177,8 +177,8 @@ class PoolCudnnGradOpKernel : public framework::OpKernel<T> {
 
       PADDLE_ENFORCE(platform::dynload::cudnnPoolingBackward(
           handle, cudnn_pool_desc, &alpha, cudnn_output_desc, output_data,
-          cudnn_output_desc, output_grad_data, cudnn_input_desc, input_data,
-          &beta, cudnn_input_grad_desc, input_grad_data));
+          cudnn_output_grad_desc, output_grad_data, cudnn_input_desc,
+          input_data, &beta, cudnn_input_grad_desc, input_grad_data));
 
       switch (ksize.size()) {
         case 2: {
