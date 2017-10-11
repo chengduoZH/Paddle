@@ -65,6 +65,7 @@ class PoolCudnnOpKernel : public framework::OpKernel<T> {
     auto handle = ctx.cuda_device_context().cudnn_handle();
     T alpha = 1.0f, beta = 1.0f;
 
+    /*
     PoolingMode pooling_mode;
     DataLayout layout;
     // In the infershape phase, pooling_type has been limited in {"max" or
@@ -79,14 +80,14 @@ class PoolCudnnOpKernel : public framework::OpKernel<T> {
     } else {
       // TODO(chengduo)
     }
-
+    */
     cudnnTensorDescriptor_t cudnn_input_desc =
-        input_desc.descriptor<T>(layout, Dims2Vector(input->dims()));
-    cudnnTensorDescriptor_t cudnn_output_desc =
-        output_desc.descriptor<T>(layout, Dims2Vector(output->dims()));
+        input_desc.descriptor<T>(DataLayout::kNCHW, Dims2Vector(input->dims()));
+    cudnnTensorDescriptor_t cudnn_output_desc = output_desc.descriptor<T>(
+        DataLayout::kNCHW, Dims2Vector(output->dims()));
 
     cudnnPoolingDescriptor_t cudnn_pool_desc =
-        pool_desc.descriptor(pooling_mode, ksize, paddings, strides);
+        pool_desc.descriptor(PoolingMode::kMaximum, ksize, paddings, strides);
 
     PADDLE_ENFORCE(platform::dynload::cudnnPoolingForward(
         handle, cudnn_pool_desc, &alpha, cudnn_input_desc, input_data, &beta,
@@ -146,6 +147,7 @@ class PoolCudnnGradOpKernel : public framework::OpKernel<T> {
       temp.device(ctx.GetEigenDevice<paddle::platform::GPUPlace>()) =
           temp.constant(static_cast<T>(0));
 
+      /*
       PoolingMode pooling_mode;
       DataLayout layout;
       // In the infershape phase, pooling_type has been limited in {"max" or
@@ -160,20 +162,20 @@ class PoolCudnnGradOpKernel : public framework::OpKernel<T> {
       } else {
         // TODO(chengduo)
       }
-
-      cudnnTensorDescriptor_t cudnn_input_desc =
-          input_desc.descriptor<T>(layout, Dims2Vector(input->dims()));
-      cudnnTensorDescriptor_t cudnn_output_desc =
-          input_desc.descriptor<T>(layout, Dims2Vector(output->dims()));
+      */
+      cudnnTensorDescriptor_t cudnn_input_desc = input_desc.descriptor<T>(
+          DataLayout::kNCHW, Dims2Vector(input->dims()));
+      cudnnTensorDescriptor_t cudnn_output_desc = input_desc.descriptor<T>(
+          DataLayout::kNCHW, Dims2Vector(output->dims()));
       cudnnTensorDescriptor_t cudnn_input_grad_desc =
-          input_grad_desc.descriptor<T>(layout,
+          input_grad_desc.descriptor<T>(DataLayout::kNCHW,
                                         Dims2Vector(input_grad->dims()));
       cudnnTensorDescriptor_t cudnn_output_grad_desc =
-          output_grad_desc.descriptor<T>(layout,
+          output_grad_desc.descriptor<T>(DataLayout::kNCHW,
                                          Dims2Vector(output_grad->dims()));
 
       cudnnPoolingDescriptor_t cudnn_pool_desc =
-          pool_desc.descriptor(pooling_mode, ksize, paddings, strides);
+          pool_desc.descriptor(PoolingMode::kMaximum, ksize, paddings, strides);
 
       PADDLE_ENFORCE(platform::dynload::cudnnPoolingBackward(
           handle, cudnn_pool_desc, &alpha, cudnn_output_desc, output_data,
