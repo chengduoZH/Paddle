@@ -46,19 +46,16 @@ class TestSeqProject(OpTest):
                         sub_w = w[j:pad_size, :]
                         out[lod[i]:lod[i] + pad_size, j * self.input_size[1]:(
                             j + 1) * self.input_size[1]] = sub_w
-                        # pass
                     out_begin = lod[i] + pad_size
                     in_begin = lod[i]
 
                 if in_end > lod[i + 1]:
                     pad_size = np.min(
                         [in_end - lod[i + 1], lod[i + 1] - lod[i]])
-                    out_sub = out[lod[i + 1] - pad_size:lod[i + 1], :]
                     if self.padding_trainable:
                         sub_w = w[j - pad_size:j, :]
                         out[lod[i + 1] - pad_size:lod[i + 1], j * self.
                             input_size[1]:(j + 1) * self.input_size[1]] = sub_w
-                        # pass
                     in_end = lod[i + 1]
                     out_end = lod[i + 1] - pad_size
                 if in_end <= in_begin:
