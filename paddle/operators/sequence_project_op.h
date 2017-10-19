@@ -40,8 +40,9 @@ class SequenceProjectKernel : public framework::OpKernel<T> {
 
     // need discuss, is it necessary to set zeros ?
     // Because if padding_trainable is false, padding data should be zeros.
-    auto t = framework::EigenVector<T>::Flatten(*out);
-    t.device(context.GetEigenDevice<Place>()) = t.constant(static_cast<T>(0));
+    auto temp = framework::EigenVector<T>::Flatten(*out);
+    temp.device(context.GetEigenDevice<Place>()) =
+        temp.constant(static_cast<T>(0));
 
     auto place = context.GetEigenDevice<Place>();
 
@@ -72,26 +73,24 @@ class SequenceProjectKernel : public framework::OpKernel<T> {
 
     int up_pad = std::max(0, -context_start);
     int down_pad = std::max(0, context_start + context_length - 1);
+    int sequence_height, sequence_width;
+    int input_row_begin, input_row_end;
 
     paddle::operators::math::Im2ColFunctor<
         paddle::operators::math::ColFormat::kOCF, Place, float>
         im2col_ocf;
 
     for (int i = 0; i < static_cast<int>(lod_level_0.size()) - 1; ++i) {
-      int row_begin = lod_level_0[i] + context_start;
-      int row_end = lod_level_0[i + 1] + context_start;
+      input_row_begin = (context_start > 0)
+                            ? static_cast<int>(lod_level_0[i]) + context_start
+                            : static_cast<int>(lod_level_0[i]);
+      input_row_end = static_cast<int>(lod_level_0[i + 1]);
 
-      int input_row_begin, input_row_end;
-      int temp = lod_level_0[i];
-      input_row_begin = (row_begin > temp) ? row_begin : lod_level_0[i];
-      input_row_end = lod_level_0[i + 1];
-
-      Tensor in_t = in->Slice<T>(input_row_begin, input_row_end);
       Tensor out_t = out->Slice<T>(static_cast<int>(lod_level_0[i]),
                                    static_cast<int>(lod_level_0[i + 1]));
 
-      int sequence_height = out_t.dims()[0];
-      int sequence_width = in_t.dims()[1];
+      sequence_height = static_cast<int>(out_t.dims()[0]);
+      sequence_width = static_cast<int>(in->dims()[1]);
 
       std::vector<int64_t> output_shape(
           {sequence_height, 1, 1, context_length,
@@ -99,59 +98,58 @@ class SequenceProjectKernel : public framework::OpKernel<T> {
       // input_channels, filter_height, filter_width
       out_t.Resize(framework::make_ddim(output_shape));
 
-      std::vector<int64_t> input_shape(
-          {1, input_row_end - input_row_begin,
-           sequence_width});  // input_channels, input_height, input_width
-      in_t.Resize(framework::make_ddim(input_shape));
+      if (input_row_begin < input_row_end) {
+        Tensor in_t = in->Slice<T>(input_row_begin, input_row_end);
+        std::vector<int64_t> input_shape(
+            {1, input_row_end - input_row_begin,
+             sequence_width});  // input_channels, input_height, input_width
+        in_t.Resize(framework::make_ddim(input_shape));
 
-      im2col_ocf(context.device_context(), in_t, out_t,
-                 /*stride_height*/ context_stride, /*stride_width*/ 0, up_pad,
-                 down_pad);
+        im2col_ocf(context.device_context(), in_t, out_t,
+                   /*stride_height*/ context_stride, /*stride_width*/ 0, up_pad,
+                   down_pad);
+      }
 
       if (padding_trainable) {
         // add up trainable data
         out_t.Resize(framework::make_ddim(
             {sequence_height * context_length, sequence_width}));
 
-        if (row_begin < lod_level_0[i]) {  // add up pad
-          int pad_size =
-              std::min(-context_start,
-                       static_cast<int>(lod_level_0[i + 1] - lod_level_0[i]));
-
-          for (int k = 0; k < pad_size; ++k) {
+        if (up_pad > 0) {  // add up pad
+          //          int pad_size =
+          //              std::min(-context_start,
+          //                       static_cast<int>(lod_level_0[i + 1] -
+          //                       lod_level_0[i]));
+          for (int k = 0; k < up_pad; ++k) {
             Tensor out_t_sub = out_t.Slice<T>(
-                k * context_length, k * context_length + (pad_size - k));
-            Tensor w_sub = padding_data->Slice<T>(k, pad_size);
+                k * context_length, k * context_length + (up_pad - k));
+            Tensor w_sub = padding_data->Slice<T>(k, up_pad);
             // in this block, using EigenVector<T>::Flatten is ok too.
             auto out_t_sub_e = EigenMatrix<T>::From(out_t_sub);
             auto w_sub_e = EigenMatrix<T>::From(w_sub);
             out_t_sub_e.device(place) = w_sub_e;
           }
         }
-        if (row_end > lod_level_0[i + 1]) {  // add down pad
-          int down_pad_begin_row;
-          int padding_rows = 0;
-          if (row_begin <= lod_level_0[i]) {
-            down_pad_begin_row =
-                (sequence_height + up_pad - context_length) / context_stride;
-            padding_rows =
-                context_length - ((sequence_height + up_pad) % context_length);
-          } else {
-            down_pad_begin_row =
-                (sequence_height - context_start - context_length) /
-                context_stride;
+        if (down_pad > 0) {  // add down pad
+          int down_pad_begin_row =
+              std::max(0,
+                       (sequence_height - context_start - context_length) + 1) +
+              1;
+          int padding_size =
+              (sequence_height - context_start - context_length) > 0
+                  ? 1
+                  : context_length - (sequence_height - context_start);
+          int padding_begin = sequence_height > context_start
+                                  ? 0
+                                  : context_start - sequence_height;
 
-            padding_rows = context_length -
-                           ((sequence_height - context_start) % context_length);
-          }
-
-          for (int t = 1; t + down_pad_begin_row < sequence_height; ++t) {
+          for (int t = 0; t + down_pad_begin_row <= sequence_height; ++t) {
             Tensor out_t_sub = out_t.Slice<T>(
-                (down_pad_begin_row + t) * context_length * sequence_width -
-                    (padding_rows - t + 1) * sequence_width,
-                (down_pad_begin_row + t) * context_length * sequence_width);
+                (down_pad_begin_row + t) * context_length - t - padding_size,
+                (down_pad_begin_row + t) * context_length);
             Tensor w_sub = padding_data->Slice<T>(
-                up_pad + 1, up_pad + 1 + padding_rows + t);
+                up_pad + padding_begin,
+                up_pad + padding_begin + t + padding_size);
             auto out_t_sub_e = EigenMatrix<T>::From(out_t_sub);
             auto w_sub_e = EigenMatrix<T>::From(w_sub);
             out_t_sub_e.device(place) = w_sub_e;

@@ -14,9 +14,13 @@ class TestSeqProject(OpTest):
         self.begin_pad = np.max([0, -self.context_start])
         self.end_pad = np.max([0, self.context_start + self.context_length - 1])
         self.total_pad = self.begin_pad + self.end_pad
-        w = np.ones((self.total_pad, self.input_size[1])) * 100
-
-        self.inputs = {'X': (x, self.lod), 'PaddingData': w}
+        # w =  np.ones((self.total_pad, self.input_size[1])) * 100
+        w = np.array(range(self.total_pad * self.input_size[1]))
+        w.shape = self.total_pad, self.input_size[1]
+        self.inputs = {
+            'X': (x, self.lod),
+            'PaddingData': (w, [[0, self.total_pad]])
+        }
         self.attrs = {
             'context_start': self.context_start,
             'context_length': self.context_length,
@@ -30,7 +34,7 @@ class TestSeqProject(OpTest):
 
     def compute(self):
         x, lod = self.inputs['X']
-        w = self.inputs['PaddingData']
+        w, _ = self.inputs['PaddingData']
         out = self.outputs['Out']
         lod = lod[0]
         begin_pad = np.max([0, -self.context_start])
@@ -75,23 +79,29 @@ class TestSeqProject(OpTest):
 
         self.context_start = -1
         self.context_length = 3
-        self.padding_trainable = False
+        self.padding_trainable = True
         self.context_stride = 1
 
     def test_check_output(self):
         self.check_output()
 
     # def test_check_grad(self):
-    #     self.check_grad(["X"], "Out")
-
-    # class TestSeqAvgPool2D(TestSeqProject):
-    #     def init_test_case(self):
-    #         self.input_size = [11, 23]
-    #         self.op_type = "sequence_project"
+    #     self.check_grad(
+    #         set(['X', 'PaddingData']), 'Out', max_relative_error=0.05)
     #
-    #         self.context_start = -1
-    #         self.context_length = 3
-    #         self.padding_trainable = True
+    # def test_check_grad_no_filter(self):
+    #     self.check_grad(
+    #         ['X'],
+    #         'Out',
+    #         max_relative_error=0.05,
+    #         no_grad_set=set(['PaddingData']))
+    #
+    # def test_check_grad_no_input(self):
+    #     self.check_grad(
+    #         ['PaddingData'],
+    #         'Out',
+    #         max_relative_error=0.05,
+    #         no_grad_set=set(['X']))
 
 
 if __name__ == '__main__':

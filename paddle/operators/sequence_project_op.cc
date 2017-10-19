@@ -38,7 +38,7 @@ class SequenceProjectOp : public framework::OperatorWithKernel {
       PADDLE_ENFORCE(
           ctx->HasInput("PaddingData"),
           "Output(PaddingData) of SequenceProjectOp should not be null.");
-      framework::DDim padding_dim = ctx->GetOutputDim("PaddingData");
+      framework::DDim padding_dim = ctx->GetInputDim("PaddingData");
       int up_pad = std::max(0, -context_start);
       int down_pad = std::max(0, context_start + context_length - 1);
       int total_pad = up_pad + down_pad;
@@ -93,8 +93,8 @@ class SequenceProjectOpMaker : public framework::OpProtoAndCheckerMaker {
     AddOutput(
         "Out",
         "A float LoDTensor, the variable-length output of SequenceProjectOp.");
-    AddOutput("PaddingData",
-              "A float LoDTensor, the padding data of SequenceProjectOp.");
+    AddInput("PaddingData",  // PaddingData can be a float tensor
+             "A float LoDTensor, the padding data of SequenceProjectOp.");
 
     AddAttr<bool>("padding_trainable",
                   "(bool, default false) the padding data of SequenceProjectOp "
@@ -110,7 +110,8 @@ class SequenceProjectOpMaker : public framework::OpProtoAndCheckerMaker {
     AddAttr<int>("context_stride",
                  "(int, default 1) the xx of SequenceProjectOp.")
         .SetDefault(1)
-        .GreaterThan(0);
+        .GreaterThan(
+            0);  // Currently, sequence_project_op only support context_stride=1
 
     AddComment(R"DOC(
     SequenceProjectOp projects features of context_length time-steps of each instance.
