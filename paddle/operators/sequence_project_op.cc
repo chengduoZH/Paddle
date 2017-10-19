@@ -44,18 +44,17 @@ class SequenceProjectOp : public framework::OperatorWithKernel {
       int total_pad = up_pad + down_pad;
       int input_width = static_cast<int>(in_dims[1]);
 
+      if (context_start == 0 && context_length == 1) {
+        PADDLE_THROW(
+            "if context_start == 0 && context_length == 1, padding_trainable "
+            "should be false.");
+      }
       PADDLE_ENFORCE(padding_dim.size() == 2,
                      "Input(PaddingData) should be 2-D tensor.");
       PADDLE_ENFORCE(
           padding_dim[0] == total_pad && padding_dim[1] == input_width,
           "Input(PaddingData)'s shape is not consistent with 'context_start' "
           "and 'context_length'.");
-
-      if (context_start == 0 && context_length == 1) {
-        PADDLE_THROW(
-            "if context_start == 0 && context_length == 1, padding_trainable "
-            "should be false.");
-      }
     }
 
     in_dims[1] = in_dims[1] * context_length;

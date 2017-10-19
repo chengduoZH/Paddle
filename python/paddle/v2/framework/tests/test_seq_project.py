@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import random
 from op_test import OpTest
 
 
@@ -59,7 +60,7 @@ class TestSeqProject(OpTest):
                         [in_end - lod[i + 1], lod[i + 1] - lod[i]])
                     if self.padding_trainable:
                         sub_w = w[begin_pad + self.context_start + j - pad_size:
-                                  j, :]
+                                  begin_pad + self.context_start + j, :]
                         out[lod[i + 1] - pad_size:lod[i + 1], j * self.
                             input_size[1]:(j + 1) * self.input_size[1]] = sub_w
                     in_end = lod[i + 1]
@@ -102,6 +103,73 @@ class TestSeqProject(OpTest):
     #         'Out',
     #         max_relative_error=0.05,
     #         no_grad_set=set(['X']))
+
+
+class TestSeqProjectCases(TestSeqProject):
+    def setUp(self):
+        self.init_test_case()
+        self.op_type = 'sequence_project'
+
+        num = 0
+        for context_start in [-5, -3, -1, 0, 3]:
+            for context_length in [1, 2, 5, 7]:
+                for batch_size in [1, 2, 5, 7]:
+                    for padding_trainable in [False, True]:
+
+                        if context_length == 1 and context_start == 0 and padding_trainable:
+                            continue
+
+                        self.context_start = context_start
+                        self.context_length = context_length
+                        self.padding_trainable = padding_trainable
+                        self.input_size = [batch_size, 23]
+                        x = np.random.uniform(0.1, 1,
+                                              self.input_size).astype('float32')
+                        self.lod = [[0, self.input_size[0]]]
+                        if self.input_size[0] > 2:
+                            idx = range(self.input_size[0])
+                            del idx[0]
+                            self.lod = [
+                                [0] + np.sort(random.sample(idx, 2)).tolist() +
+                                [self.input_size[0]]
+                            ]
+
+                        self.begin_pad = np.max([0, -self.context_start])
+                        self.end_pad = np.max(
+                            [0, self.context_start + self.context_length - 1])
+                        self.total_pad = self.begin_pad + self.end_pad
+                        # w =  np.ones((self.total_pad, self.input_size[1])) * 100
+                        w = np.array(range(self.total_pad * self.input_size[1]))
+                        w.shape = self.total_pad, self.input_size[1]
+                        if self.total_pad * self.input_size[1] == 0:
+                            w = np.random.uniform(
+                                0.1, 1,
+                                (1, self.input_size[1])).astype('float32')
+                            self.total_pad = 1
+
+                        self.inputs = {
+                            'X': (x, self.lod),
+                            'PaddingData': (w, [[0, self.total_pad]])
+                        }
+                        self.attrs = {
+                            'context_start': self.context_start,
+                            'context_length': self.context_length,
+                            'padding_trainable': self.padding_trainable,
+                            'context_stride': self.context_stride
+                        }
+                        out = np.zeros((self.input_size[0], self.input_size[1] *
+                                        self.context_length)).astype('float32')
+                        self.outputs = {'Out': out}
+                        print num
+                        print self.attrs
+                        print batch_size
+                        print padding_trainable
+                        print "$$$$$$$$$$$$$"
+
+                        self.compute()
+                        self.test_check_output()
+
+                        num += 1
 
 
 if __name__ == '__main__':
