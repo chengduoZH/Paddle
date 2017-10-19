@@ -81,17 +81,17 @@ class SequenceProjectKernel : public framework::OpKernel<T> {
       int row_begin = lod_level_0[i] + context_start;
       int row_end = lod_level_0[i + 1] + context_start;
 
-      int input_row_bebin, input_row_end;
-      input_row_bebin = row_begin > lod_level_0[i] ? row_begin : 0;
-      input_row_end =
-          row_end > lod_level_0[i + 1] ? lod_level_0[i + 1] : row_end;
+      int input_row_begin, input_row_end;
+      int temp = lod_level_0[i];
+      input_row_begin = (row_begin > temp) ? row_begin : lod_level_0[i];
+      input_row_end = lod_level_0[i + 1];
 
-      Tensor in_t = in->Slice<T>(input_row_bebin, input_row_end);
+      Tensor in_t = in->Slice<T>(input_row_begin, input_row_end);
       Tensor out_t = out->Slice<T>(static_cast<int>(lod_level_0[i]),
                                    static_cast<int>(lod_level_0[i + 1]));
 
       int sequence_height = out_t.dims()[0];
-      int sequence_width = out_t.dims()[1];
+      int sequence_width = in_t.dims()[1];
 
       std::vector<int64_t> output_shape(
           {sequence_height, 1, 1, context_length,
@@ -100,7 +100,7 @@ class SequenceProjectKernel : public framework::OpKernel<T> {
       out_t.Resize(framework::make_ddim(output_shape));
 
       std::vector<int64_t> input_shape(
-          {1, input_row_end - input_row_bebin,
+          {1, input_row_end - input_row_begin,
            sequence_width});  // input_channels, input_height, input_width
       in_t.Resize(framework::make_ddim(input_shape));
 
@@ -114,10 +114,14 @@ class SequenceProjectKernel : public framework::OpKernel<T> {
             {sequence_height * context_length, sequence_width}));
 
         if (row_begin < lod_level_0[i]) {  // add up pad
-          for (int k = 0; k < up_pad; ++k) {
+          int pad_size =
+              std::min(-context_start,
+                       static_cast<int>(lod_level_0[i + 1] - lod_level_0[i]));
+
+          for (int k = 0; k < pad_size; ++k) {
             Tensor out_t_sub = out_t.Slice<T>(
-                k * context_length, k * context_length + (up_pad - k));
-            Tensor w_sub = padding_data->Slice<T>(k, up_pad);
+                k * context_length, k * context_length + (pad_size - k));
+            Tensor w_sub = padding_data->Slice<T>(k, pad_size);
             // in this block, using EigenVector<T>::Flatten is ok too.
             auto out_t_sub_e = EigenMatrix<T>::From(out_t_sub);
             auto w_sub_e = EigenMatrix<T>::From(w_sub);
