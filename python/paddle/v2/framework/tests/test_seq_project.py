@@ -86,10 +86,10 @@ class TestSeqProject(OpTest):
     def test_check_output(self):
         self.check_output()
 
-    # def test_check_grad(self):
-    #     self.check_grad(
-    #         set(['X', 'PaddingData']), 'Out', max_relative_error=0.05)
-    #
+    def test_check_grad(self):
+        self.check_grad(
+            set(['X', 'PaddingData']), 'Out', max_relative_error=0.05)
+
     # def test_check_grad_no_filter(self):
     #     self.check_grad(
     #         ['X'],
@@ -105,6 +105,7 @@ class TestSeqProject(OpTest):
     #         no_grad_set=set(['X']))
 
 
+'''
 class TestSeqProjectCases(TestSeqProject):
     def setUp(self):
         self.init_test_case()
@@ -170,7 +171,7 @@ class TestSeqProjectCases(TestSeqProject):
                         self.test_check_output()
 
                         num += 1
-
+'''
 
 if __name__ == '__main__':
     unittest.main()

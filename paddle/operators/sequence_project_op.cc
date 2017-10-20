@@ -73,9 +73,11 @@ class SequenceProjectGradOp : public framework::OperatorWithKernel {
     PADDLE_ENFORCE(ctx->HasInput("X"), "The input X should not be null.");
 
     if (ctx->Attrs().Get<bool>("padding_trainable")) {
-      PADDLE_ENFORCE(
-          ctx->HasOutput("PaddingData"),
-          "Output(PaddingData) of SequenceProjectOp should not be null.");
+      PADDLE_ENFORCE(ctx->HasOutput(framework::GradVarName("PaddingData")),
+                     "Output(PaddingData@GRAD) of SequenceProjectGradOp should "
+                     "not be null.");
+      auto padding_dims = ctx->GetInputDim("PaddingData");
+      ctx->SetOutputDim(framework::GradVarName("PaddingData"), padding_dims);
     }
     ctx->SetOutputDim(framework::GradVarName("X"), ctx->GetInputDim("X"));
   }
