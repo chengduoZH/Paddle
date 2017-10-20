@@ -136,35 +136,27 @@ class SequenceProjectKernel : public framework::OpKernel<T> {
               std::max(0,
                        (sequence_height - context_start - context_length) + 1) +
               1;
-          //            int64_t pad_size =
-          //                    std::min(context_start + context_length - 1,
-          //                             static_cast<int>(lod_level_0[i + 1] -
-          //                             lod_level_0[i]));
-          int padding_begin = sequence_height > context_start
-                                  ? 0
-                                  : context_start - sequence_height;
-          int padding_size;
-          if (sequence_height - context_start >= context_length)
-            padding_size = 1;
-          else
-            padding_size = context_length - (sequence_height - context_start);
+          int padding_begin = std::max(0, context_start - sequence_height);
+          int padding_size =
+              sequence_height - context_start >= context_length
+                  ? 1
+                  : context_length - (sequence_height - context_start);
           if (context_start >= sequence_height) padding_size = context_length;
-          int temp = padding_size;
-          int temp2 = padding_begin;
-          for (int t = 0; t + down_pad_begin_row <= sequence_height; ++t) {
-            padding_size = temp + t;
+          int padding_idx = padding_begin;
+          for (int t = 0; t + down_pad_begin_row <= sequence_height;
+               ++t, ++padding_size) {
             if (context_start >= sequence_height) padding_size = context_length;
             if (padding_size > context_length) {
               padding_size = context_length;
-              padding_begin++;
+              padding_idx++;
             }
-            if (temp2 > 0 || sequence_height == context_start)
-              padding_begin = temp2 + t;
+            if (padding_begin > 0 || sequence_height == context_start)
+              padding_idx = padding_begin + t;
             Tensor out_t_sub = out_t.Slice<T>(
                 (down_pad_begin_row + t) * context_length - padding_size,
                 (down_pad_begin_row + t) * context_length);
             Tensor w_sub = padding_data->Slice<T>(
-                up_pad + padding_begin, up_pad + padding_begin + padding_size);
+                up_pad + padding_idx, up_pad + padding_idx + padding_size);
             auto out_t_sub_e = EigenMatrix<T>::From(out_t_sub);
             auto w_sub_e = EigenMatrix<T>::From(w_sub);
             out_t_sub_e.device(place) = w_sub_e;
