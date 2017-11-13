@@ -81,171 +81,115 @@ class TestPool3d_Op(OpTest):
             self.check_grad(set(['X']), 'Out', max_relative_error=0.07)
 
     def init_test_case(self):
-        self.global_pool = True
-        self.op_type = "pool3d"
-        self.pool_type = "avg"
-        self.pool3D_forward_naive = avg_pool3D_forward_naive
         self.shape = [2, 3, 5, 5, 5]
         self.ksize = [3, 3, 3]
         self.strides = [1, 1, 1]
         self.paddings = [0, 0, 0]
+
+    def init_op_type(self):
+        self.op_type = "pool3d"
+
+    def init_pool_type(self):
+        self.pool_type = "avg"
+        self.pool3D_forward_naive = avg_pool3D_forward_naive
+
+    def init_global_pool(self):
+        self.global_pool = True
 
 
 class TestCase1(TestPool3d_Op):
     def init_test_case(self):
-        self.global_pool = False
         self.op_type = "pool3d"
-        self.pool_type = "avg"
-        self.pool3D_forward_naive = avg_pool3D_forward_naive
         self.shape = [2, 3, 7, 7, 7]
         self.ksize = [3, 3, 3]
         self.strides = [1, 1, 1]
         self.paddings = [0, 0, 0]
+
+    def init_op_type(self):
+        self.op_type = "pool3d"
+
+    def init_pool_type(self):
+        self.pool_type = "avg"
+        self.pool3D_forward_naive = avg_pool3D_forward_naive
+
+    def init_global_pool(self):
+        self.global_pool = False
 
 
 class TestCase2(TestPool3d_Op):
     def init_test_case(self):
-        self.global_pool = False
-        self.op_type = "pool3d"
-        self.pool_type = "avg"
-        self.pool3D_forward_naive = avg_pool3D_forward_naive
         self.shape = [2, 3, 7, 7, 7]
         self.ksize = [3, 3, 3]
         self.strides = [1, 1, 1]
         self.paddings = [1, 1, 1]
+
+    def init_op_type(self):
+        self.op_type = "pool3d"
+
+    def init_pool_type(self):
+        self.pool_type = "avg"
+        self.pool3D_forward_naive = avg_pool3D_forward_naive
+
+    def init_global_pool(self):
+        self.global_pool = False
 
 
 class TestCase3(TestPool3d_Op):
-    def init_test_case(self):
-        self.global_pool = True
+    def init_op_type(self):
         self.op_type = "pool3d"
+
+    def init_pool_type(self):
         self.pool_type = "max"
         self.pool3D_forward_naive = max_pool3D_forward_naive
-        self.shape = [2, 3, 5, 5, 5]
-        self.ksize = [3, 3, 3]
-        self.strides = [1, 1, 1]
-        self.paddings = [0, 0, 0]
 
 
-class TestCase4(TestPool3d_Op):
-    def init_test_case(self):
-        self.global_pool = False
+class TestCase4(TestCase1):
+    def init_op_type(self):
         self.op_type = "pool3d"
+
+    def init_pool_type(self):
         self.pool_type = "max"
         self.pool3D_forward_naive = max_pool3D_forward_naive
-        self.shape = [2, 3, 7, 7, 7]
-        self.ksize = [3, 3, 3]
-        self.strides = [1, 1, 1]
-        self.paddings = [0, 0, 0]
 
 
-class TestCase5(TestPool3d_Op):
-    def init_test_case(self):
-        self.global_pool = False
+class TestCase5(TestCase2):
+    def init_op_type(self):
         self.op_type = "pool3d"
+
+    def init_pool_type(self):
         self.pool_type = "max"
         self.pool3D_forward_naive = max_pool3D_forward_naive
-        self.shape = [2, 3, 7, 7, 7]
-        self.ksize = [3, 3, 3]
-        self.strides = [1, 1, 1]
-        self.paddings = [1, 1, 1]
 
 
-#--------------------test pool2d_cudnn--------------------
-class TestCaseCudnn1(TestPool3d_Op):
-    def init_test_case(self):
-        self.global_pool = True
-        self.pool2D_forward_naive = avg_pool3D_forward_naive
-        self.shape = [2, 3, 5, 5]
-        self.ksize = [3, 3]
-        self.strides = [1, 1]
-        self.paddings = [0, 0]
-
+#--------------------test pool3d_cudnn--------------------
+class TestCudnnCase1(TestPool3d_Op):
     def init_op_type(self):
-        self.op_type = "pool2d_cudnn"
-
-    def init_pool_type(self):
-        self.pool_type = "avg"
+        self.op_type = "pool3d_cudnn"
 
 
-class TestCaseCudnn2(TestPool3d_Op):
-    def init_test_case(self):
-        self.global_pool = False
-        self.pool2D_forward_naive = avg_pool3D_forward_naive
-        self.shape = [2, 3, 7, 7]
-        self.ksize = [3, 3]
-        self.strides = [1, 1]
-        self.paddings = [0, 0]
-
+class TestCudnnCase2(TestCase1):
     def init_op_type(self):
-        self.op_type = "pool2d_cudnn"
-
-    def init_pool_type(self):
-        self.pool_type = "avg"
+        self.op_type = "pool3d_cudnn"
 
 
-class TestCaseCudnn3(TestPool3d_Op):
-    def init_test_case(self):
-        self.global_pool = False
-        self.pool2D_forward_naive = avg_pool3D_forward_naive
-        self.shape = [2, 3, 7, 7]
-        self.ksize = [3, 3]
-        self.strides = [1, 1]
-        self.paddings = [1, 1]
-
+class TestCudnnCase3(TestCase2):
     def init_op_type(self):
-        self.op_type = "pool2d_cudnn"
-
-    def init_pool_type(self):
-        self.pool_type = "avg"
+        self.op_type = "pool3d_cudnn"
 
 
-class TestCaseCudnn4(TestPool3d_Op):
-    def init_test_case(self):
-        self.global_pool = True
-        self.pool2D_forward_naive = max_pool3D_forward_naive
-        self.shape = [2, 3, 5, 5]
-        self.ksize = [3, 3]
-        self.strides = [1, 1]
-        self.paddings = [0, 0]
-
+class TestCudnnCase4(TestCase3):
     def init_op_type(self):
-        self.op_type = "pool2d_cudnn"
-
-    def init_pool_type(self):
-        self.pool_type = "max"
+        self.op_type = "pool3d_cudnn"
 
 
-class TestCaseCudnn5(TestPool3d_Op):
-    def init_test_case(self):
-        self.global_pool = False
-        self.pool2D_forward_naive = max_pool3D_forward_naive
-        self.shape = [2, 3, 7, 7]
-        self.ksize = [3, 3]
-        self.strides = [1, 1]
-        self.paddings = [0, 0]
-
+class TestCudnnCase5(TestCase4):
     def init_op_type(self):
-        self.op_type = "pool2d_cudnn"
-
-    def init_pool_type(self):
-        self.pool_type = "max"
+        self.op_type = "pool3d_cudnn"
 
 
-class TestCaseCudnn6(TestPool3d_Op):
-    def init_test_case(self):
-        self.global_pool = False
-        self.pool2D_forward_naive = max_pool3D_forward_naive
-        self.shape = [2, 3, 7, 7]
-        self.ksize = [3, 3]
-        self.strides = [1, 1]
-        self.paddings = [1, 1]
-
+class TestCudnnCase6(TestCase5):
     def init_op_type(self):
-        self.op_type = "pool2d_cudnn"
-
-    def init_pool_type(self):
-        self.pool_type = "max"
+        self.op_type = "pool3d_cudnn"
 
 
 if __name__ == '__main__':
