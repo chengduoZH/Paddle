@@ -47,6 +47,7 @@ def avg_pool2D_forward_naive(x, ksize, strides, paddings, global_pool=0):
 class TestPool2d_Op(OpTest):
     def setUp(self):
         self.init_test_case()
+        self.init_global_pool()
         self.init_op_type()
         self.init_pool_type()
         if self.global_pool:
