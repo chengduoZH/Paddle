@@ -37,7 +37,7 @@ conv = nn.conv2d(
     2,
     None, [3, 3],
     None,
-    1, [1, 1], [0, 0],
+    1L, [1, 1], [0, 0],
     False,
     main_program=main_program,
     startup_program=startup_program)
