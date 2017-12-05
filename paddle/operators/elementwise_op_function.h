@@ -200,6 +200,59 @@ struct TransformFunctor {
   Functor func_;
 };
 
+template <typename T>
+struct AddFunctor {
+  HOSTDEVICE T operator()(T a, T b) const { return a + b; }
+};
+template <typename T>
+struct MulFunctor {
+  HOSTDEVICE T operator()(T a, T b) const { return a * b; }
+};
+template <typename T>
+struct DivFunctor {
+  HOSTDEVICE T operator()(T a, T b) const { return a / b; }
+};
+template <typename T>
+struct SubFunctor {
+  HOSTDEVICE T operator()(T a, T b) const { return a - b; }
+};
+
+template <class Functor, typename Place, typename T>
+void ElementwiseWithInteratorCompute(const framework::ExecutionContext& ctx) {
+  using Tensor = framework::Tensor;
+
+  auto* x = ctx.Input<Tensor>("X");
+  auto* y = ctx.Input<Tensor>("Y");
+  auto* z = ctx.Output<Tensor>("Out");
+  z->mutable_data<T>(ctx.GetPlace());
+  TransformFunctor<Functor<T>, T, Place> functor(x, y, z, ctx, Functor<T>());
+
+  auto x_dims = x->dims();
+  auto y_dims = y->dims();
+  PADDLE_ENFORCE_GE(x_dims.size(), y_dims.size(),
+                    "Rank of first input must >= rank of second input.");
+
+  if (x_dims == y_dims) {
+    functor.Run();
+    return;
+  }
+
+  int axis = ctx.Attr<int>("axis");
+  axis = (axis == -1 ? x_dims.size() - y_dims.size() : axis);
+  PADDLE_ENFORCE(axis >= 0 && axis < x_dims.size(),
+                 "Axis should be in range [0, x_dims)");
+
+  int pre, n, post;
+  get_mid_dims(x_dims, y_dims, axis, pre, n, post);
+  if (post == 1) {
+    functor.RunRowWise(n, pre);
+    return;
+  } else {
+    functor.RunMidWise(n, pre, post);
+    return;
+  }
+}
+
 #define EIGEN_FUNCTOR(name, eigen_op)                                          \
   struct Eigen##name##Functor {                                                \
     template <typename Place, typename T>                                      \

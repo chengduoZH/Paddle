@@ -23,7 +23,7 @@ template <typename Place, typename T>
 class ElementwiseDivKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& ctx) const override {
-    ElementwiseCompute<EigenDivFunctor, Place, T>(ctx);
+    ElementwiseWithInteratorCompute<DivFunctor, Place, T>(ctx);
   }
 };
 

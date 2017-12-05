@@ -22,7 +22,7 @@ template <typename Place, typename T>
 class ElementwiseSubKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& ctx) const override {
-    ElementwiseCompute<EigenSubFunctor, Place, T>(ctx);
+    ElementwiseWithInteratorCompute<SubFunctor, Place, T>(ctx);
   }
 };
 

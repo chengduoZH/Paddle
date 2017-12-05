@@ -22,7 +22,7 @@ template <typename Place, typename T>
 class ElementwiseMulKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& ctx) const override {
-    ElementwiseCompute<EigenMulFunctor, Place, T>(ctx);
+    ElementwiseWithInteratorCompute<MulFunctor, Place, T>(ctx);
   }
 };
 
