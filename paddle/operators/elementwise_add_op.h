@@ -103,16 +103,17 @@ struct ElementwiseAddBroadCastGradFunctor {
   template <typename Device, typename X, typename Y, typename Z, typename dX,
             typename dY, typename dZ, typename Pre, typename N>
   void operator()(Device d, X x, Y y, Z z, dX dx, dY dy, dZ dz, Pre pre, N n) {
-    auto dz_e = framework::EigenVector<T>::Flatten(*dz);
+    auto dz_e =
+        framework::EigenMatrix<T>::From(*dz, framework::make_ddim({pre, n}));
     if (dx) {
-      auto dx_e = framework::EigenVector<T>::Flatten(*dx);
+      auto dx_e = framework::EigenMatrix<T>::From(*dx);
       dx_e.device(d) = dz_e;
     }
 
     if (dy) {
-      auto dy_e = framework::EigenVector<T>::Flatten(*dy);
-      dy_e.device(d) = dz_e.reshape(Eigen::DSizes<int, 2>(pre, n))
-                           .sum(Eigen::array<int, 1>{{0}});
+      auto dy_e =
+          framework::EigenMatrix<T>::From(*dy, framework::make_ddim({n}));
+      dy_e.device(d) = dz_e.sum(Eigen::array<int, 1>{{0}});
     }
   }
 };
@@ -123,16 +124,18 @@ struct ElementwiseAddBroadCast2GradFunctor {
             typename dY, typename dZ, typename Pre, typename N, typename Post>
   void operator()(Device d, X x, Y y, Z z, dX dx, dY dy, dZ dz, Pre pre, N n,
                   Post post) {
-    auto dz_e = framework::EigenVector<T>::Flatten(*dz);
+    auto dz_e = framework::EigenMatrix<T>::From(
+        *dz, framework::make_ddim({pre, n, post}));
     if (dx) {
-      auto dx_e = framework::EigenVector<T>::Flatten(*dx);
+      auto dx_e = framework::EigenMatrix<T>::From(
+          *dx, framework::make_ddim({pre, n, post}));
       dx_e.device(d) = dz_e;
     }
 
     if (dy) {
-      auto dy_e = framework::EigenVector<T>::Flatten(*dy);
-      dy_e.device(d) = dz_e.reshape(Eigen::DSizes<int, 3>(pre, n, post))
-                           .sum(Eigen::array<int, 2>{{0, 2}});
+      auto dy_e =
+          framework::EigenMatrix<T>::From(*dy, framework::make_ddim({n}));
+      dy_e.device(d) = dz_e.sum(Eigen::array<int, 2>{{0, 2}});
     }
   }
 };

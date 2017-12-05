@@ -70,8 +70,7 @@ class RowwiseTransformIterator<T, platform::CPUPlace> {
   RowwiseTransformIterator(const T* ptr, int n) : ptr_(ptr), i_(0), n_(n) {}
 
   RowwiseTransformIterator<T, platform::CPUPlace>& operator++() {
-    ++i_;
-    i_ %= n_;
+    i_ = (i_ + 1) % n_;
     return *this;
   }
 
