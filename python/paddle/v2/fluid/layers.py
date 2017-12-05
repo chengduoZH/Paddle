@@ -10,7 +10,7 @@ from param_attr import ParamAttr
 __all__ = [
     'fc', 'data', 'cross_entropy', 'conv2d', 'pool2d', 'embedding', 'concat',
     'StaticRNN', 'cast', 'sequence_conv', 'sequence_pool', 'sums', 'cos_sim',
-    'batch_norm', 'accuracy', 'split_lod_tensor'
+    'batch_norm', 'accuracy', 'split_lod_tensor', 'While'
 ]
 
 
@@ -31,11 +31,9 @@ def fc(input,
        size: The size of the layer
        num_flatten_dims: Number of columns in input
        param_attr: The parameters/weights to the FC Layer
-       param_initializer: Initializer used for the weight/parameter.
-       If None, XavierInitializer() is used
+       param_initializer: Initializer used for the weight/parameter. If None, XavierInitializer() is used
        bias_attr: The bias parameter for the FC layer
-       bias_initializer: Initializer used for the bias.
-       If None, then ConstantInitializer() is used
+       bias_initializer: Initializer used for the bias. If None, then ConstantInitializer() is used
        act: Activation to be applied to the output of FC layer
        name: Name/alias of the function
        main_program: Name of the main program that calls this
@@ -1441,7 +1439,7 @@ def increment(x, value=1.0, in_place=True, main_program=None):
         type='increment',
         inputs={'X': [x]},
         outputs={'Out': [out]},
-        attrs={'step': value})
+        attrs={'step': float(value)})
     return out
 
 
