@@ -104,6 +104,10 @@ void Executor::Run(const ProgramDescBind& pdesc, Scope* scope, int block_id,
     REGISTER_TIMER("CreateLocalScopeTimer");
     local_scope = &scope->NewScope();
     for (auto& var : block.AllVars()) {
+      if (var->Name() == framework::kEmptyVarName) {
+        continue;
+      }
+
       if (var->Persistable()) {
         auto* ptr = scope->Var(var->Name());
         CreateTensor(ptr, var->GetType());

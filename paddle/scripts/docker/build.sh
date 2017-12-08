@@ -175,7 +175,7 @@ EOF
     # run paddle version to install python packages first
     RUN apt-get update &&\
         ${NCCL_DEPS}\
-        apt-get install -y wget python-pip && pip install -U pip && \
+        apt-get install -y wget python-pip dmidecode && pip install -U pip && \
         pip install /*.whl; apt-get install -f -y && \
         apt-get clean -y && \
         rm -f /*.whl && \
@@ -185,7 +185,14 @@ EOF
     ${DOCKERFILE_GPU_ENV}
     ADD go/cmd/pserver/pserver /usr/bin/
     ADD go/cmd/master/master /usr/bin/
-    ADD paddle/pybind/print_operators_doc /usr/bin/
+EOF
+
+    if [[ ${WITH_DOC:-OFF} == 'ON' ]]; then
+        cat >> /paddle/build/Dockerfile <<EOF
+        ADD paddle/pybind/print_operators_doc /usr/bin/
+EOF
+    fi
+    cat >> /paddle/build/Dockerfile <<EOF
     # default command shows the paddle version and exit
     CMD ["paddle", "version"]
 EOF
