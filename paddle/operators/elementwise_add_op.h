@@ -24,6 +24,35 @@ struct AddFunctor {
   inline HOSTDEVICE T operator()(T a, T b) const { return a + b; }
 };
 
+template <typename T>
+void Add_same(T* x, T* y, int64_t num) {
+  for (int64_t i = 0; i < num; ++i) {
+    x[i] += y[i];
+  }
+}
+
+template <typename T>
+void Add_RowWise(T* x, T* y, int64_t x_num, int64_t y_num) {
+  for (int64_t i = 0, j = 0; i < x_num; ++i, ++j) {
+    if (UNLIKELY(j == y_num)) {
+      j = 0;
+    }
+    x[i] += y[j];
+  }
+}
+
+template <typename T>
+void Add_MidWise(T* x, T* y, int64_t x_num, int64_t y_num, int64_t post) {
+  for (int64_t i = 0, j = 0, y_i = 0; i < x_num; ++i, ++j) {
+    y_i = j / post;
+    if (UNLIKELY(y_i == y_num)) {
+      j = 0;
+      y_i = 0;
+    }
+    x[i] += y[y_i];
+  }
+}
+
 template <typename DeviceContext, typename T>
 class ElementwiseAddKernel : public framework::OpKernel<T> {
  public:
@@ -43,7 +72,8 @@ class ElementwiseAddKernel : public framework::OpKernel<T> {
                       "Rank of first input must >= rank of second input.");
 
     if (x_dims == y_dims) {
-      functor.Run();
+      //      functor.Run();
+      Add_same(x->data<T>(), y->data<T>(), paddle::framework::product(x_dims));
       return;
     }
 
@@ -55,10 +85,14 @@ class ElementwiseAddKernel : public framework::OpKernel<T> {
     int pre, n, post;
     get_mid_dims(x_dims, y_dims, axis, pre, n, post);
     if (post == 1) {
-      functor.RunRowWise(n, pre);
+      Add_RowWise(x->data<T>(), y->data<T>(),
+                  paddle::framework::product(x_dims), n);
+      //      functor.RunRowWise(n, pre);
       return;
     } else {
-      functor.RunMidWise(n, pre, post);
+      Add_MidWise(x->data<T>(), y->data<T>(),
+                  paddle::framework::product(x_dims), n, post);
+      //      functor.RunMidWise(n, pre, post);
       return;
     }
   }
