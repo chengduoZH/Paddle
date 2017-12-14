@@ -25,14 +25,14 @@ struct AddFunctor {
 };
 
 template <typename T>
-void Add_same(T* z, T* x, T* y, int64_t num) {
+void Add_same(T* z, const T* x, const T* y, int64_t num) {
   for (int64_t i = 0; i < num; ++i) {
     z[i] = x[i] + y[i];
   }
 }
 
 template <typename T>
-void Add_RowWise(T* z, T* x, T* y, int64_t x_num, int64_t y_num) {
+void Add_RowWise(T* z, const T* x, const T* y, int64_t x_num, int64_t y_num) {
   for (int64_t i = 0, j = 0; i < x_num; ++i, ++j) {
     if (UNLIKELY(j == y_num)) {
       j = 0;
@@ -42,7 +42,8 @@ void Add_RowWise(T* z, T* x, T* y, int64_t x_num, int64_t y_num) {
 }
 
 template <typename T>
-void Add_MidWise(T* z, T* x, T* y, int64_t x_num, int64_t y_num, int64_t post) {
+void Add_MidWise(T* z, const T* x, const T* y, int64_t x_num, int64_t y_num,
+                 int64_t post) {
   for (int64_t i = 0, j = 0, y_i = 0; i < x_num; ++i, ++j) {
     y_i = j / post;
     if (UNLIKELY(y_i == y_num)) {
