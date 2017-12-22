@@ -180,13 +180,19 @@ class BatchNormKernel<platform::CPUDeviceContext, T>
       switch (tensor_format) {
         case TensorFormat::NCHW: {
           ConstEigenArrayMap<T> x_arr(x->data<T>(), sample_size, N * C);
-          for (int nc = 0; nc < N * C; ++nc) {
-            saved_mean_e(nc % C) += x_arr.col(nc).sum();
+          for (int nc = 0, c = 0; nc < N * C; ++nc, ++c) {
+            if (UNLIKELY(c == C)) {
+              c = 0;
+            }
+            saved_mean_e(c) += x_arr.col(nc).sum();
           }
           saved_mean_e /= N * sample_size;
-          for (int nc = 0; nc < N * C; ++nc) {
-            saved_variance_e(nc % C) +=
-                (x_arr.col(nc) - saved_mean_e(nc % C)).matrix().squaredNorm();
+          for (int nc = 0, c = 0; nc < N * C; ++nc, ++c) {
+            if (UNLIKELY(c == C)) {
+              c = 0;
+            }
+            saved_variance_e(c) +=
+                (x_arr.col(nc) - saved_mean_e(c)).matrix().squaredNorm();
           }
           saved_variance_e /= N * sample_size;
           break;
@@ -252,8 +258,11 @@ class BatchNormKernel<platform::CPUDeviceContext, T>
         EigenArrayMap<T> y_arr(y->mutable_data<T>(ctx.GetPlace()), sample_size,
                                N * C);
         ConstEigenArrayMap<T> x_arr(x->data<T>(), sample_size, N * C);
-        for (int nc = 0; nc < N * C; ++nc) {
-          y_arr.col(nc) = x_arr.col(nc) * new_scale(nc % C) + new_bias(nc % C);
+        for (int nc = 0, c = 0; nc < N * C; ++nc, ++c) {
+          if (UNLIKELY(c == C)) {
+            c = 0;
+          }
+          y_arr.col(nc) = x_arr.col(nc) * new_scale(c) + new_bias(c);
         }
         break;
       }
@@ -384,15 +393,21 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
                                  sample_size, N * C);
         d_x_arr.setZero();
 
-        for (int nc = 0; nc < N * C; ++nc) {
-          int c = nc % C;
+        int len = N * C;
+
+        for (int nc = 0, c = 0; nc < len; ++nc, ++c) {
+          if (UNLIKELY(c == C)) {
+            c = 0;
+          }
           d_bias_arr(c) += d_y_arr.col(nc).sum();
           d_scale_arr(c) +=
               ((x_arr.col(nc) - mean_arr(c)) * inv_var_arr(c) * d_y_arr.col(nc))
                   .sum();
         }
-        for (int nc = 0; nc < N * C; ++nc) {
-          int c = nc % C;
+        for (int nc = 0, c = 0; nc < len; ++nc, ++c) {
+          if (UNLIKELY(c == C)) {
+            c = 0;
+          }
           d_x_arr.col(nc) +=
               scale_inv_var_nhw(c) *
               (d_y_arr.col(nc) * N * sample_size - d_bias_arr(c) -
