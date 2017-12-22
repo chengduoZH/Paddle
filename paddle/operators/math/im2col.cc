@@ -61,10 +61,8 @@ class Im2ColFunctor<paddle::operators::math::ColFormat::kCFO,
                       "Output_height and padding(padding_up, padding_down) are "
                       "inconsistent.");
 
-    const int output_h = col_height;  // (height + 2 * pad_h -
-    // (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
-    const int output_w = col_width;  //(width + 2 * pad_w -
-    //(dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+    const int output_h = col_height;
+    const int output_w = col_width;
     const int channel_size = im_height * im_width;
 
     const T* data_im = im.data<T>();
