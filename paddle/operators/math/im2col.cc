@@ -18,6 +18,10 @@ namespace paddle {
 namespace operators {
 namespace math {
 
+inline bool is_a_ge_zero_and_a_lt_b(int a, int b) {
+  return static_cast<unsigned>(a) < static_cast<unsigned>(b);
+}
+
 /*
  * im = [input_channels, input_height, input_width]
  * col =
@@ -57,25 +61,37 @@ class Im2ColFunctor<paddle::operators::math::ColFormat::kCFO,
                       "Output_height and padding(padding_up, padding_down) are "
                       "inconsistent.");
 
-    int channels_col = im_channels * filter_height * filter_width;
+    const int output_h = col_height;  // (height + 2 * pad_h -
+    // (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
+    const int output_w = col_width;  //(width + 2 * pad_w -
+    //(dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+    const int channel_size = im_height * im_width;
 
-    const T* im_data = im.data<T>();
-    T* col_data = col->data<T>();
-    for (int c = 0; c < channels_col; ++c) {
-      int w_offset = c % filter_width;
-      int h_offset = (c / filter_width) % filter_height;
-      int c_im = c / (filter_width * filter_height);
-      for (int h = 0; h < col_height; ++h) {
-        int im_row_idx = h * stride[0] - padding[0] + h_offset * dilation[0];
-        for (int w = 0; w < col_width; ++w) {
-          int im_col_idx = w * stride[1] - padding[1] + w_offset * dilation[1];
-          int col_idx = (c * col_height + h) * col_width + w;
-          int im_idx = (im_row_idx + c_im * im_height) * im_width + im_col_idx;
+    const T* data_im = im.data<T>();
+    T* data_col = col->data<T>();
 
-          col_data[col_idx] = (im_row_idx < 0 || im_row_idx >= im_height ||
-                               im_col_idx < 0 || im_col_idx >= im_width)
-                                  ? static_cast<T>(0)
-                                  : im_data[im_idx];
+    for (int channel = im_channels; channel--; data_im += channel_size) {
+      for (int kernel_row = 0; kernel_row < filter_height; kernel_row++) {
+        for (int kernel_col = 0; kernel_col < filter_width; kernel_col++) {
+          int input_row = -padding[0] + kernel_row * dilation[0];
+          for (int output_rows = output_h; output_rows; output_rows--) {
+            if (!is_a_ge_zero_and_a_lt_b(input_row, im_height)) {
+              for (int output_cols = output_w; output_cols; output_cols--) {
+                *(data_col++) = 0;
+              }
+            } else {
+              int input_col = -padding[1] + kernel_col * dilation[1];
+              for (int output_col = output_w; output_col; output_col--) {
+                if (is_a_ge_zero_and_a_lt_b(input_col, im_width)) {
+                  *(data_col++) = data_im[input_row * im_width + input_col];
+                } else {
+                  *(data_col++) = 0;
+                }
+                input_col += stride[1];
+              }
+            }
+            input_row += stride[0];
+          }
         }
       }
     }
