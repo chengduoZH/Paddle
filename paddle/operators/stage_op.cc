@@ -26,54 +26,51 @@ class StageOp : public framework::OperatorBase {
       : OperatorBase(type, inputs, outputs, attrs) {}
   void Run(const framework::Scope &scope,
            const platform::Place &place) const override {
-    //    auto feed_var_name = Input("X");
-    //    auto *feed_var = scope.FindVar(feed_var_name);
-    //
-    //    PADDLE_ENFORCE(feed_var != nullptr,
-    //                   "Cannot find feed_var in scope, feed_var_name is %s",
-    //                   feed_var_name);
-    //
-    //    auto out_name = this->Output("Out");
-    //    auto *out_var = scope.FindVar(out_name);
-    //    PADDLE_ENFORCE(out_var != nullptr,
-    //                   "Cannot find out_var in scope, out_var_name is %s",
-    //                   out_name);
-    //
-    //    auto col = Attr<int>("col");
-    //
-    //    VLOG(3) << "Feed Var " << feed_var_name << "'s " << col << " column to
-    //    var "
-    //            << out_name;
-    //
-    //    auto &feed_list = feed_var->Get<framework::FeedFetchList>();
-    //    auto &feed_item = feed_list.at(static_cast<size_t>(col));
-    //    auto *out_item = out_var->GetMutable<framework::FeedFetchType>();
-    //
-    //    // get device context from pool
-    //    platform::DeviceContextPool &pool =
-    //    platform::DeviceContextPool::Instance();
-    //    auto &dev_ctx = *pool.Get(place);
-    //
-    //    framework::CopyFrom(feed_item, place, dev_ctx, out_item);
-    //    out_item->set_lod(feed_item.lod());
-  }
-};
+    auto input_var_names = Inputs("Input");
+    auto buffer_capacity = Attr<int>("buffer_capacity");
+    auto buffer_bytes_limit = Attr<int>("buffer_bytes_limit");
 
-class StageOpInfoMaker : public framework::OpProtoAndCheckerMaker {
- public:
-  StageOpInfoMaker(OpProto *proto, OpAttrChecker *op_checker)
-      : OpProtoAndCheckerMaker(proto, op_checker) {
-    //    AddInput("X", "The input of feed op");
-    //    AddOutput("Out", "The output of feed op");
-    //    AddAttr<int>("col", "(int) The column of feed");
-    //    AddComment(R"DOC(
-    // Feed Operator.
-    //
-    // It should not be configured by users directly.
-    //
-    //)DOC");
-  }
-};
+    detail::BufferElement buffer_element;
+    for (auto var_name : input_var_names) {  // the input Vars maybe nullptr in
+                                             // the end of one pass.
+      auto *input_var = scope.FindVar(var_name);
+      PADDLE_ENFORCE(input_var != nullptr,
+                     "Cannot find feed_var in scope, feed_var_name is %s",
+                     feed_var_name);
+      buffer_element.push_back(input_var);
+
+      detail::Buffer *buffer;
+      paddle::operators::detail::GetBuffer(place, buffer_capacity,
+                                           buffer_bytes_limit, buffer);
+      // if the requirement of overlapping data transfer and kernel operation is
+      // true, we should copy data to pinned memory.
+      // and then copy the pinned memory to cuda memory in another stream.
+
+      buffer->Put(buffer_element);
+    }
+  };
+
+  class StageOpInfoMaker : public framework::OpProtoAndCheckerMaker {
+   public:
+    StageOpInfoMaker(OpProto *proto, OpAttrChecker *op_checker)
+        : OpProtoAndCheckerMaker(proto, op_checker) {
+      AddInput("Input", "The input of feed op");
+      AddAttr<int>("buffer_capacity", "(int) The column of feed");
+      AddAttr<int>("buffer_bytes_limit", "(int) The column of feed");
+      AddAttr<std::vector<int>>("dtypes", "(int) The column of feed");
+      AddComment(R"DOC(
+     StageOp Operator.
+
+     According to `buffer_capacity` and `buffer_bytes_limit` Get buffer
+  )DOC");
+    }
+    framework::OpKernelType GetExpectedKernelType(
+        const framework::ExecutionContext &ctx) const override {
+      return framework::OpKernelType(
+          paddle::framework::DataType::FP32,  // should be changed
+          paddle::platform::CUDAPlace);
+    }
+  };
 
 }  // namespace operators
 }  // namespace paddle

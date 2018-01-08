@@ -28,39 +28,20 @@ class UnStageOp : public framework::OperatorBase {
 
   void Run(const framework::Scope &scope,
            const platform::Place &place) const override {
-    //    auto fetch_var_name = Input("X");
-    //    auto *fetch_var = scope.FindVar(fetch_var_name);
-    //    PADDLE_ENFORCE(fetch_var != nullptr,
-    //                   "Cannot find fetch variable in scope, fetch_var_name is
-    //                   %s",
-    //                   fetch_var_name);
+    detail::Buffer *buffer;
+    paddle::operators::detail::GetBuffer(place, buffer_capacity,
+                                         buffer_bytes_limit, buffer);
+
+    detail::BufferElement *buffer_element;
+    buffer->Get(buffer_element);
     //
-    //    auto out_name = this->Output("Out");
-    //    auto *out_var = scope.FindVar(out_name);
-    //    PADDLE_ENFORCE(out_var != nullptr,
-    //                   "Cannot find out_var in scope, out_var_name is %s",
-    //                   out_name);
-    //
-    //    auto col = static_cast<size_t>(Attr<int>("col"));
-    //
-    //    auto *fetch_list = out_var->GetMutable<framework::FeedFetchList>();
-    //    auto &src_item = fetch_var->Get<framework::FeedFetchType>();
-    //
-    //    if (col >= fetch_list->size()) {
-    //      fetch_list->resize(col + 1);
-    //    }
-    //    auto &dst_item = fetch_list->at(col);
-    //
-    //    // CPU outputs?
-    //    platform::DeviceContextPool &pool =
-    //    platform::DeviceContextPool::Instance();
-    //    auto &dev_ctx = *pool.Get(place);
-    //
-    //    CopyFrom(src_item, platform::CPUPlace(), dev_ctx, &dst_item);
-    //    dev_ctx.Wait();
-    //    dst_item.set_lod(src_item.lod());
-    //
-    //    VLOG(3) << "Fetch variable " << fetch_var_name << " to " << out_name;
+    auto output_var_names = Outputs("Out");
+    // keep mind the order
+    for (auto var_name : output_var_names) {
+      auto *output_var = scope.FindVar(var_name);
+      output_var->GetMutable<detail::MetaType>();
+      output_var->Get().SharedMory(buffer_element[0]);
+    }
   }
 };
 
@@ -68,15 +49,20 @@ class UnStageOpInfoMaker : public framework::OpProtoAndCheckerMaker {
  public:
   UnStageOpInfoMaker(OpProto *proto, OpAttrChecker *op_checker)
       : OpProtoAndCheckerMaker(proto, op_checker) {
-    //    AddInput("X", "The input of fetch op");
-    //    AddOutput("Out", "The output of fetch op");
-    //    AddAttr<int>("col", "(int) The column of fetch");
-    //    AddComment(R"DOC(
-    // Fetch Operator.
-    //
-    // It should not be configured by users directly.
-    //
-    //)DOC");
+    AddOutput("Out", "The output of fetch op");
+    AddComment(R"DOC(
+     UnStage Operator.
+
+     It should not be configured by users directly.
+
+    )DOC");
+  }
+
+  framework::OpKernelType GetExpectedKernelType(
+      const framework::ExecutionContext &ctx) const override {
+    return framework::OpKernelType(
+        paddle::framework::DataType::FP32,  // should be changed
+        paddle::platform::CUDAPlace);
   }
 };
 }  // namespace operators
