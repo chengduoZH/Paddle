@@ -31,29 +31,31 @@ class StageOp : public framework::OperatorBase {
 
   void Run(const framework::Scope &scope,
            const platform::Place &place) const override {
-    auto input_var_names = Inputs("Input");
-    auto buffer_capacity = Attr<int>("buffer_capacity");
-    auto buffer_bytes_limit = Attr<int>("buffer_bytes_limit");
-
-    BufferElement buffer_element;
-    for (auto var_name : input_var_names) {
-      // the input Vars maybe nullptr in the end of one pass.
-
-      auto *input_var = scope.FindVar(var_name);
-      PADDLE_ENFORCE(input_var != nullptr,
-                     "Cannot find feed_var in scope, input_var_names is %s",
-                     input_var_names);
-      buffer_element.push_back(input_var->Get<LoDTensor>());
-    }
-
-    detail::Buffer *buffer =
-        detail::GetBuffer(place, buffer_capacity, buffer_bytes_limit);
-
-    // if the requirement of overlapping data transfer and kernel operation is
-    // true, we should copy data to pinned memory.
-    // and then copy the pinned memory to cuda memory in another stream.
-
-    buffer->Put(&buffer_element);
+    //    auto input_var_names = Inputs("Input");
+    //    auto buffer_capacity = Attr<int>("buffer_capacity");
+    //    auto buffer_bytes_limit = Attr<int>("buffer_bytes_limit");
+    //
+    //    BufferElement buffer_element;
+    //    for (auto var_name : input_var_names) {
+    //      // the input Vars maybe nullptr in the end of one pass.
+    //
+    //      auto *input_var = scope.FindVar(var_name);
+    //      PADDLE_ENFORCE(input_var != nullptr,
+    //                     "Cannot find feed_var in scope, input_var_names is
+    //                     %s",
+    //                     input_var_names);
+    //      buffer_element.push_back(input_var->Get<LoDTensor>());
+    //    }
+    //
+    //    detail::Buffer *buffer =
+    //        detail::GetBuffer(place, buffer_capacity, buffer_bytes_limit);
+    //
+    //    // if the requirement of overlapping data transfer and kernel
+    //    operation is
+    //    // true, we should copy data to pinned memory.
+    //    // and then copy the pinned memory to cuda memory in another stream.
+    //
+    //    buffer->Put(&buffer_element);
   }
 };
 
