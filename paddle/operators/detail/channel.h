@@ -62,7 +62,7 @@ class Channel {
     }
 
     current_bytes_ += element_bytes;
-    buf_.push_back(std::move(*buffer_element));
+    channel_.push_back(std::move(*buffer_element));
 
     lock.unlock();
     empty_cond_var_.notify_all();
@@ -71,10 +71,10 @@ class Channel {
   void Get(ChannelElement* buffer_element) {
     std::unique_lock<std::mutex> lock(mu_);
 
-    empty_cond_var_.wait(lock, [this]() { return !buf_.empty(); });
+    empty_cond_var_.wait(lock, [this]() { return !channel_.empty(); });
 
-    *buffer_element = std::move(buf_.front());
-    buf_.pop_front();
+    *buffer_element = std::move(channel_.front());
+    channel_.pop_front();
 
     current_bytes_ -= GetElementBytes(*buffer_element);
 
@@ -83,12 +83,12 @@ class Channel {
 
   size_t Size() {
     std::unique_lock<std::mutex> lock(mu_);
-    return buf_.size();
+    return channel_.size();
   }
 
   void Clear() {
     std::unique_lock<std::mutex> lock(mu_);
-    buf_.clear();
+    channel_.clear();
     current_bytes_ = 0;
 
     NotifyInserters(&lock);
@@ -104,7 +104,7 @@ class Channel {
 
   bool IsBounded() const { return capacity_ > 0 || bytes_limit_ > 0; }
 
-  bool IsCapacityFull() const { return buf_.size() >= capacity_; }
+  bool IsCapacityFull() const { return channel_.size() >= capacity_; }
 
   bool WouldExceedMemoryLimit(std::size_t bytes) const {
     return bytes + current_bytes_ > bytes_limit_;
