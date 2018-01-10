@@ -1,0 +1,77 @@
+ChannelList = std::vector<Channel>
+
+Channel
+    `-- vec<LoDTensor>;
+
+
+stage {
+    {
+        vars {
+            'stage_area' : ChannelList
+        }
+        get_places_op
+        parallel.for
+        
+    }
+    {
+        cur_channel = stage_area[i]
+        stage_area <- splitted_input
+    }
+}
+
+main {
+    {
+        vars {
+            'stage_area': ChannelList
+        }
+        get_places_op
+        parallel.for
+    }
+    {
+        cur_channel = stage_area[i]
+        <- cur_channel
+        fc...,
+        ...,
+    }
+}
+
+
+...
+...
+
+stage_program = Program()
+with program(stage_program):
+    image = data_layer(...)
+    label = data_layer(...)
+    places = get_places()
+    channel_list = create_channel_list(name="data_buffer")
+    with parallel.for(places) as for_loop:
+        cur_channel = get_or_create_channel(channel_list, for_loop.i, channel_size=2)
+        write_to_channel(input=[for_loop.input(image), 
+                                for_loop.input(label)], out=cur_channel)
+
+main_program = Program()
+with program(main_program):
+    places = get_places()
+    channel_list = create_channel_list(name="data_buffer")
+    with parallel.for(places) as for_loop:
+        cur_channel = get_channel(channel_list, for_loop.i)
+        image, label = read_from_channel(input=cur_channel)
+        ....
+
+for i in range(buffer_size):
+    data = next(train_reader())
+    executor.run(stage_program, feed=feeder.feed(data))
+
+for pass_id in range(5):
+    for data in train_reader():
+        executor.run(stage_program, feed=[...])
+        executor.run(main_program, fetch=[...])
+
+for i in range(buffer_size):
+    executor.run(main_program, fetch=[...])
+
+
+
+
+
