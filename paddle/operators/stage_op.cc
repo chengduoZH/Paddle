@@ -13,14 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "paddle/framework/op_registry.h"
-#include "paddle/framework/operator.h"
 #include "paddle/operators/detail/buffer.h"
+#include "paddle/platform/device_context.h"
 
 namespace paddle {
 namespace operators {
 
 using LoDTensor = paddle::framework::LoDTensor;
-// using GetBuffer = paddle::operators::detail::GetBuffer;
 using BufferElement = paddle::operators::detail::BufferElement;
 
 class StageOp : public framework::OperatorBase {
@@ -62,15 +61,16 @@ class StageOpInfoMaker : public framework::OpProtoAndCheckerMaker {
  public:
   StageOpInfoMaker(OpProto *proto, OpAttrChecker *op_checker)
       : OpProtoAndCheckerMaker(proto, op_checker) {
-    AddInput("Input", "The input of feed op");
-    AddAttr<int>("buffer_capacity", "(int) The column of feed");
-    AddAttr<int>("buffer_bytes_limit", "(int) The column of feed");
-    //      AddAttr<std::vector<int>>("dtypes", "(int) The column of feed");
-    AddComment(R"DOC(
-     StageOp Operator.
-
-     According to `buffer_capacity` and `buffer_bytes_limit` Get buffer
-  )DOC");
+    //    AddInput("Input", "The input of feed op");
+    //    AddAttr<int>("buffer_capacity", "(int) The column of feed");
+    //    AddAttr<int>("buffer_bytes_limit", "(int) The column of feed");
+    //    //      AddAttr<std::vector<int>>("dtypes", "(int) The column of
+    //    feed");
+    //    AddComment(R"DOC(
+    //     StageOp Operator.
+    //
+    //     According to `buffer_capacity` and `buffer_bytes_limit` Get buffer
+    //  )DOC");
   }
 
   //    framework::OpKernelType GetExpectedKernelType(
