@@ -19,6 +19,7 @@ limitations under the License. */
 namespace paddle {
 namespace operators {
 
+using LoDTensor = paddle::framework::LoDTensor;
 using GetBuffer = paddle::operators::detail::GetBuffer;
 using BufferElement = paddle::operators::detail::BufferElement;
 
@@ -41,19 +42,19 @@ class StageOp : public framework::OperatorBase {
 
       auto *input_var = scope.FindVar(var_name);
       PADDLE_ENFORCE(input_var != nullptr,
-                     "Cannot find feed_var in scope, feed_var_name is %s",
-                     feed_var_name);
-      buffer_element.push_back(input_var);
-
-      detail::Buffer *buffer =
-          GetBuffer(place, buffer_capacity, buffer_bytes_limit);
-
-      // if the requirement of overlapping data transfer and kernel operation is
-      // true, we should copy data to pinned memory.
-      // and then copy the pinned memory to cuda memory in another stream.
-
-      buffer->Put(buffer_element);
+                     "Cannot find feed_var in scope, input_var_names is %s",
+                     input_var_names);
+      buffer_element.push_back(input_var->Get<LoDTensor>());
     }
+
+    detail::Buffer *buffer =
+        GetBuffer(place, buffer_capacity, buffer_bytes_limit);
+
+    // if the requirement of overlapping data transfer and kernel operation is
+    // true, we should copy data to pinned memory.
+    // and then copy the pinned memory to cuda memory in another stream.
+
+    buffer->Put(buffer_element);
   }
 };
 

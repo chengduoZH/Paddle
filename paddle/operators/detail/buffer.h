@@ -56,7 +56,7 @@ class Buffer {
     }
 
     current_bytes_ += element_bytes;
-    buf_[place].push_back(std::move(*buffer_element));
+    buf_.push_back(std::move(*buffer_element));
 
     lock.unlock();
     empty_cond_var_.notify_all();
@@ -106,7 +106,7 @@ class Buffer {
 
   std::size_t GetElementBytes(const BufferElement& tuple) {
     return std::accumulate(tuple.begin(), tuple.end(), 0,
-                           [](const std::size_t& lhs, const Tensor& rhs) {
+                           [](const std::size_t& lhs, const MetaType& rhs) {
                              return lhs + rhs.memory_size();
                            });
   }
