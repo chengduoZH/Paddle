@@ -20,7 +20,7 @@ namespace paddle {
 namespace operators {
 
 using LoDTensor = paddle::framework::LoDTensor;
-using GetBuffer = paddle::operators::detail::GetBuffer;
+// using GetBuffer = paddle::operators::detail::GetBuffer;
 using BufferElement = paddle::operators::detail::BufferElement;
 
 class StageOp : public framework::OperatorBase {
@@ -48,7 +48,7 @@ class StageOp : public framework::OperatorBase {
     }
 
     detail::Buffer *buffer =
-        GetBuffer(place, buffer_capacity, buffer_bytes_limit);
+        detail::GetBuffer(place, buffer_capacity, buffer_bytes_limit);
 
     // if the requirement of overlapping data transfer and kernel operation is
     // true, we should copy data to pinned memory.
