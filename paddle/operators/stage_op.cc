@@ -54,7 +54,7 @@ class StageOp : public framework::OperatorBase {
     // true, we should copy data to pinned memory.
     // and then copy the pinned memory to cuda memory in another stream.
 
-    buffer->Put(buffer_element);
+    buffer->Put(&buffer_element);
   }
 };
 
