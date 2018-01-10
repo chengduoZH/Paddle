@@ -17,12 +17,13 @@ limitations under the License. */
 #include <queue>
 #include <vector>
 
+#include "paddle/framework/lod_tensor.h"
 #include "paddle/platform/place.h"
 
 namespace paddle {
 namespace operators {
 namespace detail {
-using MetaType = LoDTensor;
+using MetaType = paddle::framework::LoDTensor;
 using BufferElement = std::vector<MetaType>;
 
 class Buffer {
@@ -70,7 +71,6 @@ class Buffer {
     NotifyInserters(&lock);
   }
 
-  // Buffer size
   size_t Size() {
     std::unique_lock<std::mutex> lock(mu_);
     return buf_.size();
@@ -117,14 +117,14 @@ class Buffer {
   std::deque<BufferList> buf_;
 };
 
-void GetBuffer(const platform::Place place, const size_t capacity,
-               const size_t bytes_limit, Buffer* buffer) {
+Buffer* GetBuffer(const platform::Place place, const size_t capacity,
+                  const size_t bytes_limit) {
   static std::map<platform::Place, Buffer*> buffering;
 
   if (buffering.count(place)) {
     buffering[place] = new Buffer(capacity, bytes_limit);
   }
-  buffer = buffering[place];
+  return buffering[place];
 }
 
 }  // namespace detail
