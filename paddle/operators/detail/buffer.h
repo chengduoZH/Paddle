@@ -13,6 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 #pragma once
 
+#include <condition_variable>
+#include <functional>
+#include <future>
 #include <mutex>
 #include <queue>
 #include <vector>
@@ -23,6 +26,7 @@ limitations under the License. */
 namespace paddle {
 namespace operators {
 namespace detail {
+
 using MetaType = paddle::framework::LoDTensor;
 using BufferElement = std::vector<MetaType>;
 
@@ -114,7 +118,7 @@ class Buffer {
   std::mutex mu_;
   std::condition_variable empty_cond_var_;
   std::condition_variable full_cond_var_;
-  std::deque<BufferList> buf_;
+  std::deque<BufferElement> buf_;
 };
 
 Buffer* GetBuffer(const platform::Place place, const size_t capacity,
