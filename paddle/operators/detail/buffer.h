@@ -40,32 +40,32 @@ class Buffer {
 
     std::size_t element_bytes = GetElementBytes(*buffer_element);
 
-    PADDLE_ENFORCE(bytes_limit_ > 0 && tuple_bytes > bytes_limit_,
+    PADDLE_ENFORCE(bytes_limit_ > 0 && element_bytes > bytes_limit_,
                    "*Attempted to insert tensors with combined size of %d "
                    "bytes into Staging Area with a memory limit of %d.",
-                   tuple_bytes, bytes_limit);
+                   element_bytes, bytes_limit_);
 
     if (IsBounded()) {
-      full_cond_var_.wait(lock, [tuple_bytes, this]() {
+      full_cond_var_.wait(lock, [element_bytes, this]() {
         bool bytes_limit_valid =
-            bytes_limit_ > 0 ? !WouldExceedMemoryLimit(tuple_bytes) : true;
+            bytes_limit_ > 0 ? !WouldExceedMemoryLimit(element_bytes) : true;
         bool capacity_valid = capacity_ > 0 ? !IsCapacityFull() : true;
 
         return capacity_valid && bytes_limit_valid;
       });
     }
 
-    current_bytes_ += tuple_bytes;
-    buf_[place].push_back(std::move(*tuple));
+    current_bytes_ += element_bytes;
+    buf_[place].push_back(std::move(*buffer_element));
 
     lock.unlock();
-    non_empty_cond_var_.notify_all();
+    empty_cond_var_.notify_all();
   }
 
   void Get(BufferElement* buffer_element) {
     std::unique_lock<std::mutex> lock(mu_);
 
-    non_empty_cond_var_.wait(lock, [this]() { return !buf_.empty(); });
+    empty_cond_var_.wait(lock, [this]() { return !buf_.empty(); });
 
     *buffer_element = std::move(buf_.front());
     buf_.pop_front();
