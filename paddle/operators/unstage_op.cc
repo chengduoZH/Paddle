@@ -28,20 +28,20 @@ class UnStageOp : public framework::OperatorBase {
 
   void Run(const framework::Scope &scope,
            const platform::Place &place) const override {
-    detail::Buffer *buffer;
-    paddle::operators::detail::GetBuffer(place, buffer_capacity,
-                                         buffer_bytes_limit, buffer);
-
-    detail::BufferElement *buffer_element;
-    buffer->Get(buffer_element);
+    //    detail::Buffer *buffer;
+    //    paddle::operators::detail::GetBuffer(place, buffer_capacity,
+    //                                         buffer_bytes_limit, buffer);
     //
-    auto output_var_names = Outputs("Out");
-    // keep mind the order
-    for (auto var_name : output_var_names) {
-      auto *output_var = scope.FindVar(var_name);
-      output_var->GetMutable<detail::MetaType>();
-      output_var->Get().SharedMory(buffer_element[0]);
-    }
+    //    detail::BufferElement *buffer_element;
+    //    buffer->Get(buffer_element);
+    //    //
+    //    auto output_var_names = Outputs("Out");
+    //    // keep mind the order
+    //    for (auto var_name : output_var_names) {
+    //      auto *output_var = scope.FindVar(var_name);
+    //      output_var->GetMutable<detail::MetaType>();
+    //      output_var->Get().SharedMory(buffer_element[0]);
+    //    }
   }
 };
 
@@ -58,12 +58,12 @@ class UnStageOpInfoMaker : public framework::OpProtoAndCheckerMaker {
     )DOC");
   }
 
-  framework::OpKernelType GetExpectedKernelType(
-      const framework::ExecutionContext &ctx) const override {
-    return framework::OpKernelType(
-        paddle::framework::DataType::FP32,  // should be changed
-        paddle::platform::CUDAPlace);
-  }
+  //  framework::OpKernelType GetExpectedKernelType(
+  //      const framework::ExecutionContext &ctx) const override {
+  //    return framework::OpKernelType(
+  //        paddle::framework::DataType::FP32,  // should be changed
+  //        paddle::platform::CUDAPlace);
+  //  }
 };
 }  // namespace operators
 }  // namespace paddle

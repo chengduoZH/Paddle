@@ -32,7 +32,7 @@ class StageOp : public framework::OperatorBase {
 
     detail::BufferElement buffer_element;
     for (auto var_name : input_var_names) {  // the input Vars maybe nullptr in
-                                             // the end of one pass.
+      // the end of one pass.
       auto *input_var = scope.FindVar(var_name);
       PADDLE_ENFORCE(input_var != nullptr,
                      "Cannot find feed_var in scope, feed_var_name is %s",
@@ -48,29 +48,30 @@ class StageOp : public framework::OperatorBase {
 
       buffer->Put(buffer_element);
     }
-  };
+  }
+};
 
-  class StageOpInfoMaker : public framework::OpProtoAndCheckerMaker {
-   public:
-    StageOpInfoMaker(OpProto *proto, OpAttrChecker *op_checker)
-        : OpProtoAndCheckerMaker(proto, op_checker) {
-      AddInput("Input", "The input of feed op");
-      AddAttr<int>("buffer_capacity", "(int) The column of feed");
-      AddAttr<int>("buffer_bytes_limit", "(int) The column of feed");
-      AddAttr<std::vector<int>>("dtypes", "(int) The column of feed");
-      AddComment(R"DOC(
+class StageOpInfoMaker : public framework::OpProtoAndCheckerMaker {
+ public:
+  StageOpInfoMaker(OpProto *proto, OpAttrChecker *op_checker)
+      : OpProtoAndCheckerMaker(proto, op_checker) {
+    AddInput("Input", "The input of feed op");
+    AddAttr<int>("buffer_capacity", "(int) The column of feed");
+    AddAttr<int>("buffer_bytes_limit", "(int) The column of feed");
+    //      AddAttr<std::vector<int>>("dtypes", "(int) The column of feed");
+    AddComment(R"DOC(
      StageOp Operator.
 
      According to `buffer_capacity` and `buffer_bytes_limit` Get buffer
   )DOC");
-    }
-    framework::OpKernelType GetExpectedKernelType(
-        const framework::ExecutionContext &ctx) const override {
-      return framework::OpKernelType(
-          paddle::framework::DataType::FP32,  // should be changed
-          paddle::platform::CUDAPlace);
-    }
-  };
+  }
+  //    framework::OpKernelType GetExpectedKernelType(
+  //        const framework::ExecutionContext &ctx) const override {
+  //      return framework::OpKernelType(
+  //          paddle::framework::DataType::FP32,  // should be changed
+  //          paddle::platform::CUDAPlace);
+  //    }
+};
 
 }  // namespace operators
 }  // namespace paddle
