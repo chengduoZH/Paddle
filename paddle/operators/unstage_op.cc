@@ -49,13 +49,13 @@ class UnStageOpInfoMaker : public framework::OpProtoAndCheckerMaker {
  public:
   UnStageOpInfoMaker(OpProto *proto, OpAttrChecker *op_checker)
       : OpProtoAndCheckerMaker(proto, op_checker) {
-    AddOutput("Out", "The output of fetch op");
-    AddComment(R"DOC(
-     UnStage Operator.
-
-     It should not be configured by users directly.
-
-    )DOC");
+    //    AddOutput("Out", "The output of fetch op");
+    //    AddComment(R"DOC(
+    //     UnStage Operator.
+    //
+    //     It should not be configured by users directly.
+    //
+    //    )DOC");
   }
 
   //  framework::OpKernelType GetExpectedKernelType(
