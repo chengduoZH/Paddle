@@ -118,15 +118,15 @@ class Buffer {
   std::deque<BufferElement> buf_;
 };
 
-Buffer* GetBuffer(const platform::Place place, const size_t capacity,
-                  const size_t bytes_limit) {
-  static std::map<platform::Place, Buffer*> buffering;
-
-  if (buffering.count(place)) {
-    buffering[place] = new Buffer(capacity, bytes_limit);
-  }
-  return buffering[place];
-}
+// Buffer* GetBuffer(const platform::Place place, const size_t capacity,
+//                  const size_t bytes_limit) {
+//  static std::map<platform::Place, Buffer*> buffering;
+//
+//  if (buffering.count(place)) {
+//    buffering[place] = new Buffer(capacity, bytes_limit);
+//  }
+//  return buffering[place];
+//}
 
 }  // namespace detail
 }  // namespace operator

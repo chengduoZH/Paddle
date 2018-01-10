@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "paddle/framework/op_registry.h"
-// #include "paddle/operators/detail/buffer.h"
+#include "paddle/operators/detail/buffer.h"
 #include "paddle/platform/device_context.h"
 
 namespace paddle {
