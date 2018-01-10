@@ -27,7 +27,7 @@ namespace detail {
 template <typename MetaType>
 class Channel {
  private:
-  using ChannelElement = std::vector<MateType>;
+  using ChannelElement = std::vector<MetaType>;
 
   std::size_t capacity_;
   std::size_t bytes_limit_;
@@ -35,7 +35,7 @@ class Channel {
   std::mutex mu_;
   std::condition_variable empty_cond_var_;
   std::condition_variable full_cond_var_;
-  std::deque<std::vector<MateType>> channel_;
+  std::deque<ChannelElement> channel_;
 
  public:
   explicit Channel(std::size_t capacity, std::size_t bytes_limit)
@@ -112,7 +112,7 @@ class Channel {
 
   std::size_t GetElementBytes(const ChannelElement& tuple) {
     return std::accumulate(tuple.begin(), tuple.end(), 0,
-                           [](const std::size_t& lhs, const MateType& rhs) {
+                           [](const std::size_t& lhs, const MetaType& rhs) {
                              return lhs + rhs.memory_size();
                            });
   }
