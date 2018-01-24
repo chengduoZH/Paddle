@@ -233,38 +233,83 @@ class LayerNormGradKernel<platform::CPUDeviceContext, T>
     if (d_x) {
       d_x->mutable_data<T>(ctx.GetPlace());
       auto d_x_map = EigenMatrixMapRowMajor<T>(d_x->data<T>(), left, right);
-      auto three_func = [](T ele) { return ele * ele * ele; };
-      auto neg_inv_std = [](T ele) { return T(-1.0) * std::sqrt(1 / ele); };
-      auto inv_std_scale_func = [scale_data](T ele) {
-        return std::sqrt(1 / ele) * scale_data;
+      //      auto three_func = [](T ele) { return ele * ele * ele; };
+      //      auto neg_inv_std = [](T ele) { return T(-1.0) * std::sqrt(1 /
+      //      ele); };
+      //      auto inv_std_scale_func = [scale_data](T ele) {
+      //        return std::sqrt(1 / ele) * scale_data;
+      //      };
+      //      auto neg_inv_std_scale_func = [scale_data](T ele) {
+      //        return T(-1.0) * std::sqrt(1 / ele) * scale_data;
+      //      };
+      //      // dy_dx
+      //      auto dx_end = var_map.unaryExpr(inv_std_scale_func)
+      //                        .replicate(1, right)
+      //                        .cwiseProduct(d_y_map);
+      //      // dy_dmean_dx
+      //      auto dmean_end = var_map.unaryExpr(neg_inv_std_scale_func)
+      //                           .replicate(1, right)
+      //                           .cwiseProduct(d_y_map)
+      //                           .rowwise()
+      //                           .sum();
+      //      auto dx_mean = (T(1.0) / right) * dmean_end.replicate(1, right);
+      //      // dy_dstd_dx
+      //      auto dvar_end_0 = (x_map - mean_map.replicate(1, right))
+      //                            .cwiseProduct(d_y_map)
+      //                            .rowwise()
+      //                            .sum();
+      //      auto dvar_end = var_map.unaryExpr(neg_inv_std)
+      //                          .unaryExpr(three_func)
+      //                          .cwiseProduct(dvar_end_0);
+      //      auto dx_var = (1.0f / right) *
+      //                    (x_map - mean_map.replicate(1, right))
+      //                        .cwiseProduct(dvar_end.replicate(1, right));
+      //
+      //      d_x_map = dx_end + dx_mean + dx_var;  //
+      auto sqr = [](float f) { return f * f; };
+      //      auto recip1 = [](float f) { return std::sqrt(1.0f / f); };
+      auto recip2 = [](float f) { return std::sqrt(f); };
+      auto recip3 = [scale_data](float f) { return f * scale_data; };
+      auto recip = [scale_data](float f) {
+        return std::sqrt(1.0f / f) * scale_data;
       };
-      auto neg_inv_std_scale_func = [scale_data](T ele) {
-        return T(-1.0) * std::sqrt(1 / ele) * scale_data;
+      auto neg_recip = [scale_data](float f) {
+        return -std::sqrt(1.0f / f) * scale_data;
       };
-      // dy_dx
-      auto dx_end = var_map.unaryExpr(inv_std_scale_func)
-                        .replicate(1, right)
-                        .cwiseProduct(d_y_map);
-      // dy_dmean_dx
-      auto dmean_end = var_map.unaryExpr(neg_inv_std_scale_func)
+      auto neg_inv = [](float f) { return -1.0f / f; };
+      // 1.0 / (stdev + epsilon) * dout
+      auto dx_end =
+          var_map.unaryExpr(recip).replicate(1, right).cwiseProduct(d_y_map);
+      //
+      auto dstdev_end_0 = var_map.unaryExpr(neg_inv);
+      // Second part: \sum_j^D x_ij - mean * dout
+      auto dstdev_end_1 = (x_map - mean_map.replicate(1, right))
+                              .cwiseProduct(d_y_map)
+                              .rowwise()
+                              .sum();
+      auto dstdev_end = dstdev_end_0.cwiseProduct(dstdev_end_1);
+      //
+      auto dmean_end = var_map.unaryExpr(neg_recip)
                            .replicate(1, right)
                            .cwiseProduct(d_y_map)
                            .rowwise()
                            .sum();
-      auto dx_mean = (T(1.0) / right) * dmean_end.replicate(1, right);
-      // dy_dstd_dx
-      auto dvar_end_0 = (x_map - mean_map.replicate(1, right))
-                            .cwiseProduct(d_y_map)
-                            .rowwise()
-                            .sum();
-      auto dvar_end = var_map.unaryExpr(neg_inv_std)
-                          .unaryExpr(three_func)
-                          .cwiseProduct(dvar_end_0);
-      auto dx_var = (1.0f / right) *
-                    (x_map - mean_map.replicate(1, right))
-                        .cwiseProduct(dvar_end.replicate(1, right));
 
-      d_x_map = dx_end + dx_mean + dx_var;  //
+      // Gradients - standard deviation block
+      // -1.0*(mean / stdev) * dstdev_end
+      auto dmean_stdev =
+          var_map.unaryExpr(neg_recip).cwiseProduct(mean_map).cwiseProduct(
+              dstdev_end);
+      // (mean / (D*stdev)) * dstdev
+      auto dx_stdev =
+          (1.0f / right) *
+          x_map.cwiseQuotient(var_map.unaryExpr(recip2).replicate(1, right))
+              .unaryExpr(recip3)
+              .cwiseProduct(dstdev_end.replicate(1, right));
+      // Gradients - mean block
+      auto dmean = dmean_end + dmean_stdev;
+      auto dx_mean = (1.0f / right) * dmean.replicate(1, right);
+      d_x_map = dx_end + dx_mean + dx_stdev;  //  ;
     }
   }
 };
