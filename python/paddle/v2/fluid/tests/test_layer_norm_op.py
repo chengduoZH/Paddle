@@ -46,9 +46,14 @@ class TestLayerNormdOp(OpTest):
 
     def test_check_grad_no_x(self):
         self.check_grad(
-            ['Scale', 'Bias'], ['Y', 'Mean', 'Variance'],
-            max_relative_error=0.02,
-            no_grad_set=set(['X']))
+            ['Scale', 'Bias', 'X'], ['Y', 'Mean', 'Variance'],
+            max_relative_error=0.02)
+
+    #def test_check_grad_no_x(self):
+    #    self.check_grad(
+    #        ['Scale', 'Bias'], ['Y', 'Mean', 'Variance'],
+    #        max_relative_error=0.02,
+    #        no_grad_set=set(['X']))
 
     # def test_check_grad_no_scale(self):
     #     self.check_grad(
@@ -66,7 +71,7 @@ class TestLayerNormdOp(OpTest):
 
     def init_test_case(self):
         self.op_type = "layer_norm"
-        self.input_size = [10, 3, 4, 5]
+        self.input_size = [2, 3, 4, 5]
         self.scale = 0.21
         self.bias = 0.1
         self.epsilon = 0.00001
