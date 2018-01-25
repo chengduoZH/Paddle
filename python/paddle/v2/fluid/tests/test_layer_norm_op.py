@@ -53,15 +53,23 @@ def _reference_layer_norm_grad(x, grad_y, scale, mean, var, epsilon):
     grad_y.shape = [N, D]
     x.shape = [N, D]
     grad_offset = np.sum(grad_y)
-    grad_scale = np.sum((
-        (x - mean.reshape([N, 1])) * np.sqrt(1 / var.reshape([N, 1]))) * grad_y)
+    mean.shape = [N, 1]
+    var.shape = [N, 1]
+    grad_scale = np.sum(((x - mean) * np.sqrt(1 / var)) * grad_y)
 
-    std_inv = np.sqrt(1.0 / var).reshape([N, 1])
-    part2 = D * scale * grad_y - np.sum(grad_y, axis=1).reshape(
-        [N, 1]) * scale - std_inv * (x - mean.reshape([N, 1])) * np.sum(
-            std_inv *
-            (x - mean.reshape([N, 1])) * grad_y, axis=1).reshape([N, 1])
-    grad_x = 1.0 / D * std_inv * part2
+    dx_end = scale * np.sqrt(1.0 / var) * grad_y
+
+    d_mean_0 = np.sum(-np.sqrt(1.0 / var) * grad_y, axis=1).reshape([N, 1])
+    d_mean_1 = np.sum(-1.0 / var * (x - mean) * grad_y, axis=1).reshape(
+        [N, 1]) * (-1.0 / D * np.sqrt(1.0 / var) *
+                   np.sum(x - mean, axis=1)).reshape([N, 1])
+    d_mean = d_mean_0 + d_mean_1
+
+    d_std = np.sum(-1.0 / var * (x - mean) * grad_y, axis=1) * (
+        1.0 / D * np.sqrt(1.0 / var) * (x - mean))
+
+    grad_x = scale * (dx_end + d_mean + d_std)
+
     grad_y.shape = x_shape
     x.shape = x_shape
 
