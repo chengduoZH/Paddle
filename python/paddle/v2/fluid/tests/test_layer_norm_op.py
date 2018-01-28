@@ -43,6 +43,7 @@ def _reference_layer_norm_naive(x, scale, beta, epsilon, begin_norm_axis=1):
     output = scale * np.divide((x - mean.reshape([N, 1])),
                                (np.sqrt(var)).reshape([N, 1])) + beta
     output.shape = old_shape
+    x.shape = old_shape
     return output, mean, var
 
 
