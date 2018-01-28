@@ -43,7 +43,7 @@ class LayerNormOp : public framework::OperatorWithKernel {
     PADDLE_ENFORCE_EQ(ctx->GetInputDim("Bias").size(), 1UL);
     PADDLE_ENFORCE_EQ(ctx->GetInputDim("Bias")[0], 1);
     PADDLE_ENFORCE_LT(ctx->Attrs().Get<int>("begin_norm_axis"),
-                      ctx->GetInputDim("X").size() - 1,
+                      ctx->GetInputDim("X").size(),
                       "'begin_norm_axis' must be less than the rank of X");
 
     ctx->SetOutputDim("Y", ctx->GetInputDim("X"));

@@ -33,10 +33,10 @@ def get_backward_op(scope, op, no_grad_set):
     return backward_op
 
 
-def _reference_layer_norm_naive(x, scale, beta, epsilon):
+def _reference_layer_norm_naive(x, scale, beta, epsilon, begin_norm_axis=1):
     old_shape = x.shape
-    N = x.shape[0]
-    D = reduce(mul, old_shape, 1) / N
+    N = reduce(mul, old_shape[0:begin_norm_axis], 1)
+    D = reduce(mul, old_shape[begin_norm_axis:len(begin_norm_axis)], 1)
     x.shape = [N, D]
     mean = np.mean(x, axis=1)
     var = np.var(x, axis=1) + epsilon
@@ -46,10 +46,10 @@ def _reference_layer_norm_naive(x, scale, beta, epsilon):
     return output, mean, var
 
 
-def _reference_layer_norm_grad(x, grad_y, scale, mean, var, epsilon):
+def _reference_layer_norm_grad(x, grad_y, scale, mean, var, begin_norm_axis=1):
     x_shape = x.shape
-    N = x_shape[0]
-    D = reduce(mul, x_shape, 1) / N
+    N = reduce(mul, old_shape[0:begin_norm_axis], 1)
+    D = reduce(mul, old_shape[begin_norm_axis:len(begin_norm_axis)], 1)
     grad_y.shape = [N, D]
     x.shape = [N, D]
     mean.shape = [N, 1]
@@ -140,7 +140,9 @@ class TestLayerNormdOp(OpTest):
         self.assertLessEqual(max_diff, max_relative_error, err_msg())
 
     def test_forward_backward(self):
-        def test_with_place(place, shape):
+        def test_with_place(place, shape, begin_norm_axis=1):
+            assert begin_norm_axis > 0 and begin_norm_axis < len(
+                shape) - 1, 'begin_norm_axis must be between 0 and len(shape)-1.'
             # attr
             epsilon = 0.00001
             x_shape = shape
@@ -152,7 +154,7 @@ class TestLayerNormdOp(OpTest):
 
             # run forward
             y_out, saved_mean, var_ref = _reference_layer_norm_naive(
-                x_val, scale_val, bias_val, epsilon)
+                x_val, scale_val, bias_val, epsilon, begin_norm_axis)
 
             #  for gradient test
             y_grad = np.random.random_sample(x_shape).astype(np.float32)
@@ -185,7 +187,8 @@ class TestLayerNormdOp(OpTest):
                 Mean="Mean",
                 Variance="Variance",
                 # attrs
-                epsilon=epsilon)
+                epsilon=epsilon,
+                begin_norm_axis=begin_norm_axis)
 
             layer_norm_op.run(scope, place)
 
@@ -228,7 +231,7 @@ class TestLayerNormdOp(OpTest):
             places.append(core.CUDAPlace(0))
 
         for place in places:
-            test_with_place(place, [2, 3, 4, 5])
+            test_with_place(place, [2, 3, 4, 5], begin_norm_axis=1)
 
 
 if __name__ == '__main__':
