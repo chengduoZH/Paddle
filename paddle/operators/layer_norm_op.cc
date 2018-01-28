@@ -42,13 +42,17 @@ class LayerNormOp : public framework::OperatorWithKernel {
     PADDLE_ENFORCE_EQ(ctx->GetInputDim("Scale")[0], 1);
     PADDLE_ENFORCE_EQ(ctx->GetInputDim("Bias").size(), 1UL);
     PADDLE_ENFORCE_EQ(ctx->GetInputDim("Bias")[0], 1);
-    PADDLE_ENFORCE_LT(ctx->Attrs().Get<int>("begin_norm_axis"),
-                      ctx->GetInputDim("X").size(),
+    auto x_dim = ctx->GetInputDim("X");
+    auto begin_norm_axis = ctx->Attrs().Get<int>("begin_norm_axis");
+    PADDLE_ENFORCE_LT(begin_norm_axis, x_dim.size(),
                       "'begin_norm_axis' must be less than the rank of X");
 
+    auto matrix_dim = framework::flatten_to_2d(x_dim, begin_norm_axis);
+    int left = static_cast<int>(matrix_dim[0]);
+
     ctx->SetOutputDim("Y", ctx->GetInputDim("X"));
-    ctx->SetOutputDim("Mean", {ctx->GetInputDim("X")[0]});
-    ctx->SetOutputDim("Variance", {ctx->GetInputDim("X")[0]});
+    ctx->SetOutputDim("Mean", {left});
+    ctx->SetOutputDim("Variance", {left});
 
     ctx->ShareLoD("X", "Y");
   }
