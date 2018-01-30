@@ -54,15 +54,6 @@ void CloseChannel(Channel<T>* ch) {
   ch->Close();
 }
 
-template <typename T>
-void DeleteChannel(Channel<T>* ch) {
-  if (ch->Cap() > 0) {
-    delete dynamic_cast<details::Buffered<T>*>(ch);
-  } else {
-    delete dynamic_cast<details::UnBuffered<T>*>(ch);
-  }
-}
-
 }  // namespace framework
 }  // namespace paddle
 

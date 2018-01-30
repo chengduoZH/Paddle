@@ -27,7 +27,6 @@ template <typename T>
 class UnBuffered : public paddle::framework::Channel<T> {
   friend Channel<T>* paddle::framework::MakeChannel<T>(size_t);
   friend void paddle::framework::CloseChannel<T>(Channel<T>*);
-  friend void paddle::framework::DeleteChannel<T>(Channel<T>*);
 
  public:
   virtual void Send(T*);

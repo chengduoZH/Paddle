@@ -28,7 +28,6 @@ template <typename T>
 class Buffered : public paddle::framework::Channel<T> {
   friend Channel<T>* paddle::framework::MakeChannel<T>(size_t);
   friend void paddle::framework::CloseChannel<T>(Channel<T>*);
-  friend void paddle::framework::DeleteChannel<T>(Channel<T>*);
 
  public:
   virtual void Send(T*);
@@ -65,10 +64,14 @@ void Buffered<T>::Send(T* item) {
 template <typename T>
 void Buffered<T>::Receive(T* item) {
   std::unique_lock<std::mutex> lock(mu_);
-  empty_cond_var_.wait(lock, [this]() { return !channel_.empty(); });
-  *item = std::move(channel_.front());
-  channel_.pop_front();
-  NotifyAllSenders(&lock);
+  empty_cond_var_.wait(lock, [this]() { return !channel_.empty() || close_; });
+  if (!close_) {
+    *item = std::move(channel_.front());
+    channel_.pop_front();
+    NotifyAllSenders(&lock);
+  } else {
+    item = nullptr;
+  }
 }
 
 template <typename T>

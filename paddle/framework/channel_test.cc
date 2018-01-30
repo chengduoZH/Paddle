@@ -64,7 +64,6 @@ TEST(Channel, SufficientBufferSizeDoesntBlock) {
 TEST(Channel, ConcurrentSendNonConcurrentReceiveWithSufficientBufferSize) {
   const size_t buffer_size = 10;
   auto ch = MakeChannel<size_t>(buffer_size);
-
   size_t sum = 0;
   std::thread t([&]() {
     // Try to write more than buffer size.
@@ -78,5 +77,5 @@ TEST(Channel, ConcurrentSendNonConcurrentReceiveWithSufficientBufferSize) {
 
   CloseChannel(ch);
   t.join();
-  DeleteChannel(ch);
+  delete ch;
 }
