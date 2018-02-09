@@ -14,7 +14,6 @@ limitations under the License. */
 
 #pragma once
 
-#include <memory>
 #include <vector>
 #include "glog/logging.h"
 #include "paddle/framework/framework.pb.h"
@@ -33,7 +32,11 @@ class ChanEleDesc {
 
   explicit ChanEleDesc(const std::string &binary_str);
 
-  VarDesc *AddChanMetaData();
+  VarDesc *AddChanMetaData() {
+    std::string name = "temp";  // TODO(zcd): add prefix "chan_"
+    chan_ele_.emplace(new VarDesc(name));
+    return chan_ele_.back().get();
+  }
 
   VarDesc *AppendChanMetaData(const VarDesc &ele);
 
@@ -52,32 +55,5 @@ class ChanEleDesc {
 
   std::vector<std::unique_ptr<VarDesc>> chan_ele_;
 };
-//
-// class ChanDesc {
-// public:
-//  ChanDesc();
-//
-//  explicit ChanDesc(const proto::ChanDesc &desc);
-//
-//  ChanDesc(const ChanDesc &o);
-//
-//  explicit ChanDesc(const std::string &binary_str);
-//
-//    ChanEleDesc *AppendChanEle(const ChanEleDesc &parent);
-//
-//    ChanEleDesc *MutableChanEle(size_t idx) { return chan_ele_[idx].get(); }
-//
-//  const ChanEleDesc &ChanEle(size_t idx) const { return *chan_ele_[idx]; }
-//
-//  size_t Size() const { return chan_ele_.size(); }
-//
-//  proto::ChanDesc *Proto();
-//
-// private:
-//  proto::ChanDesc desc_;
-//
-//  std::vector<std::unique_ptr<ChanEleDesc>> chan_;
-//};
-
 }  // namespace framework
 }  // namespace paddle

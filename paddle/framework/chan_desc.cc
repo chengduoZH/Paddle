@@ -40,12 +40,11 @@ ChanEleDesc::ChanEleDesc(const std::string &binary_str) {
   }
 }
 
-VarDesc *ChanEleDesc::AddChanMetaData() {
-  std::string name = "temp";  // TODO(zcd): add prefix "chan_"
-  chan_ele_.emplace(new VarDesc(name));
-  return chan_ele_.back().get();
-  ;
-}
+// VarDesc *ChanEleDesc::AddChanMetaData() {
+//  std::string name = "temp";  // TODO(zcd): add prefix "chan_"
+//  chan_ele_.emplace(new VarDesc(name));
+//  return chan_ele_.back().get();
+//}
 
 VarDesc *ChanEleDesc::AppendChanMetaData(const VarDesc &var) {
   chan_ele_.emplace_back(new VarDesc(var));
@@ -58,49 +57,6 @@ proto::ChanEleDesc *ChanEleDesc::Proto() {
   }
   return &desc_;
 }
-
-ChanEleDesc::ChanEleDesc() {}
-
-////
-//
-// ChanEleDesc *ChanDesc::AppendChanEle(const ChanEleDesc &chan_ele) {
-//  chan_.emplace_back(new ChanEleDesc(chan_ele));
-//  return chan_.back().get();
-//}
-//
-// proto::ChanDesc *ChanDesc::Proto() {
-//  for (auto &block : chan_) {
-//    block->Flush();
-//  }
-//  return &desc_;
-//}
-//
-// ChanDesc::ChanDesc() {
-//}
-//
-// ChanDesc::ChanDesc(const ChanDesc &o) {
-//  desc_ = o.desc_;
-//
-//  for (int i = 0; i < desc_.blocks_size(); ++i) {
-////    auto *chan_ele = desc_.mutable_blocks(i);
-//    chan_.emplace_back(new ChanEleDesc(*o.chan_[i]));
-//  }
-//}
-//
-// ChanDesc::ChanDesc(const proto::ChanDesc &desc) {
-//  desc_ = desc;
-//  for (auto &block_desc : *desc_.mutable_blocks()) {
-//    chan_.emplace_back(new BlockDesc(this, &block_desc));
-//  }
-//}
-//
-// ChanDesc::ChanDesc(const std::string &binary_str) {
-//  PADDLE_ENFORCE(desc_.ParseFromString(binary_str),
-//                 "Fail to parse program_desc from binary string.");
-//  for (auto &block_desc : *desc_.mutable_blocks()) {
-//    blocks_.emplace_back(new BlockDesc(this, &block_desc));
-//  }
-//}
 
 }  // namespace framework
 }  // namespace paddle
