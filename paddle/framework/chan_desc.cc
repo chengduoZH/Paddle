@@ -42,7 +42,7 @@ ChanEleDesc::ChanEleDesc(const std::string &binary_str) {
 
 VarDesc *ChanEleDesc::AddChanMetaData() {
   const std::string name = "temp";  // TODO(zcd): add prefix "chan_"
-  chan_ele_.emplace(new VarDesc(name));
+  chan_ele_.emplace_back(new VarDesc(std::move(name)));
   return chan_ele_.back().get();
 }
 
