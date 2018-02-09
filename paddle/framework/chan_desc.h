@@ -33,7 +33,7 @@ class ChanEleDesc {
 
   explicit ChanEleDesc(const std::string &binary_str);
 
-  VarDesc *AddMetaData();
+  VarDesc *AddChanMetaData();
 
   VarDesc *AppendChanMetaData(const VarDesc &ele);
 
