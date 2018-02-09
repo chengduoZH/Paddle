@@ -18,6 +18,7 @@ limitations under the License. */
 #include "glog/logging.h"
 #include "paddle/framework/framework.pb.h"
 #include "paddle/framework/var_desc.h"
+#include "paddle/platform/enforce.h"
 
 namespace paddle {
 namespace framework {
