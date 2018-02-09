@@ -66,7 +66,6 @@ __all__ = [
     'nce',
     'beam_search',
     'row_conv',
-    'reshape',
     'reshape_with_axis',
     'multiplex',
     'prior_box',
@@ -3148,35 +3147,6 @@ def reshape_with_axis(input, axis):
         inputs={'X': [input]},
         outputs={'Out': [out]},
         attrs={'shape': new_shape})
-    return out
-
-
-def reshape(input, new_shape):
-    """
-    **Reshape Layer**
-
-    Reshape the shape of input according to new_dim.
-
-    Args:
-       input(variable): The input tensor.
-       new_shape(list): The new shape of input.
-
-    Returns:
-        Variable: A tensor variable.
-
-    Examples:
-        .. code-block:: python
-
-          x = fluid.layers.data(name="data", shape=[3, 32, 32], dtype="float32")
-          reshaped = fluid.layers.reshape(input=x, new_shape=[-1, 1024])
-    """
-    helper = LayerHelper('reshape', **locals())
-    out = helper.create_tmp_variable(helper.input_dtype())
-    helper.append_op(
-        type='reshape',
-        inputs={'X': [input]},
-        outputs={'Out': [out]},
-        attrs={'shape': new_dim})
     return out
 
 
