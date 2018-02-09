@@ -19,7 +19,7 @@ namespace paddle {
 namespace framework {
 TEST(ChanEleDesc, putdata) {
   ChanEleDesc chan_ele;
-  auto* data = chan_ele.AddChanMetaData();
+  auto* data = chan_ele.AddMetaData();
   data->SetType(proto::VarDesc_VarType_LOD_TENSOR);
   data->SetLoDLevel(0);
   data->SetDataType(proto::FP32);

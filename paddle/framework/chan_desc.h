@@ -40,7 +40,7 @@ class ChanEleDesc {
 
   VarDesc *MutableChanMetaData(size_t idx) { return chan_ele_[idx].get(); }
 
-  std::vector<VarDesc *> AllMetaData() const { return chan_ele_; }
+  //  std::vector<VarDesc *> AllMetaData() const { return chan_ele_; }
 
   const VarDesc &AddChanMetaData(size_t idx) const { return *chan_ele_[idx]; }
 
