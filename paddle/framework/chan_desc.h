@@ -14,6 +14,7 @@ limitations under the License. */
 
 #pragma once
 
+#include <memory>
 #include <vector>
 #include "glog/logging.h"
 #include "paddle/framework/framework.pb.h"
@@ -21,8 +22,6 @@ limitations under the License. */
 
 namespace paddle {
 namespace framework {
-
-class VarDesc;
 
 class ChanEleDesc {
  public:
