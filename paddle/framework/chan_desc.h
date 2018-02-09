@@ -25,7 +25,7 @@ namespace framework {
 
 class ChanEleDesc {
  public:
-  ChanEleDesc();
+  ChanEleDesc(){};
 
   explicit ChanEleDesc(const proto::ChanEleDesc &desc);
 
