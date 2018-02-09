@@ -96,4 +96,4 @@ cc_test(op_kernel_type_test SRCS op_kernel_type_test.cc DEPS place device_contex
 cc_test(cow_ptr_tests SRCS details/cow_ptr_test.cc)
       
 cc_test(channel_test SRCS channel_test.cc)
-cc_test(chan_desc_test SRCS chan_desc_test.cc)
+cc_test(chan_desc_test SRCS chan_desc_test.cc var_desc.cc chan_desc.cc DEPS proto_desc)

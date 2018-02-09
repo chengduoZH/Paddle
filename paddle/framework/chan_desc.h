@@ -32,11 +32,7 @@ class ChanEleDesc {
 
   explicit ChanEleDesc(const std::string &binary_str);
 
-  VarDesc *AddChanMetaData() {
-    std::string name = "temp";  // TODO(zcd): add prefix "chan_"
-    chan_ele_.emplace(new VarDesc(name));
-    return chan_ele_.back().get();
-  }
+  VarDesc *AddChanMetaData();
 
   VarDesc *AppendChanMetaData(const VarDesc &ele);
 
