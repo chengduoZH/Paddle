@@ -118,10 +118,10 @@ message LoDTensorArrayDesc {
 
 message ReaderDesc { repeated LoDTensorDesc lod_tensor = 1; }
 
-message ChanEleDesc { repeated VarDesc meta_data = 1; }
+message ChanEleDesc { repeated VarDesc meta_datas = 1; }
 
 message ChanDesc {
-  repeated ChanEleDesc channel_type = 1;
+  repeated ChanEleDesc channel = 1;
   required int32 cap = 2 [ default = 0 ];
   required string name = 3;
 }
