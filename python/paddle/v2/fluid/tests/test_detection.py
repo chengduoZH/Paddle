@@ -112,7 +112,7 @@ class TestDetection(unittest.TestCase):
 class TestMultiBoxHead(unittest.TestCase):
     def test_multi_box_head(self):
         data_shape = [3, 224, 224]
-        mbox_locs, mbox_confs, box, var = self.prior_box_output(data_shape)
+        mbox_locs, mbox_confs, box, var = self.multi_box_head_output(data_shape)
 
         # assert len(box.shape) == 2
         # assert box.shape == var.shape
