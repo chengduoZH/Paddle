@@ -606,8 +606,10 @@ def multi_box_head(inputs,
         box_results.append(box)
         var_results.append(var)
 
+        num_boxes = box.shape[2]
+
         # get box_loc
-        num_loc_output = box.shape[3] * num_classes * 4
+        num_loc_output = num_boxes * num_classes * 4
         mbox_loc = nn.conv2d(
             input=input,
             num_filters=num_loc_output,
@@ -619,7 +621,7 @@ def multi_box_head(inputs,
         mbox_locs.append(mbox_loc)
 
         # get conf_loc
-        num_conf_output = box.shape[3] * num_classes
+        num_conf_output = num_boxes * num_classes
         conf_loc = nn.conv2d(
             input=input,
             num_filters=num_conf_output,
