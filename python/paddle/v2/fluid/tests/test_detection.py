@@ -114,9 +114,12 @@ class TestMultiBoxHead(unittest.TestCase):
         data_shape = [3, 224, 224]
         mbox_locs, mbox_confs, box, var = self.multi_box_head_output(data_shape)
 
-        # assert len(box.shape) == 2
-        # assert box.shape == var.shape
-        # assert box.shape[1] == 4
+        assert len(box.shape) == 2
+        assert box.shape == var.shape
+        assert box.shape[1] == 4
+
+        for loc, conf in zip(mbox_locs, mbox_confs):
+            assert loc.shape[1:3] == conf.shape[1:3]
 
     def multi_box_head_output(self, data_shape):
         images = fluid.layers.data(
