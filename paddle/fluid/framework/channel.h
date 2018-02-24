@@ -63,8 +63,9 @@ void CloseChannel(Channel<T>* ch) {
  */
 class ChannelHolder {
  public:
-  ChannelHolder() {}
-
+  ChannelHolder(const paddle::framework::ChannelHolder& chan_holder) {
+    holder_.reset(chan_holder.holder_);
+  }
   template <typename T>
   void Reset(size_t buffer_size) {
     holder_.reset(new PlaceholderImpl<T>(buffer_size));
