@@ -1433,8 +1433,8 @@ def sequence_last_step(input):
 def pool2d(input,
            pool_size,
            pool_type,
-           pool_stride=None,
-           pool_padding=None,
+           pool_stride=1,
+           pool_padding=0,
            global_pooling=False,
            use_cudnn=True,
            name=None):
@@ -1442,20 +1442,15 @@ def pool2d(input,
     This function adds the operator for pooling in 2 dimensions, using the
     pooling configurations mentioned in input parameters.
     """
-    if pool_padding is None:
-        pool_padding = [0, 0]
-    if pool_stride is None:
-        pool_stride = [1, 1]
     if pool_type not in ["max", "avg"]:
         raise ValueError(
             "Unknown pool_type: '%s'. It can only be 'max' or 'avg'.",
             str(pool_type))
-    if isinstance(pool_size, int):
-        pool_size = [pool_size, pool_size]
-    if isinstance(pool_stride, int):
-        pool_stride = [pool_stride, pool_stride]
-    if isinstance(pool_padding, int):
-        pool_padding = [pool_padding, pool_padding]
+
+    pool_size = utils.normalize_list(pool_size, 2, 'pool_size')
+    pool_padding = utils.normalize_list(pool_padding, 2, 'pool_padding')
+    pool_stride = utils.normalize_list(pool_stride, 2, 'pool_stride')
+
     if not isinstance(use_cudnn, bool):
         raise ValueError("use_cudnn should be True or False")
 
