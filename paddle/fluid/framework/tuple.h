@@ -58,9 +58,9 @@ bool Tuple::isSameType(Tuple& t) const {
     return false;
   }
   for (size_t j = 0; j < tuple_size; ++j) {
-    auto tuple1 = get(j);
-    auto tuple2 = t.get(j);
-    if (tuple1.type() != tuple2.type()) return false;
+    auto type1 = get(j).which();
+    auto type2 = t.get(j).which();
+    if (type1 != type2) return false;
   }
   return true;
 }
