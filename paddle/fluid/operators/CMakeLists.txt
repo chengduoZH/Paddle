@@ -32,10 +32,9 @@ function(op_library TARGET)
         if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${TARGET}.cu)
             list(APPEND cu_srcs ${TARGET}.cu)
         endif()
-        string(REPLACE "_op" "_cudnn_op" TARGET "${CUDNN_FILE}")
+        string(REPLACE "_op" "_cudnn_op" CUDNN_FILE "${TARGET}")
         if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${CUDNN_FILE}.cu.cc)
             list(APPEND cudnn_cu_cc_srcs ${CUDNN_FILE}.cu.cc)
-            message("asd ${CUDNN_FILE}")
         endif()
     else()
         foreach(src ${op_library_SRCS})
@@ -183,18 +182,9 @@ op_library(conv_transpose_op DEPS vol2col)
 op_library(edit_distance_op DEPS math_function)
 
 cc_library(batch_size_like SRCS batch_size_like.cc DEPS op_registry)
-
-op_library(fill_constant_batch_size_like_op
-  SRCS fill_constant_batch_size_like_op.cc fill_constant_batch_size_like_op.cu.cc
-  DEPS batch_size_like)
-
-op_library(uniform_random_batch_size_like_op
-  SRCS uniform_random_batch_size_like_op.cc
-  DEPS batch_size_like uniform_random_op)
-
-op_library(gaussian_random_batch_size_like_op
-  SRCS gaussian_random_batch_size_like_op.cc
-  DEPS batch_size_like gaussian_random_op)
+op_library(fill_constant_batch_size_like_op DEPS batch_size_like)
+op_library(uniform_random_batch_size_like_op DEPS batch_size_like uniform_random_op)
+op_library(gaussian_random_batch_size_like_op DEPS batch_size_like gaussian_random_op)
 
 # FIXME(typhoonzero): save/load depends lodtensor serialization functions
 op_library(save_op DEPS lod_tensor)
