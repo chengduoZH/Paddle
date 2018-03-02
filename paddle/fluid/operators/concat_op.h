@@ -32,13 +32,28 @@ class ConcatKernel : public framework::OpKernel<T> {
     int64_t axis = static_cast<int64_t>(ctx.Attr<int>("axis"));
     auto place = ctx.GetPlace();
     out->mutable_data<T>(place);
-    std::vector<framework::Tensor> inputs(ins.size());
-    for (size_t j = 0; j < ins.size(); ++j) {
-      inputs[j] = *ins[j];
+
+    if (platform::is_gpu_place(place) && axis >= 1) {
+      std::vector<framework::Tensor> inputs(ins.size());
+      for (size_t j = 0; j < ins.size(); ++j) {
+        inputs[j] = *ins[j];
+      }
+      auto& dev_ctx = ctx.template device_context<DeviceContext>();
+      paddle::operators::math::ConcatFunctor<DeviceContext, T> concat_functor;
+      concat_functor(dev_ctx, inputs, static_cast<int>(axis), out);
+
+    } else {
+      auto out_stride = framework::stride_numel(out->dims());
+      size_t output_offset = 0;
+
+      for (auto* in : ins) {
+        auto in_stride = framework::stride_numel(in->dims());
+        StridedNumelCopyWithAxis<T>(ctx.device_context(), axis,
+                                    out->data<T>() + output_offset, out_stride,
+                                    in->data<T>(), in_stride, in_stride[axis]);
+        output_offset += in_stride[axis];
+      }
     }
-    auto& dev_ctx = ctx.template device_context<DeviceContext>();
-    paddle::operators::math::ConcatFunctor<DeviceContext, T> concat_functor;
-    concat_functor(dev_ctx, inputs, static_cast<int>(axis), out);
   }
 };
 
