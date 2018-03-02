@@ -263,7 +263,7 @@ void testConcat() {
     */
   dim_a = make_ddim({2, 3, 4});
   dim_b = make_ddim({2, 3, 4});
-  dim_out = make_ddim({2, 6, 8});
+  dim_out = make_ddim({2, 6, 4});
 
   input_a.Resize(dim_a);
   input_b.Resize(dim_b);

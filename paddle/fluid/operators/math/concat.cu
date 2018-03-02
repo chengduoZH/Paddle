@@ -132,7 +132,7 @@ __global__ void KernelConcatGrad(const T* input, const int input_row,
   for (; tid_x < input_col; tid_x += blockDim.x * gridDim.x) {
     int split = tid_x * inv_input_col;
     int in_offset = tid_x - split * input_col;
-    const T* output_ptr = outputs.data[split];
+    T* output_ptr = outputs.data[split];
     for (; tid_y < input_row; tid_y += blockDim.y * gridDim.y)
       output_ptr[tid_y * output_cols + in_offset] =
           input[tid_y * input_col + tid_x];
