@@ -76,6 +76,34 @@ __global__ void KernelConcat(const CUDADeviceArray<const T*> inputs,
   }
 }
 
+template <typename T>
+__global__ void KernelConcatGrad(const T* input, const int input_row,
+                                 const int input_col,
+                                 CUDADeviceArray<int> output_cols,
+                                 CUDADeviceArray<T*> outputs) {
+  int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
+  int tid_y = blockIdx.y * blockDim.y + threadIdx.y;
+  int segment = upper_bound<int>(output_cols.data, output_cols.size, tid_x) - 1;
+
+  int curr_offset = output_cols.data[segment];
+  int curr_segment = segment;
+  for (; tid_x < input_col; tid_x += blockDim.x * gridDim.x) {
+    T curr_col_offset;
+    while ((curr_col_offset = output_cols.data[curr_segment + 1]) <= tid_x) {
+      curr_offset = curr_col_offset;
+      ++curr_segment;
+    }
+
+    int local_col = tid_x - curr_offset;
+    int segment_width = curr_col_offset - curr_offset;
+    T* output_ptr = outputs.data[curr_segment];
+
+    for (; tid_y < input_row; tid_y += blockDim.y * gridDim.y)
+      output_ptr[tid_y * segment_width + local_col] =
+          input[tid_y * input_col + tid_x];
+  }
+}
+
 /*
  * All tensors' dimension should be the same.
  */
@@ -83,16 +111,11 @@ template <typename T>
 class ConcatFunctor<platform::CUDADeviceContext, T> {
  public:
   void operator()(const platform::CUDADeviceContext& context,
-                  std::vector<framework::Tensor>& input, const int axis,
+                  const std::vector<framework::Tensor>& input, const int axis,
                   framework::Tensor* output) {
     // assume the the max size of input is less than 8 and see the performance
     // save origin dim
     int num = input.size();
-    // std::vector<paddle::framework::DDim> origin_dim(num);
-    // for (int j = 0; j < num; ++j) {
-    //   origin_dim[j] = input[j].dims();
-    // }
-    auto out_dim = output->dims();
 
     // get the matrix size
     int rows = 1;
@@ -117,11 +140,9 @@ class ConcatFunctor<platform::CUDADeviceContext, T> {
         if (t_cols != cols) sameShape = false;
       }
       out_cols += t_cols;
-      input[i].Resize({rows, t_cols});
       inputs_cols.data[i + 1] = out_cols;
       inputs_data.data[i] = input[i].data<T>();
     }
-    output->Resize({out_rows, out_cols});
 
     // computation
     const int kThreadsPerBlock = 256;
@@ -135,12 +156,58 @@ class ConcatFunctor<platform::CUDADeviceContext, T> {
 
     KernelConcat<<<grid_size, block_size, 0, context.stream()>>>(
         inputs_data, inputs_cols, out_rows, out_cols, output->data<T>());
+  }
+};
 
-    // recover origin dim
-    // for (int j = 0; j < num; ++j) {
-    //  input[j].Resize(origin_dim[j]);
-    // }
-    output->Resize(out_dim);
+template <typename T>
+class ConcatGradFunctor<platform::CUDADeviceContext, T> {
+ public:
+  void operator()(const platform::CUDADeviceContext& context,
+                  const framework::Tensor& input, const int axis,
+                  std::vector<framework::Tensor>& outputs) {
+    // assume the the max size of input is less than 8 and see the performance
+    // save origin dim
+    int num = outputs.size();
+
+    // get the matrix size
+    int input_row = 1;
+    auto dim_0 = outputs[0].dims();
+    for (int i = 0; i < axis; ++i) {
+      input_row *= dim_0[i];
+    }
+
+    int output_col_0 = outputs[0].numel() / input_row;
+    int input_col = 0;
+    bool sameShape = true;
+
+    CUDADeviceArray<T*> outputs_data;
+    CUDADeviceArray<int> outputs_cols;
+    outputs_data.size = num;
+    outputs_cols.size = num + 1;
+    outputs_cols.data[0] = 0;
+
+    for (int i = 0; i < num; ++i) {
+      int t_col = outputs[i].numel() / input_row;
+      if (sameShape) {
+        if (t_col != output_col_0) sameShape = false;
+      }
+      input_col += t_col;
+      outputs_cols.data[i + 1] = input_col;
+      outputs_data.data[i] = outputs[i].data<T>();
+    }
+
+    // computation
+    const int kThreadsPerBlock = 256;
+    int block_cols = std::min(input_col, kThreadsPerBlock);
+    int block_rows = std::max(kThreadsPerBlock / block_cols, 1);
+    dim3 block_size = dim3(block_cols, block_rows, 1);
+
+    int grid_cols = (input_col + block_cols - 1) / block_cols;
+    int grid_rows = (input_row + block_rows - 1) / block_rows;
+    dim3 grid_size = dim3(grid_cols, grid_rows, 1);
+
+    KernelConcatGrad<<<grid_size, block_size, 0, context.stream()>>>(
+        input.data<T>(), input_row, input_col, outputs_cols, outputs_data);
   }
 };
 
@@ -148,6 +215,11 @@ template class ConcatFunctor<platform::CUDADeviceContext, int>;
 template class ConcatFunctor<platform::CUDADeviceContext, int64_t>;
 template class ConcatFunctor<platform::CUDADeviceContext, float>;
 template class ConcatFunctor<platform::CUDADeviceContext, double>;
+
+template class ConcatGradFunctor<platform::CUDADeviceContext, int>;
+template class ConcatGradFunctor<platform::CUDADeviceContext, int64_t>;
+template class ConcatGradFunctor<platform::CUDADeviceContext, float>;
+template class ConcatGradFunctor<platform::CUDADeviceContext, double>;
 
 }  // namespace math
 }  // namespace operators
