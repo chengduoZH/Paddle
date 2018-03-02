@@ -38,7 +38,6 @@ class ConcatFunctor<platform::CPUDeviceContext, T> {
     for (int i = 0; i < axis; ++i) {
       rows *= dim_0[i];
     }
-    int cols = input[0].numel() / rows;
     int out_rows = rows, out_cols = 0;
 
     // get input's cols

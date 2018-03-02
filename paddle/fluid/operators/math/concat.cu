@@ -121,6 +121,24 @@ __global__ void KernelConcatGrad(const T* input, const int input_row,
   }
 }
 
+template <typename T>
+__global__ void KernelConcatGrad(const T* input, const int input_row,
+                                 const int input_col, const int output_cols,
+                                 CUDADeviceArray<T*> outputs) {
+  int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
+  int tid_y = blockIdx.y * blockDim.y + threadIdx.y;
+
+  float inv_input_col = 1.0 / input_col;
+  for (; tid_x < input_col; tid_x += blockDim.x * gridDim.x) {
+    int split = tid_x * inv_input_col;
+    int in_offset = tid_x - split * input_col;
+    const T* input_ptr = outputs.data[split];
+    for (; tid_y < input_row; tid_y += blockDim.y * gridDim.y)
+      input_ptr[tid_y * output_cols + in_offset] =
+          output[tid_y * input_col + tid_x];
+  }
+}
+
 /*
  * All tensors' dimension should be the same.
  */
@@ -231,8 +249,13 @@ class ConcatGradFunctor<platform::CUDADeviceContext, T> {
     int grid_rows = (input_row + block_rows - 1) / block_rows;
     dim3 grid_size = dim3(grid_cols, grid_rows, 1);
 
-    KernelConcatGrad<<<grid_size, block_size, 0, context.stream()>>>(
-        input.data<T>(), input_row, input_col, outputs_cols, outputs_data);
+    if (sameShape) {
+      KernelConcatGrad<<<grid_size, block_size, 0, context.stream()>>>(
+          input.data<T>(), input_row, input_col, output_col_0, outputs_data);
+    } else {
+      KernelConcatGrad<<<grid_size, block_size, 0, context.stream()>>>(
+          input.data<T>(), input_row, input_col, outputs_cols, outputs_data);
+    }
   }
 };
 
