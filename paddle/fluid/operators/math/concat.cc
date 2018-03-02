@@ -81,7 +81,6 @@ class ConcatGradFunctor<platform::CPUDeviceContext, T> {
     for (int i = 0; i < axis; ++i) {
       input_rows *= dim_0[i];
     }
-    int cols = outputs[0].numel() / input_rows;
     int input_cols = 0;
 
     // get outputs' cols
