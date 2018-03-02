@@ -133,6 +133,7 @@ CUDADeviceContext::CUDADeviceContext(CUDAPlace place) : place_(place) {
   } else {
     cudnn_handle_ = nullptr;
   }
+  cudaStreamCreate(&stream_memcpy_);
 }
 
 CUDADeviceContext::~CUDADeviceContext() {
@@ -145,6 +146,7 @@ CUDADeviceContext::~CUDADeviceContext() {
   eigen_stream_.reset();
   eigen_device_.reset();
   PADDLE_ENFORCE(cudaStreamDestroy(stream_));
+  PADDLE_ENFORCE(cudaStreamDestroy(stream_memcpy_));
 }
 
 Place CUDADeviceContext::GetPlace() const { return place_; }
@@ -165,6 +167,8 @@ cublasHandle_t CUDADeviceContext::cublas_handle() const {
 cudnnHandle_t CUDADeviceContext::cudnn_handle() const { return cudnn_handle_; }
 
 cudaStream_t CUDADeviceContext::stream() const { return stream_; }
+
+cudaStream_t CUDADeviceContext::stream_memcpy() const { return stream_memcpy_; }
 
 #endif
 

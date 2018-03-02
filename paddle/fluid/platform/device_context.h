@@ -91,6 +91,9 @@ class CUDADeviceContext : public DeviceContext {
   /*! \brief  Return cuda stream in the device context. */
   cudaStream_t stream() const;
 
+  /*! \brief  Return cuda stream in the device context. */
+  cudaStream_t stream_memcpy() const;
+
  private:
   CUDAPlace place_;
 
@@ -98,6 +101,7 @@ class CUDADeviceContext : public DeviceContext {
   std::unique_ptr<EigenCudaStreamDevice> eigen_stream_;
 
   cudaStream_t stream_;
+  cudaStream_t stream_memcpy_;
   cudnnHandle_t cudnn_handle_;
   cublasHandle_t cublas_handle_;
 };

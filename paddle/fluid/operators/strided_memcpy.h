@@ -90,7 +90,8 @@ inline void StridedNumelCopyWithAxis(const platform::DeviceContext& ctx,
       auto& cuda_ctx =
           reinterpret_cast<const platform::CUDADeviceContext&>(ctx);
       memory::Copy(gpu_place, dst + i * dst_after, gpu_place,
-                   src + i * src_after, sizeof(T) * size, cuda_ctx.stream());
+                   src + i * src_after, sizeof(T) * size,
+                   cuda_ctx.stream_memcpy());
 #else
       PADDLE_THROW("Paddle is not compiled with GPU");
 #endif
