@@ -40,15 +40,11 @@ class ConcatFunctor<platform::CPUDeviceContext, T> {
     }
     int cols = input[0].numel() / rows;
     int out_rows = rows, out_cols = 0;
-    bool sameShape = true;
 
     // get input's cols
     std::vector<int64_t> input_cols(input.size());
     for (int i = 0; i < num; ++i) {
       int t_cols = input[i].numel() / rows;
-      if (sameShape) {
-        if (t_cols != cols) sameShape = false;
-      }
       out_cols += t_cols;
       input_cols[i] = t_cols;
     }
@@ -88,15 +84,11 @@ class ConcatGradFunctor<platform::CPUDeviceContext, T> {
     }
     int cols = outputs[0].numel() / input_rows;
     int input_cols = 0;
-    bool sameShape = true;
 
     // get outputs' cols
     std::vector<int64_t> output_cols(outputs.size());
     for (int i = 0; i < num; ++i) {
       int t_cols = outputs[i].numel() / input_rows;
-      if (sameShape) {
-        if (t_cols != cols) sameShape = false;
-      }
       input_cols += t_cols;
       output_cols[i] = t_cols;
     }
