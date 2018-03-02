@@ -22,7 +22,7 @@ namespace math {
 // TODO(zcd): This can be replaced by tensor,
 // if that, maybe we should add int8 to VarType::Type.
 // Or replaced by tensorArray.
-static constexpr int MaxSize = 32;
+static constexpr int MaxSize = 8;
 template <typename T>
 struct CUDADeviceArray {
   T data[MaxSize];
