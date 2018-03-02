@@ -116,7 +116,8 @@ class ConcatFunctor<platform::CUDADeviceContext, T> {
     // assume the the max size of input is less than 8 and see the performance
     // save origin dim
     int num = input.size();
-
+    PADDLE_ENFORCE_LT(num, MaxSize, "input number should be less than %d",
+                      MaxSize);
     // get the matrix size
     int rows = 1;
     auto dim_0 = input[0].dims();
@@ -168,6 +169,8 @@ class ConcatGradFunctor<platform::CUDADeviceContext, T> {
     // assume the the max size of input is less than 8 and see the performance
     // save origin dim
     int num = outputs.size();
+    PADDLE_ENFORCE_LT(num, MaxSize, "input number should be less than %d",
+                      MaxSize);
 
     // get the matrix size
     int input_row = 1;
