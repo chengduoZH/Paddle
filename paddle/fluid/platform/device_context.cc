@@ -153,6 +153,12 @@ Place CUDADeviceContext::GetPlace() const { return place_; }
 
 void CUDADeviceContext::Wait() const {
   PADDLE_ENFORCE(cudaStreamSynchronize(stream_));
+  PADDLE_ENFORCE(cudaStreamSynchronize(stream_memcpy_));
+  PADDLE_ENFORCE(cudaGetLastError());
+}
+
+void CUDADeviceContext::MemCpyStreamSync() const {
+  PADDLE_ENFORCE(cudaStreamSynchronize(stream_memcpy_));
   PADDLE_ENFORCE(cudaGetLastError());
 }
 

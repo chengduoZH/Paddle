@@ -94,6 +94,8 @@ class CUDADeviceContext : public DeviceContext {
   /*! \brief  Return cuda stream in the device context. */
   cudaStream_t stream_memcpy() const;
 
+  void MemCpyStreamSync() const;
+
  private:
   CUDAPlace place_;
 

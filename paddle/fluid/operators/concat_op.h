@@ -54,6 +54,12 @@ class ConcatKernel : public framework::OpKernel<T> {
         output_offset += in_stride[axis];
       }
     }
+#ifdef PADDLE_WITH_CUDA
+    if (platform::is_gpu_place(place)) {
+      auto& dev_ctx = ctx.template device_context<DeviceContext>();
+      dev_ctx.MemCpyStreamSync();
+    }
+#endif
   }
 };
 
