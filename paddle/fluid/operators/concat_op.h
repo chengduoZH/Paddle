@@ -52,6 +52,7 @@ class ConcatGradKernel : public framework::OpKernel<T> {
 
     std::vector<framework::Tensor> outputs(outs.size());
     for (size_t j = 0; j < outs.size(); ++j) {
+      outs[j]->mutable_data<T>(ctx.GetPlace());
       outputs[j] = *outs[j];
     }
 
