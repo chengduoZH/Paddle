@@ -164,8 +164,7 @@ class ConcatFunctor<platform::CUDADeviceContext, T> {
     inputs_data.size = num;
     inputs_cols.size = num + 1;
     inputs_cols.data[0] = 0;
-    // reshape to matrix
-    // check input shape is valid
+
     for (int i = 0; i < num; ++i) {
       int t_cols = input[i].numel() / rows;
       if (sameShape) {
@@ -218,7 +217,6 @@ class ConcatGradFunctor<platform::CUDADeviceContext, T> {
     PADDLE_ENFORCE_LT(num, MaxSize, "input number should be less than %d",
                       MaxSize);
 
-    // get the matrix size
     int input_row = 1;
     auto dim_0 = outputs[0].dims();
     for (int i = 0; i < axis; ++i) {
@@ -246,7 +244,7 @@ class ConcatGradFunctor<platform::CUDADeviceContext, T> {
     }
 
     // computation
-    const int kThreadsPerBlock = 256;
+    const int kThreadsPerBlock = 1024;
     int block_cols = std::min(input_col, kThreadsPerBlock);
     int block_rows = std::max(kThreadsPerBlock / block_cols, 1);
     dim3 block_size = dim3(block_cols, block_rows, 1);
