@@ -34,6 +34,7 @@ class SumKernel : public framework::OpKernel<T> {
     int N = in_vars.size();
     auto out_var = context.OutputVar("Out");
 
+    auto dev_cxt = context.template device_context<DeviceContext>();
     bool in_place = out_var == in_vars[0];
 
     if (out_var->IsType<framework::LoDTensor>()) {
@@ -44,13 +45,11 @@ class SumKernel : public framework::OpKernel<T> {
       auto result = EigenVector<T>::Flatten(*out);
       if (!in_place) {
         math::SetConstant<DeviceContext, T> constant_functor;
-        constant_functor(context.template device_context<DeviceContext>(), out,
-                         0.0);
+        constant_functor(dev_cxt, out, 0.0);
       }
 
       math::SelectedRowsAddToTensor<DeviceContext, T> functor;
-      auto &place =
-          *context.template device_context<DeviceContext>().eigen_device();
+      auto &place = *dev_cxt.eigen_device();
       // If in_place, just skip the first tensor
       for (int i = in_place ? 1 : 0; i < N; i++) {
         if (in_vars[i]->IsType<framework::LoDTensor>()) {
@@ -62,7 +61,7 @@ class SumKernel : public framework::OpKernel<T> {
           result.device(place) = result + in;
         } else if (in_vars[i]->IsType<framework::SelectedRows>()) {
           auto &in_t = in_vars[i]->Get<framework::SelectedRows>();
-          functor(context.template device_context<DeviceContext>(), in_t, out);
+          functor(dev_cxt, in_t, out);
         } else {
           PADDLE_THROW("Variable type must be LoDTensor/SelectedRows.");
         }
@@ -120,8 +119,7 @@ class SumKernel : public framework::OpKernel<T> {
           continue;
         }
         PADDLE_ENFORCE_EQ(out->height(), sel_row.height());
-        functor(context.template device_context<DeviceContext>(), sel_row,
-                offset, out);
+        functor(dev_cxt, sel_row, offset, out);
         offset += sel_row.value().numel();
       }
     } else if (out_var->IsType<framework::LoDTensorArray>()) {
@@ -144,8 +142,7 @@ class SumKernel : public framework::OpKernel<T> {
               PADDLE_ENFORCE(out_array[i].lod() == in_array[i].lod());
               auto in = EigenVector<T>::Flatten(in_array[i]);
               auto result = EigenVector<T>::Flatten(out_array[i]);
-              result.device(*context.template device_context<DeviceContext>()
-                                 .eigen_device()) = result + in;
+              result.device(*dev_cxt.eigen_device()) = result + in;
             }
           }
         }
