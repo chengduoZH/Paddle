@@ -90,9 +90,7 @@ class LookupTableCUDAKernel : public framework::OpKernel<T> {
       K = ids_t->numel();
     } else if (ids_var->IsType<framework::SelectedRows>()) {
       auto* ids_t = context.Input<framework::SelectedRows>("Ids");
-      output_t = const_cast<framework::Tensor*>(
-          &(context.Output<framework::SelectedRows>("Out")
-                ->value()));  // float tensor
+      output_t = context.Output<SelectedRows>("Out")->mutable_value();
       ids = const_cast<int64_t*>(ids_t->rows().CUDAData(context.GetPlace()));
       K = ids_t->rows().size();
       output_t->Resize({K, table_t->dims()[1]});
@@ -194,3 +192,6 @@ REGISTER_OP_CUDA_KERNEL(lookup_table, ops::LookupTableCUDAKernel<float>,
 REGISTER_OP_CUDA_KERNEL(lookup_table_grad,
                         ops::LookupTableGradCUDAKernel<float>,
                         ops::LookupTableGradCUDAKernel<double>);
+
+REGISTER_OP_CUDA_KERNEL(concat_rows, ops::LookupTableCUDAKernel<float>,
+                        ops::LookupTableCUDAKernel<double>);

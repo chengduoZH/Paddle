@@ -46,8 +46,7 @@ class LookupTableKernel : public framework::OpKernel<T> {
       ids_numel = ids_t->numel();
     } else if (ids_var->IsType<SelectedRows>()) {
       auto* ids_t = context.Input<SelectedRows>("Ids");
-      output_t =
-          const_cast<Tensor*>(&(context.Output<SelectedRows>("Out")->value()));
+      output_t = context.Output<SelectedRows>("Out")->mutable_value();
       ids = const_cast<int64_t*>(ids_t->rows().data());
       ids_numel = ids_t->rows().size();
       output_t->Resize({ids_numel, table_t->dims()[1]});

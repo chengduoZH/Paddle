@@ -150,3 +150,7 @@ REGISTER_OP_CPU_KERNEL(lookup_table, ops::LookupTableKernel<float>,
                        ops::LookupTableKernel<double>);
 REGISTER_OP_CPU_KERNEL(lookup_table_grad, ops::LookupTableGradKernel<float>,
                        ops::LookupTableGradKernel<double>);
+
+REGISTER_OPERATOR(concat_rows, ops::LookupTableOp, ops::LookupTableOpMaker);
+REGISTER_OP_CPU_KERNEL(concat_rows, ops::LookupTableKernel<float>,
+                       ops::LookupTableKernel<double>);
