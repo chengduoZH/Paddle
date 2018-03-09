@@ -29,25 +29,44 @@ template <typename T>
 class LookupTableKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& context) const override {
-    auto* table_t = context.Input<LoDTensor>("W");      // float tensor
-    auto* ids_t = context.Input<LoDTensor>("Ids");      // int tensor
-    auto* output_t = context.Output<LoDTensor>("Out");  // float tensor
+    auto* table_t = context.Input<LoDTensor>("W");  // float tensor
+    framework::Tensor* output_t;
+
+    auto* ids_var = context.InputVar("Ids");  // int tensor
+    int64_t* ids;
+    int64_t ids_numel;
+    if (ids_var->IsType<framework::LoDTensor>()) {
+      auto* ids_t = context.Input<LoDTensor>("Ids");
+      ids = const_cast<int64_t*>(ids_t->data<int64_t>());
+      ids_numel = ids_t->numel();
+      output_t = context.Output<LoDTensor>("Out");  // float tensor
+    } else if (ids_var->IsType<framework::SelectedRows>()) {
+      auto* ids_t = context.Input<framework::SelectedRows>("Ids");
+      ids = const_cast<int64_t*>(ids_t->rows().data());
+      ids_numel = ids_t->rows().size();
+      output_t = const_cast<framework::Tensor*>(
+          &(context.Output<framework::SelectedRows>("Out")
+                ->value()));  // float tensor
+      output_t->Resize({ids_numel, table_t->dims()[1]});
+    } else {
+      PADDLE_THROW("Unsupported Variable Type of Ids");
+    }
+
     int64_t padding_idx = context.Attr<int64_t>("padding_idx");
 
     int N = table_t->dims()[0];
     int D = table_t->dims()[1];
-    auto* ids = ids_t->data<int64_t>();
     auto* table = table_t->data<T>();
     auto* output = output_t->mutable_data<T>(context.GetPlace());
 
     if (padding_idx == -1) {
-      for (int64_t i = 0; i < ids_t->numel(); ++i) {
+      for (int64_t i = 0; i < ids_numel; ++i) {
         PADDLE_ENFORCE_LT(ids[i], N);
         PADDLE_ENFORCE_GE(ids[i], 0);
         memcpy(output + i * D, table + ids[i] * D, D * sizeof(T));
       }
     } else {
-      for (int64_t i = 0; i < ids_t->numel(); ++i) {
+      for (int64_t i = 0; i < ids_numel; ++i) {
         if (ids[i] == padding_idx) {
           memset(output + i * D, 0, D * sizeof(T));
         } else {

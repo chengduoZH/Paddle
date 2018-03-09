@@ -34,7 +34,7 @@ class LookupTableOp : public framework::OperatorWithKernel {
     auto ids_dims = ctx->GetInputDim("Ids");
 
     PADDLE_ENFORCE_EQ(ids_dims.size(), 2);
-    PADDLE_ENFORCE_EQ(ids_dims[1], 1);
+    // PADDLE_ENFORCE_EQ(ids_dims[1], 1);
 
     ctx->SetOutputDim("Out", {ids_dims[0], table_dims[1]});
     ctx->ShareLoD("Ids", /*->*/ "Out");
