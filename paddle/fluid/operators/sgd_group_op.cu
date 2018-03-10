@@ -59,9 +59,9 @@ __global__ void SGDGroupKernel(const T** grads, const T** params,
                                T** params_out) {
   int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
   int segment = upper_bound<int>(p_numbers, para_num, tid_x) - 1;
-
   int curr_offset = p_numbers[segment];
   int curr_segment = segment;
+
   for (; tid_x < ele_num; tid_x += blockDim.x * gridDim.x) {
     int curr_col_offset;
     while ((curr_col_offset = p_numbers[curr_segment + 1]) <= tid_x) {
