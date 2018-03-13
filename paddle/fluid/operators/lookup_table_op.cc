@@ -90,44 +90,6 @@ or not. And the output only shares the LoD information with input Ids.
   }
 };
 
-class ConcatRowsOpMaker : public framework::OpProtoAndCheckerMaker {
- public:
-  ConcatRowsOpMaker(OpProto* proto, OpAttrChecker* op_checker)
-      : OpProtoAndCheckerMaker(proto, op_checker) {
-    AddInput("W",
-             "(Tensor) The input tensor of concat_rows operator. "
-             "The rank of this tensor is 2.");
-    AddInput("Ids",
-             "(SelectedRows) The rows_ of Ids contains the ids to be looked up "
-             "in W .");
-    AddOutput("Out",
-              "(SelectedRows) The result of concatenating, which have the same "
-              "type as W.");
-    AddAttr<bool>("is_sparse", "(boolean, default true) The output is sparse.")
-        .SetDefault(true)
-        .AddCustomChecker([](const bool& is_sparse) {
-          PADDLE_ENFORCE(is_sparse,
-                         "is_sparse must be true for concat_rows operator.");
-        });
-    AddAttr<int64_t>("padding_idx",
-                     "(int64, default -1) "
-                     "It is not used by concat_rows operator.")
-        .SetDefault(-1)
-        .AddCustomChecker([](const int64_t& padding_idx) {
-          PADDLE_ENFORCE(padding_idx == -1, "padding_idx must be -1.");
-        });
-    AddComment(R"DOC(
-ConcatRows Operator.
-
-This operator is used to perform lookups on the W according to rows contained by Idx,
-then concatenated them into a dense tensor.
-
-The Ids(Input) and Out(output) is SelectedRows type.
-
-)DOC");
-  }
-};
-
 class LookupTableOpGradDescMaker
     : public framework::DefaultGradOpDescMaker<true> {
   using ::paddle::framework::DefaultGradOpDescMaker<
@@ -188,7 +150,3 @@ REGISTER_OP_CPU_KERNEL(lookup_table, ops::LookupTableKernel<float>,
                        ops::LookupTableKernel<double>);
 REGISTER_OP_CPU_KERNEL(lookup_table_grad, ops::LookupTableGradKernel<float>,
                        ops::LookupTableGradKernel<double>);
-
-REGISTER_OPERATOR(concat_rows, ops::LookupTableOp, ops::ConcatRowsOpMaker);
-REGISTER_OP_CPU_KERNEL(concat_rows, ops::LookupTableKernel<float>,
-                       ops::LookupTableKernel<double>);

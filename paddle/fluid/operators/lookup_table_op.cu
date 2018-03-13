@@ -192,6 +192,3 @@ REGISTER_OP_CUDA_KERNEL(lookup_table, ops::LookupTableCUDAKernel<float>,
 REGISTER_OP_CUDA_KERNEL(lookup_table_grad,
                         ops::LookupTableGradCUDAKernel<float>,
                         ops::LookupTableGradCUDAKernel<double>);
-
-REGISTER_OP_CUDA_KERNEL(concat_rows, ops::LookupTableCUDAKernel<float>,
-                        ops::LookupTableCUDAKernel<double>);
