@@ -15,6 +15,8 @@
 import unittest
 import numpy as np
 from op_test import OpTest
+import paddle.fluid.core as core
+from paddle.fluid.op import Operator
 
 
 class TestLookupTableOp(OpTest):
@@ -78,12 +80,7 @@ class TestConcatRowsOp(OpTest):
         Out_tensor.set(Out_array, place)
 
         # create and run concat_rows_op operator
-        concat_rows_op = Operator(
-            "lookup_table",
-            W='W',
-            Ids='Ids',
-            Out='Out',
-            attrs={'is_sparse': True})
+        concat_rows_op = Operator("lookup_table", W='W', Ids='Ids', Out='Out')
         concat_rows_op.run(scope, place)
 
         # get and compare result
