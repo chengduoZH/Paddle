@@ -136,6 +136,11 @@ void PushEvent(const std::string& name, const DeviceContext* dev_ctx) {
   GetEventList().Record(EventKind::kPushRange, name, g_thread_id, dev_ctx);
 }
 
+void PushEvent(const std::string& name, const DeviceContext* dev_ctx,
+               const int thread) {
+  GetEventList().Record(EventKind::kPushRange, name, thread, dev_ctx);
+}
+
 void PopEvent(const std::string& name, const DeviceContext* dev_ctx) {
   GetEventList().Record(EventKind::kPopRange, name, g_thread_id, dev_ctx);
 }
@@ -146,6 +151,17 @@ RecordEvent::RecordEvent(const std::string& name, const DeviceContext* dev_ctx)
   dev_ctx_ = dev_ctx;
   name_ = name;
   PushEvent(name_, dev_ctx_);
+  // Maybe need the same push/pop behavior.
+  SetCurAnnotation(name_.c_str());
+}
+
+RecordEvent::RecordEvent(const std::string& name, const DeviceContext* dev_ctx,
+                         const int thread)
+    : start_ns_(PosixInNsec()) {
+  if (g_state == ProfilerState::kDisabled) return;
+  dev_ctx_ = dev_ctx;
+  name_ = name;
+  PushEvent(name_, dev_ctx_, thread);
   // Maybe need the same push/pop behavior.
   SetCurAnnotation(name_.c_str());
 }

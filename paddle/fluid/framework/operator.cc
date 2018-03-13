@@ -501,7 +501,7 @@ void OperatorWithKernel::RunImpl(const Scope& scope,
   auto* dev_ctx = pool.Get(place);
   //  platform::RecordEvent record_event(Type() + "_pre", dev_ctx);
   platform::RecordEvent* record_event =
-      new platform::RecordEvent(Type() + "_pre", dev_ctx);
+      new platform::RecordEvent(Type() + "_pre", dev_ctx, 10);
 
   RuntimeInferShapeContext infer_shape_ctx(*this, scope);
   this->InferShape(&infer_shape_ctx);

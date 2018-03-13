@@ -105,7 +105,8 @@ void PopEvent(const std::string& name, const DeviceContext* dev_ctx);
 
 struct RecordEvent {
   RecordEvent(const std::string& name, const DeviceContext* dev_ctx);
-
+  RecordEvent(const std::string& name, const DeviceContext* dev_ctx,
+              const int thread);
   ~RecordEvent();
 
   uint64_t start_ns_;
