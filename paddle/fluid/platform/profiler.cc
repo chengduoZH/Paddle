@@ -144,6 +144,10 @@ void PushEvent(const std::string& name, const DeviceContext* dev_ctx,
 void PopEvent(const std::string& name, const DeviceContext* dev_ctx) {
   GetEventList().Record(EventKind::kPopRange, name, g_thread_id, dev_ctx);
 }
+void PopEvent(const std::string& name, const DeviceContext* dev_ctx,
+              const int thread) {
+  GetEventList().Record(EventKind::kPopRange, name, thread, dev_ctx);
+}
 
 RecordEvent::RecordEvent(const std::string& name, const DeviceContext* dev_ctx)
     : start_ns_(PosixInNsec()) {
@@ -161,6 +165,7 @@ RecordEvent::RecordEvent(const std::string& name, const DeviceContext* dev_ctx,
   if (g_state == ProfilerState::kDisabled) return;
   dev_ctx_ = dev_ctx;
   name_ = name;
+  thread_ = thread;
   PushEvent(name_, dev_ctx_, thread);
   // Maybe need the same push/pop behavior.
   SetCurAnnotation(name_.c_str());
@@ -173,7 +178,10 @@ RecordEvent::~RecordEvent() {
     tracer->AddCPURecords(CurAnnotation(), start_ns_, PosixInNsec());
   }
   ClearCurAnnotation();
-  PopEvent(name_, dev_ctx_);
+  if (thread_ != -1)
+    PopEvent(name_, dev_ctx_);
+  else
+    PopEvent(name_, dev_ctx_, thread_);
 }
 
 void EnableProfiler(ProfilerState state) {

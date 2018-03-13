@@ -109,6 +109,7 @@ struct RecordEvent {
               const int thread);
   ~RecordEvent();
 
+  int thread_{-1};
   uint64_t start_ns_;
   // The device context is used by Event to get the current cuda stream.
   const DeviceContext* dev_ctx_;
