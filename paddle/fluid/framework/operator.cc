@@ -50,6 +50,18 @@ static DDim GetDims(const Scope& scope, const std::string& name) {
   }
 }
 
+static DDim GetSelectedTensorDims(const Scope& scope, const std::string& name) {
+  Variable* var = scope.FindVar(name);
+  if (var == nullptr) {
+    return DDim({-1});
+  }
+  if (var->IsType<SelectedRows>()) {
+    return var->Get<SelectedRows>().GetTensorDims();
+  } else {
+    return DDim({-1});
+  }
+}
+
 static LoD GetLoD(const Scope& scope, const std::string& name) {
   Variable* var = scope.FindVar(name);
   auto default_lod = LoD({{}});
@@ -123,6 +135,8 @@ std::string OperatorBase::DebugStringEx(const Scope* scope) const {
       if (scope) {
         ss << "[" << GetDims(*scope, input.second[i]) << "]";
         ss << "(" << GetLoD(*scope, input.second[i]) << ")";
+        ss << "(SelectedRows' Tensor : "
+           << GetSelectedTensorDims(*scope, input.second[i]) << ")";
       }
       if (i != input.second.size() - 1) {
         ss << ", ";
@@ -143,6 +157,8 @@ std::string OperatorBase::DebugStringEx(const Scope* scope) const {
       if (scope) {
         ss << "[" << GetDims(*scope, output.second[i]) << "]";
         ss << "(" << GetLoD(*scope, output.second[i]) << ")";
+        ss << "(SelectedRows' Tensor : "
+           << GetSelectedTensorDims(*scope, output.second[i]) << ")";
       }
       if (i != output.second.size() - 1) {
         ss << ", ";

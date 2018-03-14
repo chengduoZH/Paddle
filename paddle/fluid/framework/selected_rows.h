@@ -50,6 +50,8 @@ class SelectedRows {
     return make_ddim(dims);
   }
 
+  DDim GetTensorDims() const { return value_->dims(); }
+
  private:
   // Notice: rows can be duplicate. We can have {0, 4, 7, 0, 5, 7, 9} here.
   // SelectedRows are simplely concated when adding together. Until a
