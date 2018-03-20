@@ -111,7 +111,7 @@ inline T* Tensor::mutable_data(DDim dims, platform::Place place,
 template <typename T>
 inline T* Tensor::mutable_data(platform::Place place, bool use_pinned) {
   static_assert(std::is_pod<T>::value, "T must be POD");
-  return reinterpret_cast<T*>(mutable_data(place, typeid(T)), use_pinned);
+  return reinterpret_cast<T*>(mutable_data(place, typeid(T), use_pinned));
 }
 
 inline void* Tensor::mutable_data(platform::Place place, std::type_index type,
