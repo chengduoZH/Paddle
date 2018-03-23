@@ -70,9 +70,8 @@ __global__ void KernelConcat(T** inputs, const int input_col,
                              const int output_rows, const int output_cols,
                              T* output) {
   int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
-  double inv_input_col = 1.0 / input_col;
   for (; tid_x < output_cols; tid_x += blockDim.x * gridDim.x) {
-    int split = tid_x * inv_input_col;
+    int split = tid_x * 1.0 / input_col;
     int in_offset = tid_x - split * input_col;
     T* input_ptr = inputs[split];
     int tid_y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -98,6 +97,15 @@ __global__ void KernelConcatGrad(const T* input, const int input_row,
       ++curr_segment;
     }
 
+    if (segment > col_size || segment < 0) {
+      printf("segment > col_size %d", segment);
+      return;
+    }
+    if (curr_segment > col_size) {
+      printf("curr_segment > col_size %d", segment);
+      return;
+    }
+
     int local_col = tid_x - curr_offset;
     int segment_width = curr_col_offset - curr_offset;
     T* output_ptr = outputs[curr_segment];
@@ -110,17 +118,16 @@ __global__ void KernelConcatGrad(const T* input, const int input_row,
 
 template <typename T>
 __global__ void KernelConcatGrad(const T* input, const int input_row,
-                                 const int input_col, const int output_cols,
+                                 const int input_col, const int output_col,
                                  T** outputs) {
   int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
-  double inv_input_col = 1.0 / input_col;
   for (; tid_x < input_col; tid_x += blockDim.x * gridDim.x) {
-    int split = tid_x * inv_input_col;
-    int in_offset = tid_x - split * input_col;
+    int split = tid_x / output_col;
+    int in_offset = tid_x - split * output_col;
     T* output_ptr = outputs[split];
     int tid_y = blockIdx.y * blockDim.y + threadIdx.y;
     for (; tid_y < input_row; tid_y += blockDim.y * gridDim.y)
-      output_ptr[tid_y * output_cols + in_offset] =
+      output_ptr[tid_y * output_col + in_offset] =
           input[tid_y * input_col + tid_x];
   }
 }
@@ -230,6 +237,7 @@ class ConcatGradFunctor<platform::CUDADeviceContext, T> {
       input_col += t_col;
       outputs_cols[i + 1] = input_col;
       outputs_ptr[i] = outputs[i].data<T>();
+      VLOG(1) << i << ": " << input_row << " " << t_col;
     }
 
     T** outs_gpu =
@@ -258,6 +266,9 @@ class ConcatGradFunctor<platform::CUDADeviceContext, T> {
       KernelConcatGrad<<<grid_size, block_size, 0, context.stream()>>>(
           input.data<T>(), input_row, input_col, output_col_0, outs_gpu);
     } else {
+      VLOG(1) << "input : " << input_row << " " << input_col;
+      VLOG(1) << "block : " << block_cols << " " << block_rows;
+      VLOG(1) << "grid : " << grid_cols << " " << grid_rows;
       KernelConcatGrad<<<grid_size, block_size, 0, context.stream()>>>(
           input.data<T>(), input_row, input_col, outs_col_gpu,
           static_cast<int>(outputs_cols.size()), outs_gpu);
