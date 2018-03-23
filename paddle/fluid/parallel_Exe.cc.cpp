@@ -24,13 +24,15 @@ namespace framework {
 
 struct OpHandleBase;
 
+// 所有这些操作和都是在一个流里面
+// nccl有一个自己的context，也就是有另一个流
 struct VarHandleBase {
   virtual ~VarHandleBase() {}
   virtual std::string DebugString() const = 0;
 
   OpHandleBase *generated_op_;  // 每个变量都一个生成op
   std::unordered_set<OpHandleBase *>
-      pending_ops_;  // 与该变量相关的操作，只包括读取的op
+      pending_ops_;  // 与该变量相关的操作，只包括读取的op,
 };
 
 struct VarHandle : public VarHandleBase {
@@ -42,12 +44,12 @@ struct VarHandle : public VarHandleBase {
 
   // version field currently is not used, however, just store the version to
   // debug easily.
-  size_t version_;  // 用来标记变量的，SSA，
+  size_t version_;  // 用来标记变量的，SSA，并且在检查写后写的
   std::string name_;
   platform::Place place_;  // 每个变量都有一个place,
 };
 
-struct DummyVarHandle : public VarHandleBase {
+struct DummyVarHandle : public VarHandleBase {  // 用来解决w后w
   std::string DebugString() const override { return "dummy"; }
 };
 
@@ -58,8 +60,10 @@ struct OpHandleBase {
                      platform::DeviceContext *,
                      platform::PlaceHash>
       dev_ctx_;  // 每个place都有一个自己的Devicetext，如果有4个GPU，所有op公用这四个Context，所以也就没有涉及到stream
-  // 每个op都有input和output。以及执行时的place和上下文，这个上下文是place的上下文，里面有stream等等，对于一个place可有多个上下文
-  // 不太明白这里为啥要有place和设备上下文(所有参与到这个op里面的GPU及上下文)
+                 // 每个op都有input和output。以及执行时的place和上下文，这个上下文是place的上下文，里面有stream等等，对于一个place可有多个上下文
+                 // 不太明白这里为啥要有place和设备上下文(所有参与到这个op里面的GPU及上下文)
+  // 传给某个op的input数据可能是不同设备上的，比如NCCL，
+  //
   std::unordered_map<int, cudaEvent_t>
       events_;  // 事件，用于记录op运行完否的标志，应该是在op启动之后调用，追加在op之后
 
@@ -82,7 +86,7 @@ struct OpHandleBase {
   void Run(bool use_event) {
     if (events_.empty() && use_event) {
       for (
-          auto &p :
+          auto &p :  // 为每个dev_ctx创建一个时间，op的时间表明改op是否已经完成
           dev_ctx_) {  // 为啥在run的时候创建事件，事件只需要创建一次的，这些dev_ctx又是做啥用的，dev_ctx有多少个，
         int dev_id = boost::get<platform::CUDAPlace>(p.first).device;
         cudaSetDevice(dev_id);
@@ -200,7 +204,7 @@ protected:
       auto *var = static_cast<VarHandle *>(input);
       var->generated_op_->Wait(
           this->dev_ctx_
-              [var->place_]);  // 并不是每个var都有一个context,而是每个var都有一个place，根据
+              [var->place_]);  // 并不是每个var都有一个context,而是每个var都有一个place，还有dummy数据
     }
 
     tensors_.resize(inputs_.size());
@@ -387,14 +391,13 @@ protected:
   void RunImpl() override {
     auto *cur_ctx = dev_ctx_[place_];
     for (auto *in :
-         inputs_) {  // 这个是真真正正用于计算的，计算之前先把input都wait一遍
+         inputs_) {  // 这个是真真正正用于计算的，计算之前先把input都wait一遍,
       bool need_wait =
           in->generated_op_ && in->generated_op_->dev_ctx_[place_] != cur_ctx;
       if (need_wait) {
         in->generated_op_->Wait(cur_ctx);
       }
     }
-
     op_->Run(*scope_, place_);  // 当把input的准备好就可以运行了吗？output呢？
   }
 };
@@ -410,6 +413,7 @@ ParallelExecutor::ParallelExecutor(
     : member_(new ParallelExecutorPrivate(num_threads)) {
   member_->places_ = places;
   member_->global_scope_ = scope;
+
   // Step 1. RunStartupProgram and Bcast the params to devs.
   Executor exe(places[0]);
   exe.Run(startup_program, scope, 0);
