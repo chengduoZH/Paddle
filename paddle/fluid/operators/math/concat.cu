@@ -97,15 +97,6 @@ __global__ void KernelConcatGrad(const T* input, const int input_row,
       ++curr_segment;
     }
 
-    if (segment > col_size || segment < 0) {
-      printf("segment > col_size %d", segment);
-      return;
-    }
-    if (curr_segment > col_size) {
-      printf("curr_segment > col_size %d", segment);
-      return;
-    }
-
     int local_col = tid_x - curr_offset;
     int segment_width = curr_col_offset - curr_offset;
     T* output_ptr = outputs[curr_segment];
@@ -237,7 +228,6 @@ class ConcatGradFunctor<platform::CUDADeviceContext, T> {
       input_col += t_col;
       outputs_cols[i + 1] = input_col;
       outputs_ptr[i] = outputs[i].data<T>();
-      VLOG(1) << i << ": " << input_row << " " << t_col;
     }
 
     T** outs_gpu =
@@ -266,9 +256,6 @@ class ConcatGradFunctor<platform::CUDADeviceContext, T> {
       KernelConcatGrad<<<grid_size, block_size, 0, context.stream()>>>(
           input.data<T>(), input_row, input_col, output_col_0, outs_gpu);
     } else {
-      VLOG(1) << "input : " << input_row << " " << input_col;
-      VLOG(1) << "block : " << block_cols << " " << block_rows;
-      VLOG(1) << "grid : " << grid_cols << " " << grid_rows;
       KernelConcatGrad<<<grid_size, block_size, 0, context.stream()>>>(
           input.data<T>(), input_row, input_col, outs_col_gpu,
           static_cast<int>(outputs_cols.size()), outs_gpu);
