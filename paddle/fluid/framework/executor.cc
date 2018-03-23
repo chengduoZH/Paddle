@@ -46,7 +46,7 @@ ExecutorPrepareContext::~ExecutorPrepareContext() {
 
 Executor::Executor(const platform::Place& place) : place_(place) {}
 
-static void CreateTensor(Variable* var, proto::VarType::Type var_type) {
+void InitializeVariable(Variable* var, proto::VarType::Type var_type) {
   if (var_type == proto::VarType::LOD_TENSOR) {
     var->GetMutable<LoDTensor>();
   } else if (var_type == proto::VarType::SELECTED_ROWS) {
@@ -294,12 +294,12 @@ void Executor::RunPreparedContext(ExecutorPrepareContext* ctx, Scope* scope,
 
         if (var->Persistable()) {
           auto* ptr = scope->Var(var->Name());
-          CreateTensor(ptr, var->GetType());
+          InitializeVariable(ptr, var->GetType());
           VLOG(3) << "Create Variable " << var->Name()
                   << " global, which pointer is " << ptr;
         } else {
           auto* ptr = local_scope->Var(var->Name());
-          CreateTensor(ptr, var->GetType());
+          InitializeVariable(ptr, var->GetType());
           VLOG(3) << "Create Variable " << var->Name()
                   << " locally, which pointer is " << ptr;
         }
@@ -307,7 +307,7 @@ void Executor::RunPreparedContext(ExecutorPrepareContext* ctx, Scope* scope,
     } else {
       for (auto& var : block.AllVars()) {
         auto* ptr = local_scope->Var(var->Name());
-        CreateTensor(ptr, var->GetType());
+        InitializeVariable(ptr, var->GetType());
         VLOG(3) << "Create variable " << var->Name() << ", which pointer is "
                 << ptr;
       }
@@ -315,8 +315,22 @@ void Executor::RunPreparedContext(ExecutorPrepareContext* ctx, Scope* scope,
   }    // if (create_vars)
 
   for (auto& op : ctx->ops_) {
-    VLOG(3) << place_ << " " << op->DebugStringEx(local_scope);
+    // TODO(ty):
+    // e.g. sgd should wait for allreduce to be finished
+    // if op's input is params' grad:
+    //     sync with allreduce stream
+    // SyncMultipleStreams(op);
+
+    VLOG(4) << place_ << " " << op->DebugStringEx(local_scope);
     op->Run(*local_scope, place_);
+    VLOG(3) << place_ << " " << op->DebugStringEx(local_scope);
+
+    // TODO(ty):
+    // e.g. allreduce shoudl wait for fc_grad to be finished.
+    // if op's output is params' grad:
+    //     sync with computation stream
+    //     apply allreduce on allreduce stream
+    // SyncMultipleStreams(op);
 
     if (FLAGS_benchmark) {
       VLOG(2) << "Memory used after operator " + op->Type() + " running: "

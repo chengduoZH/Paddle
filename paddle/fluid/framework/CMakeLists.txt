@@ -1,3 +1,4 @@
+add_subdirectory(details)
 # ddim lib
 proto_library(framework_proto SRCS framework.proto)
 
@@ -86,6 +87,15 @@ cc_library(feed_fetch_method SRCS feed_fetch_method.cc DEPS lod_tensor scope glo
 
 cc_library(executor SRCS executor.cc DEPS op_registry device_context scope
 framework_proto backward glog lod_rank_table feed_fetch_method)
+
+if(WITH_GPU)
+  set(parallel_executor_cuda_deps nccl_all_reduce_op_handle)
+else()
+  set(parallel_executor_cuda_deps)
+endif()
+cc_library(parallel_executor SRCS parallel_executor.cc DEPS op_registry device_context scope
+         backward glog lod_rank_table simple_threadpool scale_loss_grad_op_handle
+        fetch_op_handle computation_op_handle ssa_graph ${parallel_executor_cuda_deps})
 
 cc_library(prune SRCS prune.cc DEPS framework_proto)
 cc_test(prune_test SRCS prune_test.cc DEPS op_info prune recurrent_op device_context)
