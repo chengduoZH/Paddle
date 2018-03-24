@@ -7,3 +7,9 @@ nv_library(nccl_all_reduce_op_handle SRCS nccl_all_reduce_op_handle.cc DEPS op_h
 cc_library(computation_op_handle SRCS computation_op_handle.cc DEPS framework_proto scope place operator op_registry)
 
 cc_library(ssa_graph SRCS ssa_graph.cc DEPS var_handle op_handle_base)
+cc_library(ssa_graph_builder SRCS ssa_graph_builder.cc DEPS ssa_graph)
+cc_library(multi_devices_graph_builder SRCS multi_devices_graph_builder.cc DEPS ssa_graph_builder computation_op_handle
+        nccl_all_reduce_op_handle scale_loss_grad_op_handle)
+cc_library(ssa_graph_executor SRCS ssa_graph_executor.cc DEPS ssa_graph)
+cc_library(threaded_ssa_graph_executor SRCS threaded_ssa_graph_executor.cc DEPS fetch_op_handle ssa_graph_executor scope
+        simple_threadpool device_context)

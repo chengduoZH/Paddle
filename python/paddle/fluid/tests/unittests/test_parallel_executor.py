@@ -59,27 +59,15 @@ class ParallelExecutor(unittest.TestCase):
             loss = fluid.layers.mean(loss)
             adam = fluid.optimizer.Adam()
             adam.minimize(loss)
-        act_places = []
-        for each in [fluid.CUDAPlace(0)]:
-            p = fluid.core.Place()
-            p.set_place(each)
-            act_places.append(p)
+            exe = fluid.ParallelExecutor(loss_name=loss.name, use_cuda=True)
+            first_loss, = exe.run([loss.name])
+            first_loss = numpy.array(first_loss)
 
-        exe = fluid.core.ParallelExecutor(
-            act_places,
-            set([p.name for p in main.global_block().iter_parameters()]),
-            startup.desc, main.desc, loss.name, fluid.global_scope())
-        exe.run([loss.name], 'fetched_var')
+            for i in xrange(10):
+                exe.run([])
 
-        first_loss = numpy.array(fluid.global_scope().find_var('fetched_var')
-                                 .get_lod_tensor_array()[0])
-        print first_loss
+            last_loss, = exe.run([loss.name])
+            last_loss = numpy.array(last_loss)
 
-        for i in xrange(10):
-            exe.run([], 'fetched_var')
-        exe.run([loss.name], 'fetched_var')
-        last_loss = numpy.array(fluid.global_scope().find_var('fetched_var')
-                                .get_lod_tensor_array()[0])
-
-        print first_loss, last_loss
-        self.assertGreater(first_loss[0], last_loss[0])
+            print first_loss, last_loss
+            self.assertGreater(first_loss[0], last_loss[0])
