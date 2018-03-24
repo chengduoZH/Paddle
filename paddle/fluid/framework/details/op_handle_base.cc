@@ -27,13 +27,14 @@ std::string OpHandleBase::DebugString() const {
   for (auto *var : outputs_) {
     ss << var->DebugString() << ", ";
   }
-  ss << ")\n";
+  ss << ")";
   return ss.str();
 }
 
 OpHandleBase::~OpHandleBase() {}
 
 void OpHandleBase::Run(bool use_event) {
+//  VLOG(2) << " " << DebugString() << " Run  state: begin.";
 #ifdef PADDLE_WITH_CUDA
   if (events_.empty() && use_event) {
     for (auto &p : dev_ctx_) {
@@ -58,9 +59,11 @@ void OpHandleBase::Run(bool use_event) {
     }
   }
 #endif
+  //  VLOG(2) << " " << DebugString() << " Run state: over.";
 }
 
 void OpHandleBase::Wait(platform::DeviceContext *waited_dev) {
+  VLOG(2) << " " << DebugString() << "Wait state: begin.";
 #ifdef PADDLE_WITH_CUDA
   if (platform::is_cpu_place(waited_dev->GetPlace()) || events_.empty()) {
     for (auto &dev_ctx : dev_ctx_) {
@@ -78,6 +81,7 @@ void OpHandleBase::Wait(platform::DeviceContext *waited_dev) {
     dev_ctx.second->Wait();
   }
 #endif
+  VLOG(2) << " " << DebugString() << "Wait state: end.";
 }
 
 void OpHandleBase::AddInput(VarHandleBase *in) {

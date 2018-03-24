@@ -22,12 +22,15 @@ NCCLAllReduceOpHandle::NCCLAllReduceOpHandle(
     const std::vector<platform::Place> &places,
     const platform::NCCLContextMap &ctxs)
     : local_scopes_(local_scopes), places_(places), nccl_ctxs_(ctxs) {
+  type_ = "NCCLAllReduce";
   for (auto &p : places_) {
     this->dev_ctx_[p] = nccl_ctxs_.DevCtx(p);
   }
 }
 
 void NCCLAllReduceOpHandle::RunImpl() {
+  VLOG(2) << "NCCLAllReduce " << DebugString() << ",state: begin.";
+
   if (inputs_.size() == 1) {
     return;  // No need to all reduce when GPU count = 1;
   } else {
@@ -68,6 +71,8 @@ void NCCLAllReduceOpHandle::RunImpl() {
           nccl_ctx.comm_, nccl_ctx.stream()));
     }
   }
+
+  VLOG(2) << "NCCLAllReduce " << DebugString() << ",state: over.";
 }
 }  // namespace details
 }  // namespace framework

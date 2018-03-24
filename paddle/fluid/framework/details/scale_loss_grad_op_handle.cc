@@ -21,12 +21,15 @@ ScaleLossGradOpHandle::ScaleLossGradOpHandle(size_t num_dev, Scope *scope,
                                              platform::Place place,
                                              platform::DeviceContext *dev_ctx)
     : coeff_(static_cast<float>(1.0 / num_dev)), scope_(scope), place_(place) {
+  type_ = "ScaleLossGrad";
   dev_ctx_[place_] = dev_ctx;
 }
 
 ScaleLossGradOpHandle::~ScaleLossGradOpHandle() {}
 
 void ScaleLossGradOpHandle::RunImpl() {
+  VLOG(2) << place_ << ": ScaleLossGrad " << DebugString() << " state: begin.";
+
   std::string var_name = static_cast<VarHandle *>(this->outputs_[0])->name_;
 
   float *tmp =
@@ -44,6 +47,7 @@ void ScaleLossGradOpHandle::RunImpl() {
                  platform::CPUPlace(), &coeff_, sizeof(float), stream);
 #endif
   }
+  VLOG(2) << place_ << ": ScaleLossGrad " << DebugString() << " state: over.";
 }
 }  // namespace details
 }  // namespace framework

@@ -21,9 +21,14 @@ ComputationOpHandle::ComputationOpHandle(const OpDesc &op_desc, Scope *scope,
                                          platform::Place place)
     : op_(framework::OpRegistry::CreateOp(op_desc)),
       scope_(scope),
-      place_(place) {}
+      place_(place) {
+  type_ = op_desc.Type();
+}
 
 void ComputationOpHandle::RunImpl() {
+  VLOG(2) << place_ << " " << op_->DebugStringEx(scope_);
+  VLOG(3) << place_ << " " << DebugString();
+
   auto *cur_ctx = dev_ctx_[place_];
   for (auto *in : inputs_) {
     bool need_wait =

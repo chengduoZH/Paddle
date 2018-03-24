@@ -52,32 +52,39 @@ class SSAGraphBuilder {
     for (auto &var_map : graph->vars_) {
       for (auto &name_pair : var_map) {
         if (name_pair.second.size() <= 1) {
-          return;
+          continue;
         }
         auto it_new = name_pair.second.rbegin();
         auto it_old = name_pair.second.rbegin();
         ++it_old;
+
         for (; it_old != name_pair.second.rend(); it_new = it_old, ++it_old) {
           auto *write_op = it_new->second.generated_op_;
           auto &read_ops = it_old->second.pending_ops_;
           auto *ex_write_op = it_old->second.generated_op_;
 
-          if (ex_write_op == nullptr) {  // Nobody write this var.
-            continue;
-          }
+          //          if (ex_write_op == nullptr) {  // Nobody write this var.
+          //            continue;
+          //          }
 
+          std::stringstream ss;
           for (auto *read_op : read_ops) {
             // Manually add a dependency var from read_op to write_op;
             if (read_op == write_op) {
               // Read Write is the same op.
               continue;
             }
-
+            ss << read_op->type_ << ",";
             auto *dep_var = new DummyVarHandle();
             read_op->AddOutput(dep_var);
             write_op->AddInput(dep_var);
             graph->dep_vars_.emplace(dep_var);
           }
+
+          VLOG(2) << "between " << write_op->type_ << " and "
+                  << (ex_write_op ? ex_write_op->type_ : "None") << " write ["
+                  << name_pair.first
+                  << "], those ops will read it:" << ss.str();
         }
       }
     }
@@ -147,7 +154,8 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
           continue;  // Drop fill 1. for backward coeff;
         }
       }
-
+      VLOG(2) << "Build SSA: " << (is_forwarding ? "forward" : "backward")
+              << " " << op->Type();
       for (size_t i = 0; i < places_.size(); ++i) {
         auto &p = places_[i];
         auto *s = local_scopes_[i];
@@ -159,19 +167,40 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
 
         auto var_names = op->InputArgumentNames();
 
+        std::stringstream input_output_log;
+        input_output_log << "Input(";
+
         for (auto &each_var_name : var_names) {
           VarHandle *var =
               CreateOrGetLatestVarHandle(&result, each_var_name, p, i);
+          input_output_log << var->name_;
+          if (var->generated_op_) {
+            input_output_log << "(depend:" + var->generated_op_->type_ + "),";
+          } else {
+            input_output_log << "(depend: None),";
+          }
+
           op_handle->AddInput(var);
         }
+        input_output_log << "), ";
+
+        input_output_log << "Output(";
         var_names = op->OutputArgumentNames();
 
         for (auto &each_var_name : var_names) {
           CreateOpOutput(&result, op_handle, each_var_name, p, i);
+          input_output_log << each_var_name + ", ";
         }
+        input_output_log << ")";
+
+        VLOG(2) << "\t\t" << p << " Input:["
+                << ""
+                << " " << (is_forwarding ? "forward" : "backward") << " "
+                << op->Type() << "  " << input_output_log.str();
 
         if (is_forwarding) {
           if (var_names.size() == 1 && var_names[0] == loss_var_name_) {
+            VLOG(2) << "Insert ScaleLossGradOp ";
             // Insert ScaleCost OpHandle
             op_handle = new ScaleLossGradOpHandle(local_scopes_.size(), s, p,
                                                   nccl_ctxs_->DevCtx(p));
@@ -203,6 +232,10 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
                 new NCCLAllReduceOpHandle(local_scopes_, places_, *nccl_ctxs_));
             auto *op_handle = result.ops_.back().get();
 
+            std::stringstream input_log;
+            std::stringstream output_log;
+            input_log << "Input:[";
+            output_log << "output:";
             for (size_t i = 0; i < places_.size(); ++i) {
               auto &p = places_[i];
               auto &vars = result.vars_[i][og];
@@ -212,14 +245,23 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
               }
               auto *prev_grad = &vars[vars.size() - 1];
               op_handle->AddInput(prev_grad);
-
+              input_log << p << " " << prev_grad->name_ << "(depend "
+                        << (prev_grad->generated_op_
+                                ? prev_grad->generated_op_->type_
+                                : "None")
+                        << "),";
               auto &var = vars[vars.size()];
               var.place_ = p;
               var.name_ = og;
               var.version_ = vars.size() - 1;
+              output_log << p << " " << var.name_ << ",";
 
               op_handle->AddOutput(&var);
             }
+            input_log << "];";
+            output_log << "]";
+            VLOG(2) << "Insert NCCLAllReduceOp " << input_log.str() << "; "
+                    << output_log.str();
           }
         }
       }
@@ -303,6 +345,7 @@ ParallelExecutor::ParallelExecutor(
     : member_(new ParallelExecutorPrivate(num_threads, places)) {
   member_->global_scope_ = scope;
 
+  VLOG(2) << "Init parameter begin.";
   // Step 1. RunStartupProgram and Bcast the params to devs.
   Executor exe(places[0]);
   exe.Run(startup_program, scope, 0);
@@ -311,12 +354,15 @@ ParallelExecutor::ParallelExecutor(
     member_->local_scopes_.push_back(&scope->NewScope());
   }
 
+  VLOG(2) << "Init parameter over.";
+  VLOG(2) << "parameter dispatch:begin.";
   // Bcast Parameters to all GPUs
   BuildNCCLCommunicator();
   if (platform::is_gpu_place(places[0]) &&
       member_->local_scopes_.size() != 1) {  // Is CUDA
     BCastParamsToGPUs(startup_program);
   }
+  VLOG(2) << "parameter dispatch:over.";
   // Startup Program has been run. All local scopes has correct parameters.
 
   // Step 2. Convert main_program to SSA form and dependency graph. Also, insert
@@ -324,7 +370,10 @@ ParallelExecutor::ParallelExecutor(
   MultiDevSSAGraphBuilder builder(member_->places_, loss_var_name, params,
                                   member_->local_scopes_,
                                   member_->nccl_ctxs_.get());
+
+  VLOG(2) << "Convert main_program to SSA form and dependency graph begin .";
   builder.Build(main_program, &member_->graph_);
+  VLOG(2) << "Convert main_program to SSA form and dependency graph over .";
 
   // Step 3. Create vars in each scope;
   for (auto *scope : member_->local_scopes_) {
@@ -453,6 +502,7 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
   }
 
   for (auto *op : to_run) {
+    VLOG(2) << op->type_ << " has no dependce and can be runned";
     member_->RunOp(use_event, pending_vars, op);
   }
 
@@ -481,6 +531,7 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
     }
     for (auto *op : to_run) {
       pending_ops.erase(op);
+      VLOG(2) << op->type_ << "  begine run...";
       member_->RunOp(use_event, pending_vars, op);
     }
   }
