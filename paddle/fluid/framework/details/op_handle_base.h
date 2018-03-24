@@ -26,6 +26,7 @@ struct OpHandleBase {
   std::unordered_map<platform::Place, platform::DeviceContext *,
                      platform::PlaceHash>
       dev_ctx_;
+  std::string type_{"None"};
 
 #ifdef PADDLE_WITH_CUDA
   std::unordered_map<int, cudaEvent_t> events_;

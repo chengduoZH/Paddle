@@ -33,10 +33,14 @@ void FetchOpHandle::Wait(platform::DeviceContext *waited_dev) {
 }
 
 void FetchOpHandle::WaitAndMergeCPUTensors() const {
+  VLOG(2) << "fetch_op" << DebugString()
+          << "WaitAndMerge state: Wait fetch stream done.";
   // Wait fetch stream done.
   for (auto &ctx : dev_ctx_) {
     ctx.second->Wait();
   }
+
+  VLOG(2) << "fetch_op" << DebugString() << "WaitAndMerge state: Over.";
 
   std::vector<const LoDTensor *> tensors_ptr;
   tensors_ptr.reserve(tensors_.size());
@@ -47,6 +51,8 @@ void FetchOpHandle::WaitAndMergeCPUTensors() const {
 }
 
 void FetchOpHandle::RunImpl() {
+  VLOG(2) << "fetch_op " << DebugString() << ",state: begin.";
+
   for (auto *input : inputs_) {
     auto *var = static_cast<VarHandle *>(input);
     var->generated_op_->Wait(this->dev_ctx_[var->place_]);
@@ -70,6 +76,7 @@ void FetchOpHandle::RunImpl() {
       tensors_[i].set_lod(t.lod());
     }
   }
+  VLOG(2) << "fetch_op" << DebugString() << ",state: over.";
 }
 
 }  // namespace details
