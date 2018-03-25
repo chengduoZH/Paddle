@@ -314,16 +314,18 @@ class ParallelExecutorPrivate {
     for (auto *var : op->outputs_) {
       ready_buffer->emplace_back(&pending_vars[var]);
     }
-
     auto op_run = [ready_buffer, op, this, use_event] {
       try {
+        VLOG(2) << op->type_ << "..................BEGINE RUN.............";
         VLOG(10) << op->DebugString();
         op->Run(use_event);
         for (auto *ready : *ready_buffer) {
           ready->store(true, std::memory_order_release);
         }
         delete ready_buffer;
+        VLOG(2) << op->type_ << "..................Over RUN.............";
       } catch (platform::EnforceNotMet ex) {
+        VLOG(2) << op->type_ << "..................EnforceNotMet.............";
         exception_.reset(new platform::EnforceNotMet(ex));
       } catch (...) {
         LOG(FATAL) << "Unknown exception catched";
@@ -540,7 +542,7 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
            j != iter->first->pending_ops_.end(); j++) {
         ss << (*j)->type_ << ",";
       }
-      VLOG(2) << "pending_vars contain:" << iter->first->DebugString() << " "
+      VLOG(4) << "pending_vars contain:" << iter->first->DebugString() << " "
               << "generate op:" << iter->first->generated_op_->type_ << " "
               << "pending op:( " << iter->first->pending_ops_.size() << ")"
               << "[" << ss.str() << "]";
