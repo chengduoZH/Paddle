@@ -535,7 +535,7 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
     int i = 0;
     for (auto iter = pending_vars.begin();
          iter != pending_vars.end() &&
-         i < std::min(5, static_cast<int>(pending_vars.size()));
+         i < std::min(1000, static_cast<int>(pending_vars.size()));
          ++i, iter++) {
       std::stringstream ss;
       for (auto j = iter->first->pending_ops_.begin();
@@ -543,7 +543,10 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
         ss << (*j)->type_ << ",";
       }
       VLOG(4) << "pending_vars contain:" << iter->first->DebugString() << " "
-              << "generate op:" << iter->first->generated_op_->type_ << " "
+              << "generate op:" << (iter->first->generated_op_
+                                        ? iter->first->generated_op_->type_
+                                        : "NoneGen")
+              << " "
               << "pending op:( " << iter->first->pending_ops_.size() << ")"
               << "[" << ss.str() << "]";
     }
