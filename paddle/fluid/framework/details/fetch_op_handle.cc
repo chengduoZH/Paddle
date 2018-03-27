@@ -33,11 +33,6 @@ void FetchOpHandle::Wait(platform::DeviceContext *waited_dev) {
 }
 
 void FetchOpHandle::WaitAndMergeCPUTensors() const {
-  // Wait fetch stream done.
-  for (auto &ctx : dev_ctx_) {
-    ctx.second->Wait();
-  }
-
   std::vector<const LoDTensor *> tensors_ptr;
   tensors_ptr.reserve(tensors_.size());
   for (auto &t : tensors_) {
@@ -47,9 +42,11 @@ void FetchOpHandle::WaitAndMergeCPUTensors() const {
 }
 
 void FetchOpHandle::RunImpl() {
+  auto cpu_ctx =
+      platform::DeviceContextPool::Instance().Get(platform::CPUPlace());
   for (auto *input : inputs_) {
     auto *var = static_cast<VarHandle *>(input);
-    var->generated_op_->Wait(this->dev_ctx_[var->place_]);
+    var->generated_op_->Wait(cpu_ctx);
   }
 
   tensors_.resize(inputs_.size());
@@ -64,11 +61,14 @@ void FetchOpHandle::RunImpl() {
     if (platform::is_gpu_place(var->place_)) {
 #ifdef PADDLE_WITH_CUDA
       TensorCopy(t, cpu, *dev_ctx_[t.place()], &tensors_[i]);
+      dev_ctx_[t.place()]->Wait();
 #endif
     } else {
       tensors_[i].ShareDataWith(t);
       tensors_[i].set_lod(t.lod());
     }
+
+    this->WaitAndMergeCPUTensors();
   }
 }
 
