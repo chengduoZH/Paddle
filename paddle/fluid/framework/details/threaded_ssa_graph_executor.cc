@@ -112,6 +112,12 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     ready_ops.clear();
   };
 
+  // Create local scopes.
+  for (auto &scope : local_scopes_) {
+    auto &local_scope = scope->NewScope();
+    *scope->Var("@TMP_SCOPE@")->GetMutable<Scope *>() = &local_scope;
+  }
+
   // Step 3. Execution
   while (!pending_vars.empty()) {
     // 1. Run All Ready ops
@@ -156,9 +162,35 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     // Keep loop until all vars are ready.
   }
 
+  ++computation_count_;
+
+  auto sync_computation = [&] {
+    computation_count_ = 0;
+    // Wait All computational streams
+    for (auto p : this->places_) {
+      platform::DeviceContextPool::Instance().Get(p)->Wait();
+    }
+    for (auto &drop_fn : this->drop_functions_) {
+      drop_fn();
+    }
+  };
+
   // Wait FetchOps.
   for (auto &fetch_op : fetch_ops) {
     fetch_op.WaitAndMergeCPUTensors();
+    sync_computation();
+  }
+
+  if (computation_count_ == max_async_computation) {
+    sync_computation();
+  }
+
+  // NOTE: the temp scope can be dropped lazily if needed.
+  // Drop tmp scopes;
+  for (auto &scope : local_scopes_) {
+    auto &kid = *scope->Var("@TMP_SCOPE@")->GetMutable<Scope *>();
+    this->drop_functions_.emplace_back([=] { scope->DeleteScope(kid); });
+    kid = nullptr;
   }
 
   return fetch_data;

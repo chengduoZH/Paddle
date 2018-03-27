@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <functional>
 #include "ThreadPool.h"  // ThreadPool in thrird party
 #include "paddle/fluid/framework/details/ssa_graph_executor.h"
 
@@ -48,6 +49,10 @@ class ThreadedSSAGraphExecutor : public SSAGraphExecutor {
   platform::DeviceContextPool fetch_ctxs_;
   const bool use_event_;
   std::unique_ptr<platform::EnforceNotMet> exception_;
+
+  size_t computation_count_{0};
+  size_t max_async_computation{100};
+  std::vector<std::function<void()>> drop_functions_;
 };
 
 }  // namespace details
