@@ -24,6 +24,44 @@ class Scope;
 
 namespace details {
 
+template <typename T>
+class BlockingQueue {
+ public:
+  void Push(const T &v) {
+    {
+      std::lock_guard<std::mutex> g(mutex_);
+      q_.emplace_back(v);
+    }
+    cv_.notify_one();
+  }
+
+  template <typename U>
+  void Extend(const U &items) {
+    {
+      std::lock_guard<std::mutex> g(mutex_);
+      for (auto &item : items) {
+        q_.emplace_back(item);
+      }
+    }
+    cv_.notify_all();
+  }
+
+  T Pop() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    while (q_.empty()) {
+      cv_.wait(lock);
+    }
+    T v = q_.front();
+    q_.pop_front();
+    return v;
+  }
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  std::deque<T> q_;
+};
+
 class ThreadedSSAGraphExecutor : public SSAGraphExecutor {
  public:
   ThreadedSSAGraphExecutor(size_t num_threads, bool use_event,
@@ -38,9 +76,8 @@ class ThreadedSSAGraphExecutor : public SSAGraphExecutor {
   ~ThreadedSSAGraphExecutor() {}
 
  private:
-  void RunOp(
-      std::unordered_map<VarHandleBase *, std::atomic<bool>> &pending_vars,
-      details::OpHandleBase *op);
+  void RunOp(BlockingQueue<VarHandleBase *> &ready_var_q,
+             details::OpHandleBase *op);
 
  private:
   std::unique_ptr<::ThreadPool> pool_;
