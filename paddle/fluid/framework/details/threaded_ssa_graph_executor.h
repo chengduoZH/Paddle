@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <functional>
 #include "ThreadPool.h"  // ThreadPool in thrird party
 #include "paddle/fluid/framework/details/ssa_graph_executor.h"
@@ -27,10 +28,10 @@ namespace details {
 template <typename T>
 class BlockingQueue {
  public:
-  void Push(const T &v) {
+  void Push(const T &item) {
     {
       std::lock_guard<std::mutex> g(mutex_);
-      q_.emplace_back(v);
+      q_.emplace_back(item);
     }
     cv_.notify_one();
   }
@@ -46,14 +47,16 @@ class BlockingQueue {
     cv_.notify_all();
   }
 
-  T Pop() {
+  std::deque<T> PopAll(size_t ms, bool *timeout) {
+    auto time =
+        std::chrono::system_clock::now() + std::chrono::milliseconds(ms);
     std::unique_lock<std::mutex> lock(mutex_);
-    while (q_.empty()) {
-      cv_.wait(lock);
+    *timeout = !cv_.wait_until(lock, time, [this] { return !q_.empty(); });
+    std::deque<T> ret;
+    if (!*timeout) {
+      std::swap(ret, q_);
     }
-    T v = q_.front();
-    q_.pop_front();
-    return v;
+    return ret;
   }
 
  private:
