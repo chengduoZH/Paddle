@@ -27,7 +27,7 @@ class DoubleBufferReader : public framework::DecoratedReader {
   struct Item {
     Item() : ctx_(nullptr) {}
 
-    std::vector<framework::LoDTensor> payloads_;
+    std::vector<framework::LoDTensor>* payloads_;
     platform::DeviceContext* ctx_;
   };
 
@@ -51,6 +51,7 @@ class DoubleBufferReader : public framework::DecoratedReader {
     empty_buffer_ = framework::MakeChannel<Item>(kDoubleBufferSize);
     for (int j = 0; j < kDoubleBufferSize; ++j) {
       Item* item = new Item();
+      item->payloads_ = new std::vector<framework::LoDTensor>();
       empty_buffer_->Send(item);
     }
     local = nullptr;
@@ -137,11 +138,11 @@ void DoubleBufferReader::ReadNext(std::vector<framework::LoDTensor>* out) {
     PADDLE_THROW("There is no next data!");
   }
 
-  if (local == nullptr || local->payloads_.empty()) {
+  if (local == nullptr || local->payloads_->empty()) {
     buffer_->Receive(local);
   }
-  *out = local->payloads_;
-  local->payloads_.clear();
+  *out = *(local->payloads_);
+  local->payloads_->clear();
   if (local->ctx_) {
     local->ctx_->Wait();
   }
@@ -163,7 +164,7 @@ void DoubleBufferReader::PrefetchThreadFunc() {
   while (reader_->HasNext()) {
     Item batch;
     Item* gpu_batch = nullptr;
-    reader_->ReadNext(&(batch.payloads_));
+    reader_->ReadNext((batch.payloads_));
     if (platform::is_gpu_place(place_)) {
       try {
         empty_buffer_->Receive(gpu_batch);
@@ -176,11 +177,12 @@ void DoubleBufferReader::PrefetchThreadFunc() {
       gpu_batch->ctx_ = this->ctxs_[gpu_ctx_offset++].get();
       //      auto& gpu_ctx = this->ctxs_[gpu_ctx_offset++];
       gpu_ctx_offset %= this->ctxs_.size();
-      gpu_batch->payloads_.resize(batch.payloads_.size());
-      for (size_t i = 0; i < gpu_batch->payloads_.size(); ++i) {
-        framework::TensorCopy(batch.payloads_[i], place_, *(gpu_batch->ctx_),
-                              &(gpu_batch->payloads_[i]));
-        gpu_batch->payloads_[i].set_lod(batch.payloads_[i].lod());
+      gpu_batch->payloads_->resize(batch.payloads_->size());
+      for (size_t i = 0; i < gpu_batch->payloads_->size(); ++i) {
+        framework::TensorCopy((*(batch.payloads_))[i], place_,
+                              *(gpu_batch->ctx_),
+                              &((*(gpu_batch->payloads_))[i]));
+        (*(gpu_batch->payloads_))[i].set_lod((*(batch.payloads_))[i].lod());
       }
       //      batch.ctx_ = gpu_ctx.get();
       //      std::swap(gpu_batch, batch.payloads_);
@@ -199,7 +201,7 @@ void DoubleBufferReader::PrefetchThreadFunc() {
 }
 
 bool DoubleBufferReader::HasNext() const {
-  if (local == nullptr || local->payloads_.empty()) {
+  if (local == nullptr || local->payloads_->empty()) {
     bool ok = buffer_->Receive(local);
     return ok;
   } else {
