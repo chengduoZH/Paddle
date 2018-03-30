@@ -163,7 +163,7 @@ void DoubleBufferReader::PrefetchThreadFunc() {
   while (reader_->HasNext()) {
     Item batch;
     Item* gpu_batch = nullptr;
-    reader_->ReadNext(&batch.payloads_);
+    reader_->ReadNext(&(batch.payloads_));
     if (platform::is_gpu_place(place_)) {
       try {
         empty_buffer_->Receive(gpu_batch);
