@@ -142,6 +142,10 @@ void* CUDAPinnedAllocator::Alloc(size_t& index, size_t size) {
   // PINNED memory is visible to all CUDA contexts.
   cudaError_t result = cudaMallocHost(&p, size);
 
+  std::cout << "CUDAPinnedAllocator Alloc: max-size:"
+            << paddle::platform::CUDAPinnedMaxAllocSize() << " malloc:" << size
+            << " usable:" << usable << " cuda_pinnd_alloc_size_"
+            << cuda_pinnd_alloc_size_;
   if (result == cudaSuccess) {
     index = 1;  // PINNED memory
     cuda_pinnd_alloc_size_ += size;
@@ -150,10 +154,6 @@ void* CUDAPinnedAllocator::Alloc(size_t& index, size_t size) {
     LOG(WARNING) << "cudaMallocHost failed.";
     return nullptr;
   }
-  std::cout << "CUDAPinnedAllocator Alloc: max-size:"
-            << paddle::platform::CUDAPinnedMaxAllocSize() << " malloc:" << size
-            << " usable:" << usable << " cuda_pinnd_alloc_size_"
-            << cuda_pinnd_alloc_size_;
   return nullptr;
 }
 

@@ -21,7 +21,8 @@ namespace memory {
 namespace detail {
 
 /**
- * \brief SystemAllocator is the parent class of CPUAllocator and GPUAllocator.
+ * \brief SystemAllocator is the parent class of CPUAllocator,
+ * CUDAPinnedAllocato and GPUAllocator.
  *        A BuddyAllocator object uses a SystemAllocator* pointing to the
  *        underlying system allocator.
  */
