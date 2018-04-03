@@ -150,10 +150,10 @@ void* CUDAPinnedAllocator::Alloc(size_t& index, size_t size) {
     LOG(WARNING) << "cudaMallocHost failed.";
     return nullptr;
   }
-  VLOG(1) << "CUDAPinnedAllocator Alloc: max-size:"
-          << paddle::platform::CUDAPinnedMaxAllocSize() << " malloc:" << size
-          << " usable:" << usable << " cuda_pinnd_alloc_size_"
-          << cuda_pinnd_alloc_size_;
+  std::cout << "CUDAPinnedAllocator Alloc: max-size:"
+            << paddle::platform::CUDAPinnedMaxAllocSize() << " malloc:" << size
+            << " usable:" << usable << " cuda_pinnd_alloc_size_"
+            << cuda_pinnd_alloc_size_;
   return nullptr;
 }
 
@@ -165,9 +165,9 @@ void CUDAPinnedAllocator::Free(void* p, size_t size, size_t index) {
   cuda_pinnd_alloc_size_ -= size;
   err = cudaFreeHost(p);
 
-  VLOG(1) << "CUDAPinnedAllocator Free: max-size:"
-          << paddle::platform::CUDAPinnedMaxAllocSize() << " release:" << size
-          << " cuda_pinnd_alloc_size_" << cuda_pinnd_alloc_size_;
+  std::cout << "CUDAPinnedAllocator Free: max-size:"
+            << paddle::platform::CUDAPinnedMaxAllocSize() << " release:" << size
+            << " cuda_pinnd_alloc_size_" << cuda_pinnd_alloc_size_;
 
   // Purposefully allow cudaErrorCudartUnloading, because
   // that is returned if you ever call cudaFreeHost after the
