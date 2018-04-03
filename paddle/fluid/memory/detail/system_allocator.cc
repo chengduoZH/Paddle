@@ -18,9 +18,9 @@ limitations under the License. */
 #include "paddle/fluid/platform/enforce.h"
 #include "paddle/fluid/platform/gpu_info.h"
 
-// #include <stdlib.h>    // for malloc and free
-// #include <sys/mman.h>  // for mlock and munlock
-// #include <algorithm>   // for std::max
+#include <stdlib.h>    // for malloc and free
+#include <sys/mman.h>  // for mlock and munlock
+#include <algorithm>   // for std::max
 
 #include "gflags/gflags.h"
 
