@@ -114,8 +114,8 @@ float test_pinned_memory() {
   cudaEventSynchronize(stop_e);
   cudaEventElapsedTime(&elapsedTime, start_e, stop_e);
 
-  std::cout << cpu_place << " "
-            << "time consume:" << elapsedTime / 30 << std::endl;
+  // std::cout << cpu_place << " "
+  //          << "time consume:" << elapsedTime / 30 << std::endl;
 
   for (int l = 0; l < iteration; ++l) {
     for (int k = 0; k < data_size; ++k) {
