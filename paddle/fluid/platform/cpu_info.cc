@@ -81,7 +81,7 @@ size_t CUDAPinnedMinChunkSize() {
 size_t CUDAPinnedMaxChunkSize() {
   // Allow to allocate the maximum chunk size is roughly 1/256 of CUDA_PINNED
   // memory.
-  return CUDAPinnedMaxAllocSize() / 256;
+  return CUDAPinnedMaxAllocSize() / 32;
 }
 
 }  // namespace platform

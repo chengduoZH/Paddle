@@ -180,6 +180,7 @@ BuddyAllocator::PoolSet::iterator BuddyAllocator::RefillPool() {
   if (system_allocator_->UseGpu()) {
     if ((total_used_ + total_free_) == 0) {
       // Compute the maximum allocation size for the first allocation.
+      PADDLE_ASSERT(max_chunk_size_ == platform::GpuMaxChunkSize());
       max_chunk_size_ = platform::GpuMaxChunkSize();
     }
   }

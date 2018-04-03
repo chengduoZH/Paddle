@@ -18,9 +18,9 @@ limitations under the License. */
 #include "paddle/fluid/platform/enforce.h"
 #include "paddle/fluid/platform/gpu_info.h"
 
-#include <stdlib.h>    // for malloc and free
-#include <sys/mman.h>  // for mlock and munlock
-#include <algorithm>   // for std::max
+// #include <stdlib.h>    // for malloc and free
+// #include <sys/mman.h>  // for mlock and munlock
+// #include <algorithm>   // for std::max
 
 #include "gflags/gflags.h"
 
@@ -150,7 +150,10 @@ void* CUDAPinnedAllocator::Alloc(size_t& index, size_t size) {
     LOG(WARNING) << "cudaMallocHost failed.";
     return nullptr;
   }
-
+  VLOG(1) << "CUDAPinnedAllocator Alloc: max-size:"
+          << paddle::platform::CUDAPinnedMaxAllocSize() << " malloc:" << size
+          << " usable:" << usable << " cuda_pinnd_alloc_size_"
+          << cuda_pinnd_alloc_size_;
   return nullptr;
 }
 
@@ -161,6 +164,10 @@ void CUDAPinnedAllocator::Free(void* p, size_t size, size_t index) {
   PADDLE_ASSERT(cuda_pinnd_alloc_size_ >= size);
   cuda_pinnd_alloc_size_ -= size;
   err = cudaFreeHost(p);
+
+  VLOG(1) << "CUDAPinnedAllocator Free: max-size:"
+          << paddle::platform::CUDAPinnedMaxAllocSize() << " release:" << size
+          << " cuda_pinnd_alloc_size_" << cuda_pinnd_alloc_size_;
 
   // Purposefully allow cudaErrorCudartUnloading, because
   // that is returned if you ever call cudaFreeHost after the
