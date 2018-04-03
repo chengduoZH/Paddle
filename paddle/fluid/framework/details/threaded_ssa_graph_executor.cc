@@ -41,7 +41,8 @@ void ThreadedSSAGraphExecutor::RunDelayedOps(
 }
 
 FeedFetchList ThreadedSSAGraphExecutor::Run(
-    const std::vector<std::string> &fetch_tensors) {
+    const std::vector<std::string> &fetch_tensors,
+    const std::unordered_set<std::string> &params) {
   std::unordered_map<OpHandleBase *, size_t> pending_ops;
   std::unordered_set<VarHandleBase *> pending_vars;
   BlockingQueue<VarHandleBase *> ready_vars;
@@ -53,6 +54,8 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   std::unordered_set<OpHandleBase *> delayed_ops;
   std::unordered_set<OpHandleBase *> blocked_by_delayed_ops;
   std::unordered_set<VarHandleBase *> delayed_vars;
+
+  std::unordered_set<OpHandleBase *> delayed_ops_scale_parameter_op;
 
   auto InsertPendingVar = [&pending_vars, &ready_vars](VarHandleBase &var) {
     pending_vars.insert(&var);
@@ -125,8 +128,23 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         delayed_vars.insert(op->outputs_.begin(), op->outputs_.end());
         ready_vars.Extend(op->outputs_);
         continue;
+      } else if (op->Name() == "scale" && op->inputs_.size() == 1 &&
+                 params.count(op->inputs_[0]->name_) != 0) {
+        delayed_ops_scale_parameter_op.insert(op);
+        continue;
       }
       running_ops_++;
+      std::stringstream os;
+      for (size_t j = 0; j < op->inputs_.size(); ++j) {
+        os << op->inputs_[j]->DebugString() << ",";
+      }
+      std::stringstream os1;
+      for (size_t j = 0; j < op->outputs_.size(); ++j) {
+        os1 << op->outputs_[j]->DebugString() << ",";
+      }
+      VLOG(1) << op->Name() << " Input:[" << os.str() << "]; Output:["
+              << os1.str() << "]";
+
       RunOp(&ready_vars, op);
     }
     ready_ops.clear();
@@ -170,9 +188,12 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         }
       }
     }
+
     // When there are no other ops to schedule, schedule buffered delayed
     // ops and unblock other ops.
     if (ready_ops.empty() && !delayed_ops.empty() && running_ops_ == 0) {
+      RunDelayedOps(delayed_ops_scale_parameter_op);
+      delayed_ops_scale_parameter_op.clear();
       RunDelayedOps(delayed_ops);
       delayed_ops.clear();
       for (auto *op : blocked_by_delayed_ops) {

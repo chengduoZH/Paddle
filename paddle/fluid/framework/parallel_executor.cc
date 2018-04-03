@@ -11,12 +11,11 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
+#include <string>
+#include <vector>
 
 #include "paddle/fluid/framework/parallel_executor.h"
 #include "paddle/fluid/platform/profiler.h"
-
-#include <string>
-#include <vector>
 
 #ifdef PADDLE_WITH_CUDA
 #include "paddle/fluid/platform/nccl_helper.h"
@@ -49,7 +48,7 @@ ParallelExecutor::ParallelExecutor(
     const std::unordered_set<std::string> &params,
     const ProgramDesc &startup_program, const ProgramDesc &main_program,
     const std::string &loss_var_name, Scope *scope, bool allow_op_delay)
-    : member_(new ParallelExecutorPrivate(places)) {
+    : member_(new ParallelExecutorPrivate(places)), params_(params) {
   member_->global_scope_ = scope;
 
   // Step 1. RunStartupProgram and Bcast the params to devs.
@@ -153,7 +152,7 @@ void ParallelExecutor::BCastParamsToGPUs(
 void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
                            const std::string &fetched_var_name) {
   platform::RecordBlock b(0);
-  auto fetch_data = member_->executor_->Run(fetch_tensors);
+  auto fetch_data = member_->executor_->Run(fetch_tensors, params_);
   *member_->global_scope_->Var(fetched_var_name)->GetMutable<FeedFetchList>() =
       fetch_data;
 }

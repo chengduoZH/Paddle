@@ -80,7 +80,8 @@ class ThreadedSSAGraphExecutor : public SSAGraphExecutor {
 
   // Run a SSAGraph by a thread pool
   // Use topological sort algorithm
-  FeedFetchList Run(const std::vector<std::string> &fetch_tensors) override;
+  FeedFetchList Run(const std::vector<std::string> &fetch_tensors,
+                    const std::unordered_set<std::string> &) override;
 
   ~ThreadedSSAGraphExecutor() {}
 

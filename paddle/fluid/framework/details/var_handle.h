@@ -34,7 +34,7 @@ struct VarHandleBase {
   // The operator who generate this variable. nullptr if the variable
   // is a root node.
   OpHandleBase *generated_op_;
-
+  std::string name_;
   // Operators which depend on this variable ready.
   std::unordered_set<OpHandleBase *> pending_ops_;
 };
@@ -50,7 +50,7 @@ struct VarHandle : public VarHandleBase {
   // version field currently is not used, however, just store the version to
   // debug easily.
   size_t version_;
-  std::string name_;
+  //  std::string name_;
   platform::Place place_;
 };
 

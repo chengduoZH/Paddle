@@ -46,7 +46,7 @@ class ParallelExecutor {
 
  private:
   ParallelExecutorPrivate* member_;
-
+  std::unordered_set<std::string> params_;
   void BCastParamsToGPUs(const ProgramDesc& startup_program) const;
 };
 

@@ -13,8 +13,9 @@
 // limitations under the License.
 
 #pragma once
-
 #include <memory>
+#include <string>
+#include <vector>
 #include "paddle/fluid/framework/details/ssa_graph.h"
 #include "paddle/fluid/framework/feed_fetch_type.h"
 
@@ -31,7 +32,8 @@ class SSAGraphExecutor {
 
   virtual ~SSAGraphExecutor();
 
-  virtual FeedFetchList Run(const std::vector<std::string> &fetch_tensors) = 0;
+  virtual FeedFetchList Run(const std::vector<std::string> &fetch_tensors,
+                            const std::unordered_set<std::string> &) = 0;
 
  protected:
   std::unique_ptr<SSAGraph> graph_;
