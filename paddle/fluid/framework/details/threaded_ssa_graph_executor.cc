@@ -131,6 +131,11 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         ready_vars.Extend(op->outputs_);
         continue;
       }
+      if (op->Name() == "scale" && op->inputs_.size() == 1 &&
+          params.count(op->inputs_[0]->name_) != 0) {
+        delayed_ops_scale_parameter_op.insert(op);
+        continue;
+      }
 
       running_ops_++;
       std::stringstream os;
@@ -187,22 +192,13 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         }
       }
     }
-    for (auto *op : ready_ops) {
-      if (op->Name() == "scale" && op->inputs_.size() == 1 &&
-          params.count(op->inputs_[0]->name_) != 0) {
-        delayed_ops_scale_parameter_op.insert(op);
-      }
-    }
-    if (ready_ops.empty()) {
-      VLOG(2) << "WATIWATIWAIT";
-      ready_ops.insert(delayed_ops_scale_parameter_op.begin(),
-                       delayed_ops_scale_parameter_op.end());
-      delayed_ops_scale_parameter_op.clear();
-    }
 
     // When there are no other ops to schedule, schedule buffered delayed
     // ops and unblock other ops.
     if (ready_ops.empty() && !delayed_ops.empty() && running_ops_ == 0) {
+      for (auto *op : delayed_ops_scale_parameter_op) {
+        RunOp(&ready_vars, op);
+      }
       RunDelayedOps(delayed_ops);
       delayed_ops.clear();
       for (auto *op : blocked_by_delayed_ops) {
