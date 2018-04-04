@@ -199,6 +199,7 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
       for (auto *op : delayed_ops_scale_parameter_op) {
         RunOp(&ready_vars, op);
       }
+      delayed_ops_scale_parameter_op.clear();
       RunDelayedOps(delayed_ops);
       delayed_ops.clear();
       for (auto *op : blocked_by_delayed_ops) {
