@@ -130,10 +130,6 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         delayed_vars.insert(op->outputs_.begin(), op->outputs_.end());
         ready_vars.Extend(op->outputs_);
         continue;
-      } else if (op->Name() == "scale" && op->inputs_.size() == 1 &&
-                 params.count(op->inputs_[0]->name_) != 0) {
-        delayed_ops_scale_parameter_op.insert(op);
-        continue;
       }
 
       running_ops_++;
@@ -199,7 +195,8 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     }
     if (ready_ops.empty()) {
       VLOG(2) << "WATIWATIWAIT";
-      RunDelayedOps(delayed_ops_scale_parameter_op);
+      ready_ops.insert(delayed_ops_scale_parameter_op.begin(),
+                       delayed_ops_scale_parameter_op.end());
       delayed_ops_scale_parameter_op.clear();
     }
 
