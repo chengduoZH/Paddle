@@ -191,7 +191,12 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         }
       }
     }
-
+    for (auto *op : ready_ops) {
+      if (op->Name() == "scale" && op->inputs_.size() == 1 &&
+          params.count(op->inputs_[0]->name_) != 0) {
+        delayed_ops_scale_parameter_op.insert(op);
+      }
+    }
     if (ready_ops.empty()) {
       VLOG(2) << "WATIWATIWAIT";
       RunDelayedOps(delayed_ops_scale_parameter_op);
