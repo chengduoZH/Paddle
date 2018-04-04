@@ -55,7 +55,9 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   std::unordered_set<OpHandleBase *> blocked_by_delayed_ops;
   std::unordered_set<VarHandleBase *> delayed_vars;
 
-  //  std::unordered_set<OpHandleBase *> delayed_ops_scale_parameter_op;
+  std::unordered_set<OpHandleBase *> blocked_by_delayed_scale__ops;
+  std::unordered_set<OpHandleBase *> delayed_ops_scale_parameter_op;
+  std::unordered_set<VarHandleBase *> delayed_ops_scale_vars;
 
   auto InsertPendingVar = [&pending_vars, &ready_vars](VarHandleBase &var) {
     pending_vars.insert(&var);
@@ -128,12 +130,12 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         delayed_vars.insert(op->outputs_.begin(), op->outputs_.end());
         ready_vars.Extend(op->outputs_);
         continue;
+      } else if (op->Name() == "scale" && op->inputs_.size() == 1 &&
+                 params.count(op->inputs_[0]->name_) != 0) {
+        delayed_ops_scale_parameter_op.insert(op);
+        continue;
       }
-      //      else if (op->Name() == "scale" && op->inputs_.size() == 1 &&
-      //                 params.count(op->inputs_[0]->name_) != 0) {
-      //        delayed_ops_scale_parameter_op.insert(op);
-      //        continue;
-      //      }
+
       running_ops_++;
       std::stringstream os;
       for (size_t j = 0; j < op->inputs_.size(); ++j) {
@@ -190,11 +192,15 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
       }
     }
 
+    if (ready_ops.empty()) {
+      VLOG(2) << "WATIWATIWAIT";
+      RunDelayedOps(delayed_ops_scale_parameter_op);
+      delayed_ops_scale_parameter_op.clear();
+    }
+
     // When there are no other ops to schedule, schedule buffered delayed
     // ops and unblock other ops.
     if (ready_ops.empty() && !delayed_ops.empty() && running_ops_ == 0) {
-      //      RunDelayedOps(delayed_ops_scale_parameter_op);
-      //      delayed_ops_scale_parameter_op.clear();
       RunDelayedOps(delayed_ops);
       delayed_ops.clear();
       for (auto *op : blocked_by_delayed_ops) {
