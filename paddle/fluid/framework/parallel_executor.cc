@@ -11,12 +11,11 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
+#include <string>
+#include <vector>
 
 #include "paddle/fluid/framework/parallel_executor.h"
 #include "paddle/fluid/platform/profiler.h"
-
-#include <string>
-#include <vector>
 
 #ifdef PADDLE_WITH_CUDA
 #include "paddle/fluid/platform/nccl_helper.h"
@@ -165,6 +164,7 @@ void ParallelExecutor::SplitTensorToPlaces(
     const std::unordered_map<std::string, LoDTensor> &feed_tensors) {
   for (auto it : feed_tensors) {
     auto lod_tensors = it.second.SplitLoDTensor(member_->places_);
+    // TODO(zcd): the size of lod_tensors may not equal to places_.size().
     for (size_t j = 0; j < member_->places_.size(); ++j) {
       // TODO(panxy0718): Do I need to delete this var?
       member_->local_scopes_[j]
