@@ -149,17 +149,19 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
             // Gather
             for (size_t i = 0; i < places_.size(); ++i) {
               auto &p = places_[i];
+              auto *s = local_scopes_[i];
               auto &vars = result.vars_[i][og];
 
-              result.ops_.emplace_back(
-                  new AllGatherOpHandle(*local_scopes_[i], p));
+              result.ops_.emplace_back(new AllGatherOpHandle(s, p));
               auto *op_handle = result.ops_.back().get();
               op_handle->dev_ctxes_[p] = const_cast<platform::DeviceContext *>(
                   platform::DeviceContextPool::Instance().Get(p));
+
               // why is vars empyt ??????
               if (vars.empty()) {  // This device has no data. continue.
                 continue;
               }
+
               auto *prev_grad = &vars[vars.size() - 1];
               op_handle->AddInput(prev_grad);
 
