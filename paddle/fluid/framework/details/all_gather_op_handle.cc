@@ -18,7 +18,7 @@ namespace paddle {
 namespace framework {
 namespace details {
 
-AllGatherOpHandle::AllGatherOpHandle(const Scope &local_scope,
+AllGatherOpHandle::AllGatherOpHandle(Scope *local_scope,
                                      const platform::Place &place)
     : local_scope_(local_scope), place_(place) {}
 
@@ -29,7 +29,7 @@ void AllGatherOpHandle::RunImpl() {
   // Wait input done, this Wait is asynchronous operation
   auto &p = static_cast<VarHandle *>(this->inputs_[0])->place_;
   this->inputs_[0]->generated_op_->Wait(dev_ctxes_[p]);
-  auto var = local_scope_.FindVar(var_name);
+  auto var = local_scope_->FindVar(var_name);
   PADDLE_ENFORCE(var);
 
   ParameterCollection::Instance().Get(var_name)->Send<Variable *>(&var);

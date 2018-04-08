@@ -27,10 +27,10 @@ namespace framework {
 namespace details {
 
 struct AllGatherOpHandle : public OpHandleBase {
-  const Scope& local_scope_;
+  const Scope* local_scope_;
   const platform::Place& place_;
 
-  AllGatherOpHandle(const Scope& local_scope, const platform::Place& place);
+  AllGatherOpHandle(Scope* local_scope, const platform::Place& place);
 
   std::string Name() const override;
 
