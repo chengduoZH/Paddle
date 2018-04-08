@@ -39,7 +39,7 @@ void AllReduceOpHandle::RunImpl() {
   // Wait input done, this Wait is asynchronous operation
   for (auto *in : inputs_) {
     auto &p = static_cast<VarHandle *>(in)->place_;
-    in->generated_op_->Wait(dev_ctxes_[p]);
+    in->generated_op_->Wait(nccl_ctxs_.DevCtx(p));
   }
 
   platform::Place cuda_pinned_place = platform::CUDAPinnedPlace();
