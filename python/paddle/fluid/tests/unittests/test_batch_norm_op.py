@@ -20,8 +20,29 @@ from paddle.fluid.op import Operator
 from paddle.fluid.framework import grad_var_name
 
 
-def get_backward_op(scope, op, no_grad_set):
-    backward_op = core.Operator.backward(op, no_grad_set)
+def get_backward_op(scope, op, data_layout, momentum, epsilon):  # no_grad_set
+
+    backward_op = Operator(
+        "batch_norm_grad",
+        # inputs
+        X="x_val",
+        Scale="scale_val",
+        Bias="bias_val",
+        Mean="mean",
+        Variance="variance",
+        # outputs
+        Y="y_out",
+        MeanOut="mean",
+        VarianceOut="variance",
+        SavedMean="saved_mean",
+        SavedVariance="saved_variance",
+        # attrs
+        is_test=False,
+        data_layout=data_layout,
+        momentum=momentum,
+        epsilon=epsilon)
+
+    # backward_op = core.Operator.backward(op, no_grad_set)
     for input in backward_op.input_vars():
         var = scope.var(input)
         var.get_tensor()
@@ -506,7 +527,8 @@ class TestBatchNormOpTraining(OpTest):
             print "op test forward passed: ", str(place), data_layout
 
             # run backward
-            batch_norm_op_grad = get_backward_op(scope, batch_norm_op, set())
+            batch_norm_op_grad = get_backward_op(
+                scope, batch_norm_op, data_layout, momentum, epsilon)  # set()
             set_output_grad(
                 scope,
                 ["y_out", "mean", "variance", "saved_mean", "saved_variance"],
