@@ -26,9 +26,9 @@ void BroadcastOpHandle::RunImpl() {
   // the input may have dummy var.
   VarHandle *in_var_handle = nullptr;
   for (auto *in : inputs_) {
-    auto *in_handle = static_cast<DummyVarHandle *>(in);
-    if (!in_handle) {
-      in_var_handle = static_cast<VarHandle *>(in);
+    auto *in_handle = dynamic_cast<VarHandle *>(in);
+    if (in_handle) {
+      in_var_handle = in_handle;
       break;
     }
   }
@@ -37,9 +37,9 @@ void BroadcastOpHandle::RunImpl() {
   // the output may have dummy var.
   std::vector<VarHandle *> out_var_handles;
   for (auto *out : outputs_) {
-    auto *out_handle = static_cast<DummyVarHandle *>(out);
-    if (!out_handle) {
-      out_var_handles.push_back(static_cast<VarHandle *>(out));
+    auto *out_handle = dynamic_cast<VarHandle *>(out);
+    if (out_handle) {
+      out_var_handles.push_back(out_handle);
     }
   }
 
