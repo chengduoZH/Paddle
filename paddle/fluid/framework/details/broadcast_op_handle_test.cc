@@ -32,7 +32,7 @@ struct TestOpHandle {
   std::vector<Scope*> local_scopes_;
   Scope g_scope_;
   std::unique_ptr<OpHandleBase> op_handle_;
-  std::vector<std::unique_ptr<VarHandle>> vars_;
+  std::vector<std::unique_ptr<VarHandleBase>> vars_;
   std::vector<p::Place> gpu_list_;
 
   void WaitAll() {
@@ -76,11 +76,10 @@ struct TestOpHandle {
     }
     local_scopes_[input_scope_idx]->Var("input");
 
-    op_handle_.reset(
-        new f::details::BroadcastOpHandle(local_scopes_, gpu_list_));
+    op_handle_.reset(new BroadcastOpHandle(local_scopes_, gpu_list_));
 
-    vars_.emplace_back(new f::details::VarHandle());
-    f::details::VarHandle* in_var_handle = vars_.back().get();
+    vars_.emplace_back(new VarHandle());
+    VarHandle* in_var_handle = static_cast<VarHandle*>(vars_.back().get());
     in_var_handle->place_ = gpu_list_[input_scope_idx];
     in_var_handle->name_ = "input";
     in_var_handle->version_ = 1;
@@ -88,19 +87,33 @@ struct TestOpHandle {
     in_var_handle->generated_op_ = nullptr;
     op_handle_->AddInput(in_var_handle);
 
+    // add dummy var
+    vars_.emplace_back(new DummyVarHandle());
+    DummyVarHandle* dummy_var_handle =
+        static_cast<DummyVarHandle*>(vars_.back().get());
+    dummy_var_handle->generated_op_ = nullptr;
+    op_handle_->AddInput(dummy_var_handle);
+
     for (size_t j = 0; j < gpu_list_.size(); ++j) {
       op_handle_->dev_ctxes_[gpu_list_[j]] = ctxs_[j].get();
-      vars_.emplace_back(new f::details::VarHandle());
-      f::details::VarHandle* out_var_handle = vars_.back().get();
+      vars_.emplace_back(new VarHandle());
+      VarHandle* out_var_handle = static_cast<VarHandle*>(vars_.back().get());
       out_var_handle->place_ = gpu_list_[j];
       out_var_handle->name_ = "out";
       out_var_handle->version_ = 2;
       out_var_handle->scope_idx_ = j;
       op_handle_->AddOutput(out_var_handle);
     }
+
+    // add dummy var
+    vars_.emplace_back(new DummyVarHandle());
+    DummyVarHandle* out_dummy_var_handle =
+        static_cast<DummyVarHandle*>(vars_.back().get());
+    out_dummy_var_handle->generated_op_ = nullptr;
+    op_handle_->AddOutput(out_dummy_var_handle);
   }
 
-  void TestBroadcastLodTensor(TestOpHandle* op, int input_scope_idx = 0) {
+  void TestBroadcastLodTensor(int input_scope_idx = 0) {
     auto in_var = local_scopes_[input_scope_idx]->Var("input");
     auto in_lod_tensor = in_var->GetMutable<f::LoDTensor>();
     in_lod_tensor->mutable_data<float>(kDims, gpu_list_[input_scope_idx]);
