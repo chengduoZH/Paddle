@@ -27,7 +27,7 @@ namespace p = paddle::platform;
 // test data amount
 const f::DDim kDims = {20, 20};
 
-struct TestOpHandle {
+struct TestBroadcastOpHandle {
   std::vector<std::unique_ptr<p::DeviceContext>> ctxs_;
   std::vector<Scope*> local_scopes_;
   Scope g_scope_;
@@ -193,7 +193,7 @@ struct TestOpHandle {
 };
 
 TEST(BroadcastTester, TestCPUBroadcastTestLodTensor) {
-  TestOpHandle test_op;
+  TestBroadcastOpHandle test_op;
   int input_scope_idx = 0;
   test_op.InitCtxOnGpu(false);
   test_op.InitBroadcastOp(input_scope_idx);
@@ -201,7 +201,7 @@ TEST(BroadcastTester, TestCPUBroadcastTestLodTensor) {
 }
 
 TEST(BroadcastTester, TestCPUBroadcastTestSelectedRows) {
-  TestOpHandle test_op;
+  TestBroadcastOpHandle test_op;
   int input_scope_idx = 0;
   test_op.InitCtxOnGpu(false);
   test_op.InitBroadcastOp(input_scope_idx);
@@ -210,7 +210,7 @@ TEST(BroadcastTester, TestCPUBroadcastTestSelectedRows) {
 
 #ifdef PADDLE_WITH_CUDA
 TEST(BroadcastTester, TestGPUBroadcastTestLodTensor) {
-  TestOpHandle test_op;
+  TestBroadcastOpHandle test_op;
   int input_scope_idx = 0;
   test_op.InitCtxOnGpu(true);
   test_op.InitBroadcastOp(input_scope_idx);
@@ -218,7 +218,7 @@ TEST(BroadcastTester, TestGPUBroadcastTestLodTensor) {
 }
 
 TEST(BroadcastTester, TestGPUBroadcastTestSelectedRows) {
-  TestOpHandle test_op;
+  TestBroadcastOpHandle test_op;
   int input_scope_idx = 0;
   test_op.InitCtxOnGpu(true);
   test_op.InitBroadcastOp(input_scope_idx);
