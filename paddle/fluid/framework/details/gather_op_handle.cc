@@ -53,6 +53,7 @@ void GatherOpHandle::RunImpl() {
 
   PADDLE_ENFORCE(pre_in_var->IsType<framework::SelectedRows>(),
                  "Currently, gather_op only can gather SelectedRows.");
+
   PADDLE_ENFORCE_EQ(out_var_handles[0]->place_.which(), pre_place.which(),
                     "The place of input and output should be the same.");
 

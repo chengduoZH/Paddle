@@ -83,7 +83,7 @@ struct TestGatherOpHandle {
       VarHandle* in_var_handle = static_cast<VarHandle*>(vars_.back().get());
       in_var_handle->place_ = gpu_list_[j];
       in_var_handle->name_ = "input";
-      in_var_handle->version_ = 2;
+      in_var_handle->version_ = 1;
       in_var_handle->scope_idx_ = j;
       in_var_handle->generated_op_ = nullptr;
       op_handle_->AddInput(in_var_handle);
@@ -101,7 +101,7 @@ struct TestGatherOpHandle {
     VarHandle* out_var_handle = static_cast<VarHandle*>(vars_.back().get());
     out_var_handle->place_ = gpu_list_[input_scope_idx];
     out_var_handle->name_ = "out";
-    out_var_handle->version_ = 1;
+    out_var_handle->version_ = 2;
     out_var_handle->scope_idx_ = input_scope_idx;
     op_handle_->AddOutput(out_var_handle);
 
@@ -113,8 +113,6 @@ struct TestGatherOpHandle {
   }
 
   void TestGatherSelectedRows(int output_scope_idx) {
-    InitGatherOp(output_scope_idx);
-
     int height = kDims[0] * 2;
     std::vector<int64_t> rows{0, 1, 2, 3, 3, 0, 14, 7, 3, 1,
                               2, 4, 6, 3, 1, 1, 1,  1, 3, 7};
@@ -138,13 +136,21 @@ struct TestGatherOpHandle {
       value->Resize(kDims);
     }
 
+    auto out_var = local_scopes_[output_scope_idx]->Var("out");
+    auto out_selected_rows = out_var->GetMutable<f::SelectedRows>();
+
+    auto in_var = local_scopes_[output_scope_idx]->Var("input");
+    auto in_selected_rows = in_var->GetMutable<f::SelectedRows>();
+
+    out_selected_rows->mutable_value()->ShareDataWith(
+        in_selected_rows->value());
+
     op_handle_->Run(false);
 
     WaitAll();
 
     p::CPUPlace cpu_place;
 
-    auto out_var = local_scopes_[output_scope_idx]->Var("out");
     auto& out_select_rows = out_var->Get<f::SelectedRows>();
     auto rt = out_select_rows.value();
 
@@ -177,7 +183,7 @@ TEST(GatherTester, TestGPUGatherTestSelectedRows) {
   TestGatherOpHandle test_op;
   int input_scope_idx = 0;
   test_op.InitCtxOnGpu(false);
-  test_op.InitBroadcastOp(input_scope_idx);
+  test_op.InitGatherOp(input_scope_idx);
   test_op.TestGatherSelectedRows(input_scope_idx);
 }
 #endif
