@@ -109,7 +109,7 @@ void BroadcastOpHandle::RunImpl() {
       auto dst_gpu_place = boost::get<platform::CUDAPlace>(out_p);
       void *dst_ptr = out_tensor->mutable_data(out_p);
       void *src_ptr = in_tensor->data<void>();
-      int64_t size = in_tensor->numel();
+      int64_t size = in_tensor->numel() * SizeOfType(in_tensor->type());
       memory::Copy(
           dst_gpu_place, dst_ptr, src_gpu_place, src_ptr, size,
           reinterpret_cast<platform::CUDADeviceContext *>(dev_ctxes_[out_p])
