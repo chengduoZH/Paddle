@@ -24,15 +24,15 @@ BroadcastOpHandle::BroadcastOpHandle(const std::vector<Scope *> &local_scopes,
 
 void BroadcastOpHandle::RunImpl() {
   // the input may have dummy var.
-  VarHandle *in_var_handle = nullptr;
+  std::vector<VarHandle *> in_var_handle;
   for (auto *in : inputs_) {
-    auto *in_handle = dynamic_cast<VarHandle *>(in);
-    if (in_handle) {
-      in_var_handle = in_handle;
-      break;
+    auto *out_handle = dynamic_cast<VarHandle *>(in);
+    if (out_handle) {
+      in_var_handle.push_back(out_handle);
     }
   }
-  PADDLE_ENFORCE(in_var_handle, "The input is empty.");
+  PADDLE_ENFORCE_EQ(in_var_handle.size(), 1,
+                    "The number of input should be one.");
 
   // the output may have dummy var.
   std::vector<VarHandle *> out_var_handles;
@@ -48,35 +48,33 @@ void BroadcastOpHandle::RunImpl() {
       "The number of output should equal to the number of places.");
 
   // Wait input done, this Wait is asynchronous operation
-  auto &in_place = in_var_handle->place_;
-  if (in_var_handle->generated_op_) {
-    in_var_handle->generated_op_->Wait(dev_ctxes_[in_place]);
+  auto &in_place = in_var_handle[0]->place_;
+  if (in_var_handle[0]->generated_op_) {
+    in_var_handle[0]->generated_op_->Wait(dev_ctxes_[in_place]);
     for (auto *out : out_var_handles) {
-      auto out_handle = static_cast<VarHandle *>(out);
-      auto &out_p = out_handle->place_;
+      auto &out_p = out->place_;
       if (platform::is_same_place(in_place, out_p)) continue;
-      in_var_handle->generated_op_->Wait(dev_ctxes_[out_p]);
+      in_var_handle[0]->generated_op_->Wait(dev_ctxes_[out_p]);
     }
   }
 
   //
-  auto in_scope_idx = in_var_handle->scope_idx_;
+  auto in_scope_idx = in_var_handle[0]->scope_idx_;
   PADDLE_ENFORCE_LT(in_scope_idx, local_scopes_.size(),
                     "The input(%s) is not in the local_scopes.",
-                    in_var_handle->name_);
-  auto in_var = local_scopes_[in_scope_idx]->FindVar(in_var_handle->name_);
+                    in_var_handle[0]->name_);
+  auto in_var = local_scopes_[in_scope_idx]->FindVar(in_var_handle[0]->name_);
   Tensor *in_tensor = GetTensorFromVar(in_var);
 
   for (auto *out : out_var_handles) {
-    auto out_handle = static_cast<VarHandle *>(out);
-    auto &out_p = out_handle->place_;
+    auto &out_p = out->place_;
 
-    auto out_scope_idx = out_handle->scope_idx_;
+    auto out_scope_idx = out->scope_idx_;
     PADDLE_ENFORCE_LT(out_scope_idx, local_scopes_.size(),
-                      "%s is not in the local_scopes ", out_handle->name_);
+                      "%s is not in the local_scopes ", out->name_);
 
     auto *s = local_scopes_[out_scope_idx];
-    auto out_var = s->FindVar(out_handle->name_);
+    auto out_var = s->FindVar(out->name_);
     PADDLE_ENFORCE_EQ(out_p.which(), in_place.which(),
                       "The place of input and output should be the same.");
 
