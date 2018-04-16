@@ -81,6 +81,8 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
   auto graph = new SSAGraph();
   SSAGraph &result = *graph;
   std::unordered_set<std::string> og_has_been_broadcast;
+  std::unordered_set<std::string> sparse_var;
+  std::unordered_map<std::string, std::vector<std::string>> sparse_in_outs;
 
   // We cannot invoke resize. It is a bug of GCC 4.8
   result.vars_ = std::vector<
@@ -109,6 +111,48 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
       // is created for send op.
       CreateOpHandleIOs(&result, op, p, 0);
       continue;
+    }
+
+    if (!is_forwarding) {
+      // add gather op handle
+      auto out_var_names = op->OutputArgumentNames();
+
+      // if the
+      bool add_gather = false;
+      for (auto &og : out_var_names) {
+        if (grad_names_.count(og) != 0 &&
+            og_has_been_broadcast.count(og) == 0) {
+          og_has_been_broadcast.insert(og);
+          auto var = local_scopes_[0]->FindVar(og);
+          PADDLE_ENFORCE(var, "%s is not in scope", og);
+          if (var->IsType<framework::SelectedRows>()) {
+            add_gather = true;
+            sparse_var.insert(og);
+            break;
+          }
+        }
+      }
+      if (add_gather) {
+      } else {
+        // execute op on device_0
+        bool execute_on_device_0 = false;
+        auto in_var_names = op->InputArgumentNames();
+        for (auto &i_each_name : in_var_names) {
+          if (sparse_var.count(i_each_name)) {
+            execute_on_device_0 = true;
+            auto out_var_names = op->InputArgumentNames();
+            for (auto &o_each_name : out_var_names) {
+              sparse_var.insert(o_each_name);
+              sparse_in_outs[i_each_name].push_back(o_each_name);
+            }
+          }
+        }
+        if (execute_on_device_0) {
+          //
+
+          continue;
+        }
+      }
     }
 
     for (size_t i = 0; i < places_.size(); ++i) {
@@ -192,6 +236,7 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
       }
     }
   }
+  // add broadcast op handles
 
   /*
     Dependency graph has been constructed. However, there are still data
