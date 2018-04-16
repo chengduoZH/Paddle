@@ -24,6 +24,8 @@
 
 #include <string>
 #include <vector>
+#include "paddle/fluid/framework/details/broadcast_op_handle.h"
+#include "paddle/fluid/framework/details/gather_op_handle.h"
 
 namespace paddle {
 namespace framework {
@@ -133,6 +135,47 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
         }
       }
       if (add_gather) {
+        auto var_names = op->OutputArgumentNames();
+        for (auto &og : var_names) {
+          if (grad_names_.count(og) != 0 &&
+              og_has_been_broadcast.count(og) == 0) {
+            og_has_been_broadcast.insert(og);
+            // Insert Gather Op
+            result.ops_.emplace_back(
+                new GatherOpHandle(local_scopes_, places_));
+            auto *op_handle = result.ops_.back().get();
+
+            for (size_t i = 0; i < places_.size(); ++i) {
+              auto &p = places_[i];
+              auto &vars = result.vars_[i][og];
+
+              if (vars.empty()) {  // This device has no data. continue.
+                continue;
+              }
+              auto &prev_grad = vars[vars.size() - 1];
+              op_handle->AddInput(prev_grad.get());
+
+#ifdef PADDLE_WITH_CUDA
+              auto *communication_dev_ctx = nccl_ctxs_->DevCtx(p);
+#else
+              auto *communication_dev_ctx =
+                  platform::DeviceContextPool::Instance().Get(
+                      platform::CPUPlace());
+#endif
+              op_handle->dev_ctxes_[p] = communication_dev_ctx;
+
+              vars.emplace_back(new VarHandle);
+              auto &var = vars.back();
+              var->place_ = p;
+              var->name_ = og;
+              var->version_ = vars.size() - 1;
+
+              op_handle->AddOutput(var.get());
+            }
+          }
+        }
+        //
+        continue;
       } else {
         // execute op on device_0
         bool execute_on_device_0 = false;
