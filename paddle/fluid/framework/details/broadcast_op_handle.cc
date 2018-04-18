@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "paddle/fluid/framework/details/broadcast_op_handle.h"
+#include "paddle/fluid/framework/details/container_cast.h"
+#include "paddle/fluid/framework/details/variable_visitor.h"
 
 namespace paddle {
 namespace framework {
@@ -52,8 +54,8 @@ void BroadcastOpHandle::RunImpl() {
   auto in_scope_idx = in_var_handle[0]->scope_idx_;
   auto in_var =
       local_scopes_.at(in_scope_idx)->FindVar(in_var_handle[0]->name_);
-  Tensor *in_tensor = GetTensorFromVar(in_var);
-
+  //  Tensor *in_tensor = GetTensorFromVar(in_var);
+  Tensor &in_tensor = VariableVisitor::GetMutableTensor(in_var);
   for (auto *out : out_var_handles) {
     auto &out_p = out->place_;
     auto out_var = local_scopes_.at(out->scope_idx_)->FindVar(out->name_);
@@ -83,7 +85,7 @@ void BroadcastOpHandle::RunImpl() {
     auto dev_ctx = dev_ctxes_[out_p];
     RunAndRecordEvent(out_p, [in_tensor, out_var, dev_ctx, out_p] {
       Tensor *out_tensor = GetTensorFromVar(out_var);
-      paddle::framework::TensorCopy(*in_tensor, out_p, *(dev_ctx), out_tensor);
+      paddle::framework::TensorCopy(in_tensor, out_p, *(dev_ctx), out_tensor);
     });
   }
 }
