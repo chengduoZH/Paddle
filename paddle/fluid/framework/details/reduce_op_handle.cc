@@ -40,13 +40,13 @@ void ReduceOpHandle::RunImpl() {
 
   auto in_0_handle = in_var_handles[0];
 
-  std::vector<const Scope> var_scopes(local_scopes_.size());
+  std::vector<const Scope *> var_scopes(local_scopes_.size());
   for (auto *s : local_scopes_) {
     var_scopes.emplace_back(s->FindVar(kLocalExecScopeName)->Get<Scope *>());
   }
 
   auto pre_in_var =
-      var_scopes.at(in_0_handle->scope_idx_).FindVar(in_0_handle->name_);
+      var_scopes.at(in_0_handle->scope_idx_)->FindVar(in_0_handle->name_);
   auto pre_place = in_0_handle->place_;
 
   // Wait input done, this Wait is asynchronous operation
@@ -62,7 +62,7 @@ void ReduceOpHandle::RunImpl() {
     in_places.emplace_back(in_p);
 
     auto in_var =
-        var_scopes.at(in_handle->scope_idx_).FindVar(in_handle->name_);
+        var_scopes.at(in_handle->scope_idx_)->FindVar(in_handle->name_);
     auto in_tensor = VariableVisitor::GetMutableTensor(in_var);
 
     PADDLE_ENFORCE_EQ(in_tensor.type(), pre_in_tensor.type(),
@@ -70,13 +70,13 @@ void ReduceOpHandle::RunImpl() {
   }
 
   auto out_var =
-      var_scopes.at(out_var_handle->scope_idx_).FindVar(out_var_handle->name_);
+      var_scopes.at(out_var_handle->scope_idx_)->FindVar(out_var_handle->name_);
 
   if (pre_in_var->IsType<framework::SelectedRows>()) {
     std::vector<const SelectedRows *> in_selected_rows;
     for (auto *in_handle : in_var_handles) {
       auto &in_sr = var_scopes.at(in_handle->scope_idx_)
-                        .FindVar(in_handle->name_)
+                        ->FindVar(in_handle->name_)
                         ->Get<framework::SelectedRows>();
       in_selected_rows.emplace_back(&in_sr);
     }
@@ -90,7 +90,7 @@ void ReduceOpHandle::RunImpl() {
     // can be refined
     for (auto *in_handle : in_var_handles) {
       lod_tensors.emplace_back(var_scopes.at(in_handle->scope_idx_)
-                                   .FindVar(in_handle->name_)
+                                   ->FindVar(in_handle->name_)
                                    ->Get<framework::LoDTensor>());
     }
 
