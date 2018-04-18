@@ -39,10 +39,14 @@ void ReduceOpHandle::RunImpl() {
   }
 
   auto in_0_handle = in_var_handles[0];
-  auto pre_in_var = local_scopes_.at(in_0_handle->scope_idx_)
-                        ->FindVar(kLocalExecScopeName)
-                        ->Get<Scope *>()
-                        ->FindVar(in_0_handle->name_);
+
+  std::vector<const Scope> var_scopes(local_scopes_.size());
+  for (auto *s : local_scopes_) {
+    var_scopes.emplace_back(s->FindVar(kLocalExecScopeName)->Get<Scope *>());
+  }
+
+  auto pre_in_var =
+      var_scopes.at(in_0_handle->scope_idx_).FindVar(in_0_handle->name_);
   auto pre_place = in_0_handle->place_;
 
   // Wait input done, this Wait is asynchronous operation
@@ -57,28 +61,22 @@ void ReduceOpHandle::RunImpl() {
                       "Places must be all on CPU or all on CUDA.");
     in_places.emplace_back(in_p);
 
-    auto in_var = local_scopes_.at(in_handle->scope_idx_)
-                      ->FindVar(kLocalExecScopeName)
-                      ->Get<Scope *>()
-                      ->FindVar(in_handle->name_);
+    auto in_var =
+        var_scopes.at(in_handle->scope_idx_).FindVar(in_handle->name_);
     auto in_tensor = VariableVisitor::GetMutableTensor(in_var);
 
     PADDLE_ENFORCE_EQ(in_tensor.type(), pre_in_tensor.type(),
                       "The type of input is not consistent.");
   }
 
-  auto out_var = local_scopes_.at(out_var_handle->scope_idx_)
-                     ->FindVar(kLocalExecScopeName)
-                     ->Get<Scope *>()
-                     ->FindVar(out_var_handle->name_);
+  auto out_var =
+      var_scopes.at(out_var_handle->scope_idx_).FindVar(out_var_handle->name_);
 
   if (pre_in_var->IsType<framework::SelectedRows>()) {
     std::vector<const SelectedRows *> in_selected_rows;
     for (auto *in_handle : in_var_handles) {
-      auto &in_sr = local_scopes_.at(in_handle->scope_idx_)
-                        ->FindVar(kLocalExecScopeName)
-                        ->Get<Scope *>()
-                        ->FindVar(in_handle->name_)
+      auto &in_sr = var_scopes.at(in_handle->scope_idx_)
+                        .FindVar(in_handle->name_)
                         ->Get<framework::SelectedRows>();
       in_selected_rows.emplace_back(&in_sr);
     }
@@ -91,10 +89,8 @@ void ReduceOpHandle::RunImpl() {
 
     // can be refined
     for (auto *in_handle : in_var_handles) {
-      lod_tensors.emplace_back(local_scopes_.at(in_handle->scope_idx_)
-                                   ->FindVar(kLocalExecScopeName)
-                                   ->Get<Scope *>()
-                                   ->FindVar(in_handle->name_)
+      lod_tensors.emplace_back(var_scopes.at(in_handle->scope_idx_)
+                                   .FindVar(in_handle->name_)
                                    ->Get<framework::LoDTensor>());
     }
 
@@ -111,7 +107,7 @@ void ReduceOpHandle::RunImpl() {
       int root = boost::get<platform::CUDAPlace>(out_p).device;
 
       std::vector<std::function<void()>> all_reduce_calls;
-      for (size_t i = 0; i < local_scopes_.size(); ++i) {
+      for (size_t i = 0; i < var_scopes.size(); ++i) {
         auto &p = in_places[i];
         auto &lod_tensor = lod_tensors[i];
 
