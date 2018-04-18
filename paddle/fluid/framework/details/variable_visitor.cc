@@ -42,7 +42,10 @@ static void VisitVariable(const Variable& var, Func func) {
 struct TensorVisitor {
   Tensor* result_{nullptr};
 
-  void operator()(LoDTensor* tensor) { result_ = tensor; }
+  void operator()(LoDTensor* tensor) {
+    std::cout << tensor->dims() << std::endl;
+    result_ = tensor;
+  }
 
   void operator()(SelectedRows* selected_rows) {
     result_ = selected_rows->mutable_value();
