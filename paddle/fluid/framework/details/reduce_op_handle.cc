@@ -40,7 +40,7 @@ void ReduceOpHandle::RunImpl() {
 
   auto in_0_handle = in_var_handles[0];
 
-  std::vector<const Scope *> var_scopes(local_scopes_.size());
+  std::vector<const Scope *> var_scopes;
   for (auto *s : local_scopes_) {
     var_scopes.emplace_back(s->FindVar(kLocalExecScopeName)->Get<Scope *>());
   }
@@ -52,7 +52,6 @@ void ReduceOpHandle::RunImpl() {
   // Wait input done, this Wait is asynchronous operation
   WaitInputVarGenerated(in_var_handles);
 
-  // check in the same place
   std::vector<platform::Place> in_places;
   auto pre_in_tensor = VariableVisitor::GetMutableTensor(pre_in_var);
   for (auto *in_handle : in_var_handles) {
@@ -86,8 +85,6 @@ void ReduceOpHandle::RunImpl() {
   } else {
     auto pre_in = pre_in_var->Get<framework::LoDTensor>();
     std::vector<LoDTensor> lod_tensors;
-
-    // can be refined
     for (auto *in_handle : in_var_handles) {
       lod_tensors.emplace_back(var_scopes.at(in_handle->scope_idx_)
                                    ->FindVar(in_handle->name_)
@@ -95,6 +92,7 @@ void ReduceOpHandle::RunImpl() {
     }
 
     auto trg = out_var->GetMutable<framework::LoDTensor>();
+    trg->set_lod(pre_in.lod());
     trg->Resize(pre_in.dims());
     trg->mutable_data(out_var_handle->place_, pre_in.type());
 
