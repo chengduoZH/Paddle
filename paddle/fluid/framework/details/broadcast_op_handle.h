@@ -42,7 +42,11 @@ struct BroadcastOpHandle : public OpHandleBase {
  protected:
   void RunImpl() override;
 
-  void WaitInputVarGenerated(const VarHandle &in_var);
+  std::vector<VarHandle *> GetValidVarHandles(
+      const std::vector<VarHandleBase *> &inputs);
+
+  void WaitEvents(const std::vector<VarHandle *> &out_var_handles,
+                  const std::vector<VarHandle *> &in_var_handle);
 };
 
 }  // namespace details
