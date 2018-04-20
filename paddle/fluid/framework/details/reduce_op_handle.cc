@@ -74,13 +74,8 @@ void ReduceOpHandle::RunImpl() {
   PADDLE_ENFORCE_NOT_NULL(out_var);
 
   if (pre_in_var->IsType<framework::SelectedRows>()) {
-    std::vector<const SelectedRows *> in_selected_rows;
-    for (auto *in_handle : in_var_handles) {
-      auto &in_sr = var_scopes.at(in_handle->scope_idx_)
-                        ->FindVar(in_handle->name_)
-                        ->Get<framework::SelectedRows>();
-      in_selected_rows.emplace_back(&in_sr);
-    }
+    std::vector<const SelectedRows *> in_selected_rows =
+        GetValues<SelectedRows>(in_var_handles, var_scopes);
     auto trg = var_scopes.at(out_var_handle->scope_idx_)
                    ->FindVar(out_var_handle->name_)
                    ->GetMutable<framework::SelectedRows>();
@@ -88,18 +83,9 @@ void ReduceOpHandle::RunImpl() {
     GatherSelectedRows(in_selected_rows, in_places, dev_ctxes_,
                        out_var_handle->place_, trg);
   } else {
-    std::vector<const LoDTensor *> lod_tensors;
-    for (auto *in_handle : in_var_handles) {
-      auto &in_sr = var_scopes.at(in_handle->scope_idx_)
-                        ->FindVar(in_handle->name_)
-                        ->Get<framework::LoDTensor>();
-      lod_tensors.emplace_back(&in_sr);
-    }
+    std::vector<const LoDTensor *> lod_tensors =
+        GetValues<LoDTensor>(in_var_handles, var_scopes);
 
-    auto pre_in = pre_in_var->Get<framework::LoDTensor>();
-    VariableVisitor::ShareDimsAndLoD(*pre_in_var, out_var);
-    VariableVisitor::GetMutableTensor(out_var).mutable_data(
-        out_var_handle->place_, pre_in.type());
     auto trg = var_scopes.at(out_var_handle->scope_idx_)
                    ->FindVar(out_var_handle->name_)
                    ->GetMutable<framework::LoDTensor>();
@@ -109,6 +95,11 @@ void ReduceOpHandle::RunImpl() {
       VisitDataType(ToDataType(lod_tensors[0]->type()), func);
     } else if (paddle::platform::is_gpu_place(pre_place)) {
 #ifdef PADDLE_WITH_CUDA
+      auto pre_in = pre_in_var->Get<framework::LoDTensor>();
+      VariableVisitor::ShareDimsAndLoD(*pre_in_var, out_var);
+      VariableVisitor::GetMutableTensor(out_var).mutable_data(
+          out_var_handle->place_, pre_in.type());
+
       auto out_p = out_var_handle->place_;
       int root = boost::get<platform::CUDAPlace>(out_p).device;
       std::vector<std::function<void()>> all_reduce_calls;
@@ -148,6 +139,20 @@ void ReduceOpHandle::RunImpl() {
       PADDLE_THROW("Place should be CPUPlace or CUDAPlace.");
     }
   }
+}
+
+template <typename T>
+std::vector<const T *> ReduceOpHandle::GetValues(
+    const std::vector<VarHandle *> &in_var_handles,
+    const std::vector<const Scope *> &var_scopes) const {
+  std::vector<const T *> in_selected_rows;
+  for (auto *in_handle : in_var_handles) {
+    auto &in_sr = var_scopes.at(in_handle->scope_idx_)
+                      ->FindVar(in_handle->name_)
+                      ->Get<T>();
+    in_selected_rows.emplace_back(&in_sr);
+  }
+  return in_selected_rows;
 }
 
 void ReduceOpHandle::WaitInputVarGenerated(
