@@ -88,11 +88,12 @@ void ReduceOpHandle::RunImpl() {
     GatherSelectedRows(in_selected_rows, in_places, dev_ctxes_,
                        out_var_handle->place_, trg);
   } else {
-    std::vector<LoDTensor> lod_tensors;
+    std::vector<const LoDTensor *> lod_tensors;
     for (auto *in_handle : in_var_handles) {
-      lod_tensors.emplace_back(var_scopes.at(in_handle->scope_idx_)
-                                   ->FindVar(in_handle->name_)
-                                   ->Get<framework::LoDTensor>());
+      auto &in_sr = var_scopes.at(in_handle->scope_idx_)
+                        ->FindVar(in_handle->name_)
+                        ->Get<framework::LoDTensor>();
+      lod_tensors.emplace_back(&in_sr);
     }
 
     auto pre_in = pre_in_var->Get<framework::LoDTensor>();
@@ -105,7 +106,7 @@ void ReduceOpHandle::RunImpl() {
 
     if (paddle::platform::is_cpu_place(pre_place)) {
       ReduceLoDTensor func(lod_tensors, trg);
-      VisitDataType(ToDataType(lod_tensors[0].type()), func);
+      VisitDataType(ToDataType(lod_tensors[0]->type()), func);
     } else if (paddle::platform::is_gpu_place(pre_place)) {
 #ifdef PADDLE_WITH_CUDA
       auto out_p = out_var_handle->place_;
@@ -113,7 +114,7 @@ void ReduceOpHandle::RunImpl() {
       std::vector<std::function<void()>> all_reduce_calls;
       for (size_t i = 0; i < var_scopes.size(); ++i) {
         auto &p = in_places[i];
-        auto &lod_tensor = lod_tensors[i];
+        auto &lod_tensor = *lod_tensors[i];
 
         int dev_id = boost::get<platform::CUDAPlace>(p).device;
         auto &nccl_ctx = nccl_ctxs_->at(dev_id);
