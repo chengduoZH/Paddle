@@ -76,22 +76,17 @@ void ReduceOpHandle::RunImpl() {
   if (pre_in_var->IsType<framework::SelectedRows>()) {
     std::vector<const SelectedRows *> in_selected_rows =
         GetValues<SelectedRows>(in_var_handles, var_scopes);
-    auto trg = var_scopes.at(out_var_handle->scope_idx_)
-                   ->FindVar(out_var_handle->name_)
-                   ->GetMutable<framework::SelectedRows>();
 
     GatherSelectedRows(in_selected_rows, in_places, dev_ctxes_,
-                       out_var_handle->place_, trg);
+                       out_var_handle->place_,
+                       out_var->GetMutable<framework::SelectedRows>());
   } else {
     std::vector<const LoDTensor *> lod_tensors =
         GetValues<LoDTensor>(in_var_handles, var_scopes);
 
-    auto trg = var_scopes.at(out_var_handle->scope_idx_)
-                   ->FindVar(out_var_handle->name_)
-                   ->GetMutable<framework::LoDTensor>();
-
     if (paddle::platform::is_cpu_place(pre_place)) {
-      ReduceLoDTensor func(lod_tensors, trg);
+      ReduceLoDTensor func(lod_tensors,
+                           out_var->GetMutable<framework::LoDTensor>());
       VisitDataType(ToDataType(lod_tensors[0]->type()), func);
     } else if (paddle::platform::is_gpu_place(pre_place)) {
 #ifdef PADDLE_WITH_CUDA
@@ -115,7 +110,9 @@ void ReduceOpHandle::RunImpl() {
         void *buffer = const_cast<void *>(lod_tensor.data<void>());
         void *recvbuffer = nullptr;
         if (root == dev_id) {
-          recvbuffer = trg->mutable_data(out_var_handle->place_);
+          recvbuffer =
+              out_var->GetMutable<framework::LoDTensor>()->mutable_data(
+                  out_var_handle->place_);
         }
 
         int type = platform::ToNCCLDataType(lod_tensor.type());
