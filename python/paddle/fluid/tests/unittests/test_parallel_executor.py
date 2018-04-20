@@ -203,6 +203,7 @@ class TestParallelExecutorBase(unittest.TestCase):
                                   iter=50,
                                   batch_size=None,
                                   allow_op_delay=False,
+                                  use_nccl_allreduce=False,
                                   feed_dict=None,
                                   seed=None,
                                   use_parallel_executor=True):
@@ -237,7 +238,7 @@ class TestParallelExecutorBase(unittest.TestCase):
                     True,
                     loss_name=loss.name,
                     allow_op_delay=allow_op_delay,
-                    use_nccl_allreduce=False)
+                    use_nccl_allreduce=use_nccl_allreduce)
             else:
                 exe = fluid.Executor(place=place)
 
@@ -285,7 +286,8 @@ class TestMNIST(TestParallelExecutorBase):
 
     def test_simple_fc(self):
         self.check_network_convergence(simple_fc_net)
-        self.check_network_convergence(simple_fc_net, allow_op_delay=True)
+        self.check_network_convergence(
+            simple_fc_net)
 
         img = numpy.zeros(shape=[32, 784], dtype='float32')
         label = numpy.ones(shape=[32, 1], dtype='int64')
@@ -568,7 +570,8 @@ hidden_dim = 512
 depth = 8
 mix_hidden_lr = 1e-3
 embedding_name = 'emb'
-is_sparse = False
+is_sparse = True
+use_nccl_allreduce = False
 
 
 def db_lstm(word, predicate, ctx_n2, ctx_n1, ctx_0, ctx_p1, ctx_p2, mark,
@@ -688,7 +691,10 @@ class TestCRFModel(unittest.TestCase):
             exe = fluid.Executor(place)
             exe.run(startup)
 
-            pe = fluid.ParallelExecutor(use_cuda=True, loss_name=avg_cost.name)
+            pe = fluid.ParallelExecutor(
+                use_cuda=True,
+                loss_name=avg_cost.name,
+                use_nccl_allreduce=use_nccl_allreduce)
 
             feeder = fluid.DataFeeder(
                 feed_list=[
@@ -703,3 +709,6 @@ class TestCRFModel(unittest.TestCase):
                 print map(numpy.array,
                           pe.run(feed=feeder.feed(cur_batch),
                                  fetch_list=[avg_cost.name]))[0]
+
+if __name__ == '__main__':
+    unittest.main()

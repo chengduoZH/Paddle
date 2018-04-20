@@ -28,21 +28,8 @@ namespace framework {
 class Scope;
 namespace details {
 
-struct VarLink {
-  VarLink(const std::string &var_name, VarHandle *var_handel, int dev_idx) {
-    var_name_ = std::move(var_name);
-    var_handle_ = var_handel;
-    dev_idx_ = dev_idx;
-  }
-
-  int dev_idx_;
-  std::string var_name_;
-  VarHandle *var_handle_;
-  std::vector<VarLink *> children_;
-};
-
 class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
- public:
+public:
 #ifdef PADDLE_WITH_CUDA
   MultiDevSSAGraphBuilder(const std::vector<platform::Place> &places,
                           const std::string &loss_var_name,
@@ -60,11 +47,11 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
 
   std::unique_ptr<SSAGraph> Build(const ProgramDesc &program) const override;
 
- private:
+private:
   void CreateOpHandleIOs(SSAGraph *result, const OpDesc &op,
                          const platform::Place &p, const size_t &i) const;
 
- private:
+private:
   std::string loss_var_name_;
   const std::vector<platform::Place> &places_;
   const std::vector<Scope *> &local_scopes_;
@@ -87,20 +74,19 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
                              int dev_id) const;
 
   bool IsParameterGradientOnce(
-      const std::string &og,
-      std::unordered_set<std::string> *og_has_been_broadcast) const;
+    const std::string &og,
+    std::unordered_set<std::string> *og_has_been_broadcast) const;
 
   void InsertNCCLAllReduceOp(SSAGraph *result, const std::string &og) const;
 
-  VarHandle *GetSingleDeviceVar(
-      const std::unordered_map<VarHandle *,
-                               paddle::framework::details::VarLink *> &var_link,
-      const std::vector<std::string> &var_names, SSAGraph *result) const;
+  void CreateBroadcastOp(SSAGraph *result, const std::string &p_name,
+                         size_t dev_id) const;
 
-  void CreateBroadcastOp(SSAGraph *result,
-                         const std::pair<VarHandle *, VarLink *> &vars_link,
-                         VarHandle *const &ge_var) const;
+  int GetOpDeviceID(
+    const std::vector<std::unordered_set<std::string>> &var_name_on_devices,
+    const OpDesc &op) const;
 };
 }  // namespace details
 }  // namespace framework
 }  // namespace paddle
+
