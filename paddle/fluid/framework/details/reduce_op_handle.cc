@@ -81,7 +81,10 @@ void ReduceOpHandle::RunImpl() {
                         ->Get<framework::SelectedRows>();
       in_selected_rows.emplace_back(&in_sr);
     }
-    auto trg = out_var->GetMutable<framework::SelectedRows>();
+    auto trg = var_scopes.at(out_var_handle->scope_idx_)
+                   ->FindVar(out_var_handle->name_)
+                   ->GetMutable<framework::SelectedRows>();
+
     GatherSelectedRows(in_selected_rows, in_places, dev_ctxes_,
                        out_var_handle->place_, trg);
   } else {
@@ -93,10 +96,12 @@ void ReduceOpHandle::RunImpl() {
     }
 
     auto pre_in = pre_in_var->Get<framework::LoDTensor>();
-    auto trg = out_var->GetMutable<framework::LoDTensor>();
-    trg->set_lod(pre_in.lod());
-    trg->Resize(pre_in.dims());
-    trg->mutable_data(out_var_handle->place_, pre_in.type());
+    VariableVisitor::ShareDimsAndLoD(*pre_in_var, out_var);
+    VariableVisitor::GetMutableTensor(out_var).mutable_data(
+        out_var_handle->place_, pre_in.type());
+    auto trg = var_scopes.at(out_var_handle->scope_idx_)
+                   ->FindVar(out_var_handle->name_)
+                   ->GetMutable<framework::LoDTensor>();
 
     if (paddle::platform::is_cpu_place(pre_place)) {
       ReduceLoDTensor func(lod_tensors, trg);

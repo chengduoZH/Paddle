@@ -67,9 +67,8 @@ void BroadcastOpHandle::RunImpl() {
                       "Places must be all on CPU or all on CUDA.");
 
     VariableVisitor::ShareDimsAndLoD(*in_var, out_var);
-    VariableVisitor::GetMutableTensor(out_var)
-        .Resize(in_tensor.dims())
-        .mutable_data(out_p, in_tensor.type());
+    VariableVisitor::GetMutableTensor(out_var).mutable_data(out_p,
+                                                            in_tensor.type());
 
     auto dev_ctx = dev_ctxes_.at(out_p);
     RunAndRecordEvent(out_p, [in_tensor, out_var, dev_ctx, out_p] {
