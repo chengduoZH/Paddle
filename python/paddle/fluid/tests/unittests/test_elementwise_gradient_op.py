@@ -55,7 +55,8 @@ class TestElementWiseAddOp(unittest.TestCase):
                         "X": block.var('x'),
                         "Y": block.var('y'),
                     },
-                    outputs={"Out": block.var('out'), })
+                    outputs={"Out": block.var('out'), },
+                    attrs={"axis": self.axis, })
 
                 # generate backward op_desc
                 grad_op_desc_list, op_grad_to_var = core.get_grad_op_desc(
