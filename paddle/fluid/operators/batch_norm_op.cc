@@ -298,6 +298,21 @@ class BatchNormKernel<platform::CPUDeviceContext, T>
       default:
         PADDLE_THROW("Unknown storage order: %d", data_layout);
     }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*y, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("forward - conv2d z: %f\n", static_cast<double>(total));
+      std::cout << y->dims() << std::endl;
+    }
   }
 };
 

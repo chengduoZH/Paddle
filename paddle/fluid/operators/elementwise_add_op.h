@@ -37,6 +37,23 @@ class ElementwiseAddKernel : public framework::OpKernel<T> {
     int axis = ctx.Attr<int>("axis");
     ElementwiseComputeEx<AddFunctor<T>, DeviceContext, T>(ctx, x, y, axis,
                                                           AddFunctor<T>(), z);
+
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*z, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("forward - elementwise_add z: %f\n", static_cast<double>(total));
+      std::cout << z->dims() << std::endl;
+      //      std::cout << "elementwise_add dy: " << total << std::endl;
+    }
   }
 };
 

@@ -190,6 +190,21 @@ class GemmConvKernel : public framework::OpKernel<T> {
                                        false, T(1.0), &out_slice, T(0.0));
       }
     }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*output, context.device_context(), &xv);
+      context.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("forward - conv2d z: %f\n", static_cast<double>(total));
+      std::cout << output->dims() << std::endl;
+    }
   }
 };
 
