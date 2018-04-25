@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
-
+#include <vector>
 #include "paddle/fluid/operators/math/math_function.h"
 
 #include "paddle/fluid/framework/op_registry.h"
@@ -88,6 +88,20 @@ class MulGradKernel : public framework::OpKernel<T> {
       // dx = dout * y'. dx: M x K, dout : M x N, y : K x N
       math::matmul<DeviceContext, T>(dev_ctx, dout_mat, false, y_matrix, true,
                                      1, &dx_matrix, 0);
+      {
+        std::vector<T> xv;
+        framework::TensorToVector(*dx, ctx.device_context(), &xv);
+        ctx.device_context().Wait();
+        T total = 0.0;
+        for (T v : xv) {
+          T v1 = v;
+          if (v1 < 0) {
+            v1 = -v1;
+          }
+          total += v1;
+        }
+        VLOG(1) << "fc dx: " << total;
+      }
     }
     if (dy) {
       dy->mutable_data<T>(ctx.GetPlace());
@@ -97,6 +111,20 @@ class MulGradKernel : public framework::OpKernel<T> {
       // dy = x' * dout. dy K x N, dout : M x N, x : M x K
       math::matmul<DeviceContext, T>(dev_ctx, x_matrix, true, dout_mat, false,
                                      1, &dy_matrix, 0);
+      {
+        std::vector<T> xv;
+        framework::TensorToVector(*dy, ctx.device_context(), &xv);
+        ctx.device_context().Wait();
+        T total = 0.0;
+        for (T v : xv) {
+          T v1 = v;
+          if (v1 < 0) {
+            v1 = -v1;
+          }
+          total += v1;
+        }
+        VLOG(1) << "conv2d_bk_filter_grad: " << total;
+      }
     }
   }
 };

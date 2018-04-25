@@ -317,6 +317,20 @@ class GemmConvGradKernel : public framework::OpKernel<T> {
           }
         }
       }
+      {
+        std::vector<T> xv;
+        framework::TensorToVector(*input_grad, context.device_context(), &xv);
+        context.device_context().Wait();
+        T total = 0.0;
+        for (T v : xv) {
+          T v1 = v;
+          if (v1 < 0) {
+            v1 = -v1;
+          }
+          total += v1;
+        }
+        VLOG(1) << "conv2d_bk_in_grad: " << total;
+      }
     }
 
     if (filter_grad) {
@@ -356,6 +370,20 @@ class GemmConvGradKernel : public framework::OpKernel<T> {
                                          col_matrix, true, T(1.0),
                                          &filter_grad_slice, T(1.0));
         }
+      }
+      {
+        std::vector<T> xv;
+        framework::TensorToVector(*filter_grad, context.device_context(), &xv);
+        context.device_context().Wait();
+        T total = 0.0;
+        for (T v : xv) {
+          T v1 = v;
+          if (v1 < 0) {
+            v1 = -v1;
+          }
+          total += v1;
+        }
+        VLOG(1) << "conv2d_bk_filter_grad: " << total;
       }
     }
   }

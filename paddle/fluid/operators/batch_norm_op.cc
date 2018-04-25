@@ -14,6 +14,7 @@ limitations under the License. */
 
 #include "paddle/fluid/operators/batch_norm_op.h"
 #include <string>
+#include <vector>
 #include "paddle/fluid/framework/data_layout.h"
 
 namespace paddle {
@@ -454,6 +455,48 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
       }
       default:
         PADDLE_THROW("Unknown storage order: %s", data_layout_str);
+    }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*d_x, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      VLOG(1) << "batch_norm d_x: " << total;
+    }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*d_bias, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      VLOG(1) << "batch_norm d_bias: " << total;
+    }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*d_scale, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      VLOG(1) << "batch_norm d_scale: " << total;
     }
   }
 };
