@@ -75,6 +75,7 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
         total += v1;
       }
       printf("elementwise_add d_x: %f\n", static_cast<double>(total));
+      std::cout << dx->dims() << std::endl;
       //      std::cout << "elementwise_add dx: " << total << std::endl;
     }
 
@@ -91,6 +92,7 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
         total += v1;
       }
       printf("elementwise_add d_y: %f\n", static_cast<double>(total));
+      std::cout << dy->dims() << std::endl;
       //      std::cout << "elementwise_add dy: " << total << std::endl;
     }
   }

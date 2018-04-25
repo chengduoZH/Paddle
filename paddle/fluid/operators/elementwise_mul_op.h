@@ -79,6 +79,7 @@ class ElementwiseMulGradKernel : public framework::OpKernel<T> {
         total += v1;
       }
       printf("elementwise_mul d_x: %f\n", static_cast<double>(total));
+      std::cout << dx->dims() << std::endl;
       //      std::cout << "elementwise_mul dx: " << total << std::endl;
     }
 
@@ -95,6 +96,7 @@ class ElementwiseMulGradKernel : public framework::OpKernel<T> {
         total += v1;
       }
       printf("elementwise_mul d_y: %f\n", static_cast<double>(total));
+      std::cout << dy->dims() << std::endl;
       //      std::cout << "elementwise_mul dy: " << total << std::endl;
     }
   }
