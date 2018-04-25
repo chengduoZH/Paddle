@@ -25,7 +25,7 @@ namespace f = paddle::framework;
 namespace p = paddle::platform;
 
 // test data amount
-const f::DDim kDims = {20, 20};
+const f::DDim kDims = {20, 1024};
 
 struct TestBroadcastOpHandle {
   std::vector<std::unique_ptr<p::DeviceContext>> ctxs_;
