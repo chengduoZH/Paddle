@@ -78,7 +78,7 @@ class ElementwiseMulGradKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      std::cout << "elementwise_mul dy: " << total;
+      std::cout << "elementwise_mul dy: " << total << std::endl;
     }
 
     {
@@ -93,7 +93,7 @@ class ElementwiseMulGradKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      std::cout << "elementwise_mul dy: " << total;
+      std::cout << "elementwise_mul dy: " << total << std::endl;
     }
   }
 };

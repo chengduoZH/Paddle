@@ -482,7 +482,7 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      std::cout << "batch_norm d_bias: " << total;
+      std::cout << "batch_norm d_bias: " << total << std::endl;
     }
     {
       std::vector<T> xv;
@@ -496,7 +496,7 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      std::cout << "batch_norm d_scale: " << total;
+      std::cout << "batch_norm d_scale: " << total << std::endl;
     }
   }
 };
