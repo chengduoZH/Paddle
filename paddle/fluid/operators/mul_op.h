@@ -79,6 +79,24 @@ class MulGradKernel : public framework::OpKernel<T> {
     Tensor* dx = ctx.Output<Tensor>(framework::GradVarName("X"));
     Tensor* dy = ctx.Output<Tensor>(framework::GradVarName("Y"));
     auto& dev_ctx = ctx.template device_context<DeviceContext>();
+
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*dout, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("fc dx: %f\n", static_cast<double>(total));
+      std::cout << dout->dims() << std::endl;
+      //        std::cout << "fc dx: " << total << std::endl;
+    }
+
     if (dx) {
       dx->mutable_data<T>(ctx.GetPlace());
       Tensor dx_matrix = dx->dims().size() > 2
@@ -101,6 +119,7 @@ class MulGradKernel : public framework::OpKernel<T> {
           total += v1;
         }
         printf("fc dx: %f\n", static_cast<double>(total));
+        std::cout << dx->dims() << std::endl;
         //        std::cout << "fc dx: " << total << std::endl;
       }
     }
@@ -125,6 +144,7 @@ class MulGradKernel : public framework::OpKernel<T> {
           total += v1;
         }
         printf("fc dy: %f\n", static_cast<double>(total));
+        std::cout << dy->dims() << std::endl;
         //        std::cout << "fc dy: " << total << std::endl;
       }
     }

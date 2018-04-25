@@ -68,6 +68,23 @@ class ElementwiseMulGradKernel : public framework::OpKernel<T> {
 
     {
       std::vector<T> xv;
+      framework::TensorToVector(*dout, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("elementwise_mul dout: %f\n", static_cast<double>(total));
+      std::cout << dout->dims() << std::endl;
+      //      std::cout << "elementwise_mul dx: " << total << std::endl;
+    }
+
+    {
+      std::vector<T> xv;
       framework::TensorToVector(*dx, ctx.device_context(), &xv);
       ctx.device_context().Wait();
       T total = 0.0;
