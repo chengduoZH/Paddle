@@ -74,7 +74,7 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      VLOG(1) << "elementwise_add dx: " << total;
+      std::cout << "elementwise_add dx: " << total;
     }
 
     {
@@ -89,7 +89,7 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      VLOG(1) << "elementwise_add dy: " << total;
+      std::cout << "elementwise_add dy: " << total;
     }
   }
 };

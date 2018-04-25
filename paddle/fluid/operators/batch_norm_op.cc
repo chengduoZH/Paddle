@@ -468,7 +468,7 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      VLOG(1) << "batch_norm d_x: " << total;
+      std::cout << "batch_norm d_x: " << total;
     }
     {
       std::vector<T> xv;
@@ -482,7 +482,7 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      VLOG(1) << "batch_norm d_bias: " << total;
+      std::cout << "batch_norm d_bias: " << total;
     }
     {
       std::vector<T> xv;
@@ -496,7 +496,7 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      VLOG(1) << "batch_norm d_scale: " << total;
+      std::cout << "batch_norm d_scale: " << total;
     }
   }
 };

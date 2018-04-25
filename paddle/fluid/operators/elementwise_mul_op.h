@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
+#include <vector>
 #include "paddle/fluid/operators/elementwise_op_function.h"
 
 namespace paddle {
@@ -64,6 +65,36 @@ class ElementwiseMulGradKernel : public framework::OpKernel<T> {
     int axis = ctx.Attr<int>("axis");
     ElemwiseGradCompute<DeviceContext, T, MulGradDX<T>, MulGradDY<T>>(
         ctx, *x, *y, *out, *dout, axis, dx, dy, MulGradDX<T>(), MulGradDY<T>());
+
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*dy, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      std::cout << "elementwise_mul dy: " << total;
+    }
+
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*dy, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      std::cout << "elementwise_mul dy: " << total;
+    }
   }
 };
 }  // namespace operators

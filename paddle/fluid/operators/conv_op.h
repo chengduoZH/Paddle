@@ -329,7 +329,7 @@ class GemmConvGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        VLOG(1) << "conv2d_bk_in_grad: " << total;
+        std::cout << "conv2d_bk_in_grad: " << total;
       }
     }
 
@@ -383,7 +383,7 @@ class GemmConvGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        VLOG(1) << "conv2d_bk_filter_grad: " << total;
+        std::cout << "conv2d_bk_filter_grad: " << total;
       }
     }
   }

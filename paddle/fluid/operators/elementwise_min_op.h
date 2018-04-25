@@ -69,36 +69,6 @@ class ElementwiseMinGradKernel : public framework::OpKernel<T> {
     int axis = ctx.Attr<int>("axis");
     ElemwiseGradCompute<DeviceContext, T, MinGradDx<T>, MinGradDy<T>>(
         ctx, *x, *y, *out, *dout, axis, dx, dy, MinGradDx<T>(), MinGradDy<T>());
-
-    {
-      std::vector<T> xv;
-      framework::TensorToVector(*dy, ctx.device_context(), &xv);
-      ctx.device_context().Wait();
-      T total = 0.0;
-      for (T v : xv) {
-        T v1 = v;
-        if (v1 < 0) {
-          v1 = -v1;
-        }
-        total += v1;
-      }
-      VLOG(1) << "elementwise_mul dy: " << total;
-    }
-
-    {
-      std::vector<T> xv;
-      framework::TensorToVector(*dy, ctx.device_context(), &xv);
-      ctx.device_context().Wait();
-      T total = 0.0;
-      for (T v : xv) {
-        T v1 = v;
-        if (v1 < 0) {
-          v1 = -v1;
-        }
-        total += v1;
-      }
-      VLOG(1) << "elementwise_mul dy: " << total;
-    }
   }
 };
 }  // namespace operators
