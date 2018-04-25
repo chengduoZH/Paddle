@@ -100,7 +100,7 @@ class MulGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        printf("fc dx: %f\n", total);
+        printf("fc dx: %f\n", static_cast<double>(total));
         //        std::cout << "fc dx: " << total << std::endl;
       }
     }
@@ -124,7 +124,7 @@ class MulGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        printf("fc dy: %f\n", total);
+        printf("fc dy: %f\n", static_cast<double>(total));
         //        std::cout << "fc dy: " << total << std::endl;
       }
     }

@@ -468,7 +468,7 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      printf("batch_norm d_x: %f\n", total);
+      printf("batch_norm d_x: %f\n", static_cast<double>(total));
       //      std::cout << "batch_norm d_x: " << total;
     }
     {
@@ -483,7 +483,7 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      printf("batch_norm d_bias: %f\n", total);
+      printf("batch_norm d_bias: %f\n", static_cast<double>(total));
       //      std::cout << "batch_norm d_bias: " << total << std::endl;
     }
     {
@@ -498,7 +498,7 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      printf("batch_norm d_scale: %f\n", total);
+      printf("batch_norm d_scale: %f\n", static_cast<double>(total));
       //      std::cout << "batch_norm d_scale: " << total << std::endl;
     }
   }

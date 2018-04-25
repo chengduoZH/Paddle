@@ -329,7 +329,7 @@ class GemmConvGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        printf("conv2d_bk_in_grad: %f\n", total);
+        printf("conv2d_bk_in_grad: %f\n", static_cast<double>(total));
         //        std::cout << "conv2d_bk_in_grad: " << total << std::endl;
       }
     }
@@ -384,7 +384,7 @@ class GemmConvGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        printf("conv2d_bk_filter_grad: %f\n", total);
+        printf("conv2d_bk_filter_grad: %f\n", static_cast<double>(total));
         //        std::cout << "conv2d_bk_filter_grad: " << total << std::endl;
       }
     }
