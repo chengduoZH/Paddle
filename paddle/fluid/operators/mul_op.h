@@ -52,6 +52,22 @@ class MulKernel : public framework::OpKernel<T> {
     if (z_dim.size() != 2) {
       z->Resize(z_dim);
     }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*y, context.device_context(), &xv);
+      context.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("fc dx: %f\n", static_cast<double>(total));
+      std::cout << y->dims() << std::endl;
+      VLOG(1) << "fc_dout:" << total << " " << y->dims();
+    }
   }
 };
 
@@ -94,7 +110,7 @@ class MulGradKernel : public framework::OpKernel<T> {
       }
       printf("fc dx: %f\n", static_cast<double>(total));
       std::cout << dout->dims() << std::endl;
-      //        std::cout << "fc dx: " << total << std::endl;
+      VLOG(1) << "fc_dout:" << total << " " << dout->dims();
     }
 
     if (dx) {
@@ -120,7 +136,7 @@ class MulGradKernel : public framework::OpKernel<T> {
         }
         printf("fc dx: %f\n", static_cast<double>(total));
         std::cout << dx->dims() << std::endl;
-        //        std::cout << "fc dx: " << total << std::endl;
+        VLOG(1) << "fc_dx:" << total << " " << dx->dims();
       }
     }
     if (dy) {
@@ -145,7 +161,7 @@ class MulGradKernel : public framework::OpKernel<T> {
         }
         printf("fc dy: %f\n", static_cast<double>(total));
         std::cout << dy->dims() << std::endl;
-        //        std::cout << "fc dy: " << total << std::endl;
+        VLOG(1) << "fc_dy:" << total << " " << dy->dims();
       }
     }
   }

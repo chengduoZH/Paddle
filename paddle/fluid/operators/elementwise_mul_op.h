@@ -52,6 +52,7 @@ class ElementwiseMulKernel : public framework::OpKernel<T> {
       }
       printf("forward - elementwise_mul z: %f\n", static_cast<double>(total));
       std::cout << z->dims() << std::endl;
+      VLOG(1) << "forward - elementwise_mul z:" << total << " " << z->dims();
       //      std::cout << "elementwise_add dy: " << total << std::endl;
     }
   }
@@ -97,6 +98,7 @@ class ElementwiseMulGradKernel : public framework::OpKernel<T> {
       }
       printf("elementwise_mul dout: %f\n", static_cast<double>(total));
       std::cout << dout->dims() << std::endl;
+      VLOG(1) << "elementwise_mul dout::" << total << " " << dout->dims();
       //      std::cout << "elementwise_mul dx: " << total << std::endl;
     }
 
@@ -114,6 +116,7 @@ class ElementwiseMulGradKernel : public framework::OpKernel<T> {
       }
       printf("elementwise_mul d_x: %f\n", static_cast<double>(total));
       std::cout << dx->dims() << std::endl;
+      VLOG(1) << "elementwise_mul d_x::" << total << " " << dx->dims();
       //      std::cout << "elementwise_mul dx: " << total << std::endl;
     }
 
@@ -131,6 +134,7 @@ class ElementwiseMulGradKernel : public framework::OpKernel<T> {
       }
       printf("elementwise_mul d_y: %f\n", static_cast<double>(total));
       std::cout << dy->dims() << std::endl;
+      VLOG(1) << "elementwise_mul d_y::" << total << " " << dy->dims();
       //      std::cout << "elementwise_mul dy: " << total << std::endl;
     }
   }

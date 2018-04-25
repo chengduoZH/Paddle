@@ -52,7 +52,7 @@ class ElementwiseAddKernel : public framework::OpKernel<T> {
       }
       printf("forward - elementwise_add z: %f\n", static_cast<double>(total));
       std::cout << z->dims() << std::endl;
-      //      std::cout << "elementwise_add dy: " << total << std::endl;
+      VLOG(1) << "forward - elementwise_add z:" << total << " " << z->dims();
     }
   }
 };
@@ -93,6 +93,7 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
       }
       printf("elementwise_add d_out: %f\n", static_cast<double>(total));
       std::cout << dout->dims() << std::endl;
+      VLOG(1) << "elementwise_add d_out:" << total << " " << dout->dims();
       //      std::cout << "elementwise_add dx: " << total << std::endl;
     }
 
@@ -110,6 +111,7 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
       }
       printf("elementwise_add d_x: %f\n", static_cast<double>(total));
       std::cout << dx->dims() << std::endl;
+      VLOG(1) << "elementwise_add d_x:" << total << " " << dx->dims();
       //      std::cout << "elementwise_add dx: " << total << std::endl;
     }
 
@@ -127,6 +129,7 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
       }
       printf("elementwise_add d_y: %f\n", static_cast<double>(total));
       std::cout << dy->dims() << std::endl;
+      VLOG(1) << "elementwise_add dy:" << total << " " << dy->dims();
       //      std::cout << "elementwise_add dy: " << total << std::endl;
     }
   }

@@ -184,6 +184,22 @@ class BatchNormKernel<platform::CUDADeviceContext, T>
     CUDNN_ENFORCE(platform::dynload::cudnnDestroyTensorDescriptor(data_desc_));
     CUDNN_ENFORCE(
         platform::dynload::cudnnDestroyTensorDescriptor(bn_param_desc_));
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*y, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("bn z: %f\n", static_cast<double>(total));
+      std::cout << y->dims() << std::endl;
+      VLOG(1) << "forward bn:" << total << " " << y->dims();
+    }
   }
 };
 
@@ -277,6 +293,22 @@ class BatchNormGradKernel<platform::CUDADeviceContext, T>
     CUDNN_ENFORCE(platform::dynload::cudnnDestroyTensorDescriptor(data_desc_));
     CUDNN_ENFORCE(
         platform::dynload::cudnnDestroyTensorDescriptor(bn_param_desc_));
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*d_x, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("bn dx: %f\n", static_cast<double>(total));
+      std::cout << d_x->dims() << std::endl;
+      VLOG(1) << "bn_grad_dx:" << total << " " << d_x->dims();
+    }
   }
 };
 
