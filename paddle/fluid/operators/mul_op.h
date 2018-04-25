@@ -100,7 +100,8 @@ class MulGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        std::cout << "fc dx: " << total << std::endl;
+        printf("fc dx: %f\n", total);
+        //        std::cout << "fc dx: " << total << std::endl;
       }
     }
     if (dy) {
@@ -123,7 +124,8 @@ class MulGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        std::cout << "conv2d_bk_filter_grad: " << total << std::endl;
+        printf("fc dy: %f\n", total);
+        //        std::cout << "fc dy: " << total << std::endl;
       }
     }
   }
