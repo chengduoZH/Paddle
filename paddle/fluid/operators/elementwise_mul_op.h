@@ -40,6 +40,39 @@ class ElementwiseMulKernel : public framework::OpKernel<T> {
 
     {
       std::vector<T> xv;
+      framework::TensorToVector(*x, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("forward - elementwise_add x: %f\n", static_cast<double>(total));
+      std::cout << x->dims() << std::endl;
+      VLOG(1) << "forward - elementwise_add x:" << total << " " << x->dims();
+    }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*y, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      printf("forward - elementwise_add y: %f\n", static_cast<double>(total));
+      std::cout << y->dims() << std::endl;
+      VLOG(1) << "forward - elementwise_add y:" << total << " " << y->dims();
+    }
+
+    {
+      std::vector<T> xv;
       framework::TensorToVector(*z, ctx.device_context(), &xv);
       ctx.device_context().Wait();
       T total = 0.0;

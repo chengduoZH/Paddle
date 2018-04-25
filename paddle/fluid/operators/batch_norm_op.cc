@@ -310,7 +310,7 @@ class BatchNormKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      printf("forward - conv2d z: %f\n", static_cast<double>(total));
+      printf("forward - bn z: %f\n", static_cast<double>(total));
       std::cout << y->dims() << std::endl;
     }
   }
