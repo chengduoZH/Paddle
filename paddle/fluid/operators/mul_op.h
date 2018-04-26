@@ -64,9 +64,8 @@ class MulKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      printf("fc dx: %f\n", static_cast<double>(total));
-      std::cout << y->dims() << std::endl;
-      VLOG(1) << "fc_dout:" << total << " " << y->dims();
+      fprintf(stderr, "fw_FC_y: %f\n", static_cast<double>(total));
+      VLOG(1) << "fw_FC_y:" << total << " " << y->dims();
     }
   }
 };
@@ -108,11 +107,9 @@ class MulGradKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      printf("fc dx: %f\n", static_cast<double>(total));
-      std::cout << dout->dims() << std::endl;
-      VLOG(1) << "fc_dout:" << total << " " << dout->dims();
+      fprintf(stderr, "bw_FC_d_out: %f\n", static_cast<double>(total));
+      VLOG(1) << "bw_FC_d_out:" << total << " " << dout->dims();
     }
-
     if (dx) {
       dx->mutable_data<T>(ctx.GetPlace());
       Tensor dx_matrix = dx->dims().size() > 2
@@ -122,6 +119,7 @@ class MulGradKernel : public framework::OpKernel<T> {
       // dx = dout * y'. dx: M x K, dout : M x N, y : K x N
       math::matmul<DeviceContext, T>(dev_ctx, dout_mat, false, y_matrix, true,
                                      1, &dx_matrix, 0);
+
       {
         std::vector<T> xv;
         framework::TensorToVector(*dx, ctx.device_context(), &xv);
@@ -134,9 +132,8 @@ class MulGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        printf("fc dx: %f\n", static_cast<double>(total));
-        std::cout << dx->dims() << std::endl;
-        VLOG(1) << "fc_dx:" << total << " " << dx->dims();
+        fprintf(stderr, "bw_FC_d_x: %f\n", static_cast<double>(total));
+        VLOG(1) << "bw_FC_d_x:" << total << " " << dx->dims();
       }
     }
     if (dy) {
@@ -159,9 +156,8 @@ class MulGradKernel : public framework::OpKernel<T> {
           }
           total += v1;
         }
-        printf("fc dy: %f\n", static_cast<double>(total));
-        std::cout << dy->dims() << std::endl;
-        VLOG(1) << "fc_dy:" << total << " " << dy->dims();
+        fprintf(stderr, "bw_FC_d_y: %f\n", static_cast<double>(total));
+        VLOG(1) << "bw_FC_d_y:" << total << " " << dy->dims();
       }
     }
   }
