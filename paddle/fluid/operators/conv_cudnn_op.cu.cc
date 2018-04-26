@@ -168,6 +168,23 @@ class CUDNNConvOpKernel : public framework::OpKernel<T> {
     }
     // Release the cudnn workspace
     paddle::memory::Free(gpu, cudnn_workspace);
+
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*output, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      fprintf(stderr, "fw_conv2d_out___cudnn: %f\n",
+              static_cast<double>(total));
+      VLOG(1) << "fw_conv2d_out___cudnn:" << total << " " << output->dims();
+    }
   }
 };
 
@@ -318,6 +335,23 @@ class CUDNNConvGradOpKernel : public framework::OpKernel<T> {
             cudnn_workspace, workspace_size_in_bytes, &beta, cudnn_input_desc,
             input_grad_data + i * group_offset_in));
       }
+      {
+        std::vector<T> xv;
+        framework::TensorToVector(*input_grad, ctx.device_context(), &xv);
+        ctx.device_context().Wait();
+        T total = 0.0;
+        for (T v : xv) {
+          T v1 = v;
+          if (v1 < 0) {
+            v1 = -v1;
+          }
+          total += v1;
+        }
+        fprintf(stderr, "bw_conv2d_dx___cudnn: %f\n",
+                static_cast<double>(total));
+        VLOG(1) << "bw_conv2d_dx___cudnn:" << total << " "
+                << input_grad->dims();
+      }
     }
     // ------------------- cudnn conv backward filter ---------------------
     if (filter_grad) {
@@ -330,6 +364,23 @@ class CUDNNConvGradOpKernel : public framework::OpKernel<T> {
             cudnn_conv_desc, filter_algo, cudnn_workspace,
             workspace_size_in_bytes, &beta, cudnn_filter_desc,
             filter_grad_data + i * group_offset_filter));
+      }
+      {
+        std::vector<T> xv;
+        framework::TensorToVector(*filter_grad, ctx.device_context(), &xv);
+        ctx.device_context().Wait();
+        T total = 0.0;
+        for (T v : xv) {
+          T v1 = v;
+          if (v1 < 0) {
+            v1 = -v1;
+          }
+          total += v1;
+        }
+        fprintf(stderr, "bw_conv2d_dfilterr___cudnn: %f\n",
+                static_cast<double>(total));
+        VLOG(1) << "bw_conv2d_dfilter___cudnn:" << total << " "
+                << filter_grad->dims();
       }
     }
     // Release the cudnn workspace

@@ -50,9 +50,8 @@ class ElementwiseAddKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      printf("forward - elementwise_add x: %f\n", static_cast<double>(total));
-      std::cout << x->dims() << std::endl;
-      VLOG(1) << "forward - elementwise_add x:" << total << " " << x->dims();
+      fprintf(stderr, "fw_elementwise_add_x: %f\n", static_cast<double>(total));
+      VLOG(1) << "fw_elementwise_add_x:" << total << " " << x->dims();
     }
     {
       std::vector<T> xv;
@@ -66,11 +65,9 @@ class ElementwiseAddKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      printf("forward - elementwise_add y: %f\n", static_cast<double>(total));
-      std::cout << y->dims() << std::endl;
-      VLOG(1) << "forward - elementwise_add y:" << total << " " << y->dims();
+      fprintf(stderr, "fw_elementwise_add_y: %f\n", static_cast<double>(total));
+      VLOG(1) << "fw_elementwise_add_y:" << total << " " << y->dims();
     }
-
     {
       std::vector<T> xv;
       framework::TensorToVector(*z, ctx.device_context(), &xv);
@@ -83,9 +80,8 @@ class ElementwiseAddKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      printf("forward - elementwise_add z: %f\n", static_cast<double>(total));
-      std::cout << z->dims() << std::endl;
-      VLOG(1) << "forward - elementwise_add z:" << total << " " << z->dims();
+      fprintf(stderr, "fw_elementwise_add_z: %f\n", static_cast<double>(total));
+      VLOG(1) << "fw_elementwise_add_z:" << total << " " << z->dims();
     }
   }
 };
@@ -114,24 +110,6 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
 
     {
       std::vector<T> xv;
-      framework::TensorToVector(*dout, ctx.device_context(), &xv);
-      ctx.device_context().Wait();
-      T total = 0.0;
-      for (T v : xv) {
-        T v1 = v;
-        if (v1 < 0) {
-          v1 = -v1;
-        }
-        total += v1;
-      }
-      printf("elementwise_add d_out: %f\n", static_cast<double>(total));
-      std::cout << dout->dims() << std::endl;
-      VLOG(1) << "elementwise_add d_out:" << total << " " << dout->dims();
-      //      std::cout << "elementwise_add dx: " << total << std::endl;
-    }
-
-    {
-      std::vector<T> xv;
       framework::TensorToVector(*dx, ctx.device_context(), &xv);
       ctx.device_context().Wait();
       T total = 0.0;
@@ -142,12 +120,10 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      printf("elementwise_add d_x: %f\n", static_cast<double>(total));
-      std::cout << dx->dims() << std::endl;
-      VLOG(1) << "elementwise_add d_x:" << total << " " << dx->dims();
-      //      std::cout << "elementwise_add dx: " << total << std::endl;
+      fprintf(stderr, "bk_elementwise_add_dx: %f\n",
+              static_cast<double>(total));
+      VLOG(1) << "bk_elementwise_add_dx:" << total << " " << dx->dims();
     }
-
     {
       std::vector<T> xv;
       framework::TensorToVector(*dy, ctx.device_context(), &xv);
@@ -160,10 +136,25 @@ class ElementwiseAddGradKernel : public framework::OpKernel<T> {
         }
         total += v1;
       }
-      printf("elementwise_add d_y: %f\n", static_cast<double>(total));
-      std::cout << dy->dims() << std::endl;
-      VLOG(1) << "elementwise_add dy:" << total << " " << dy->dims();
-      //      std::cout << "elementwise_add dy: " << total << std::endl;
+      fprintf(stderr, "bk_elementwise_add_dy: %f\n",
+              static_cast<double>(total));
+      VLOG(1) << "bk_elementwise_add_dy:" << total << " " << dy->dims();
+    }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*dout, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      fprintf(stderr, "bk_elementwise_add_dout: %f\n",
+              static_cast<double>(total));
+      VLOG(1) << "bk_elementwise_add_dout:" << total << " " << dout->dims();
     }
   }
 };

@@ -298,6 +298,7 @@ class BatchNormKernel<platform::CPUDeviceContext, T>
       default:
         PADDLE_THROW("Unknown storage order: %d", data_layout);
     }
+
     {
       std::vector<T> xv;
       framework::TensorToVector(*y, ctx.device_context(), &xv);
@@ -310,8 +311,8 @@ class BatchNormKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      printf("forward - bn z: %f\n", static_cast<double>(total));
-      std::cout << y->dims() << std::endl;
+      fprintf(stderr, "fw_BN_y: %f\n", static_cast<double>(total));
+      VLOG(1) << "fw_BN_y:" << total << " " << y->dims();
     }
   }
 };
@@ -471,6 +472,7 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
       default:
         PADDLE_THROW("Unknown storage order: %s", data_layout_str);
     }
+
     {
       std::vector<T> xv;
       framework::TensorToVector(*d_x, ctx.device_context(), &xv);
@@ -483,9 +485,23 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      printf("batch_norm d_x: %f\n", static_cast<double>(total));
-      std::cout << d_x->dims() << std::endl;
-      //      std::cout << "batch_norm d_x: " << total;
+      fprintf(stderr, "bw_BN_d_x: %f\n", static_cast<double>(total));
+      VLOG(1) << "bw_BN_d_x:" << total << " " << d_x->dims();
+    }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*d_y, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      fprintf(stderr, "fw_BN_d_y: %f\n", static_cast<double>(total));
+      VLOG(1) << "bw_BN_d_y:" << total << " " << d_y->dims();
     }
     {
       std::vector<T> xv;
@@ -499,25 +515,8 @@ class BatchNormGradKernel<platform::CPUDeviceContext, T>
         }
         total += v1;
       }
-      printf("batch_norm d_bias: %f\n", static_cast<double>(total));
-      std::cout << d_bias->dims() << std::endl;
-      //      std::cout << "batch_norm d_bias: " << total << std::endl;
-    }
-    {
-      std::vector<T> xv;
-      framework::TensorToVector(*d_scale, ctx.device_context(), &xv);
-      ctx.device_context().Wait();
-      T total = 0.0;
-      for (T v : xv) {
-        T v1 = v;
-        if (v1 < 0) {
-          v1 = -v1;
-        }
-        total += v1;
-      }
-      printf("batch_norm d_scale: %f\n", static_cast<double>(total));
-      std::cout << d_scale->dims() << std::endl;
-      //      std::cout << "batch_norm d_scale: " << total << std::endl;
+      fprintf(stderr, "bw_BN_d_bias: %f\n", static_cast<double>(total));
+      VLOG(1) << "bw_BN_d_bias:" << total << " " << d_bias->dims();
     }
   }
 };

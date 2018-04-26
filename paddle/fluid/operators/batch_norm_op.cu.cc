@@ -197,11 +197,9 @@ class BatchNormKernel<platform::CUDADeviceContext, T>
         }
         total += v1;
       }
-      printf("forward - bn X: %f\n", static_cast<double>(total));
-      std::cout << x->dims() << std::endl;
-      VLOG(1) << "forward - bn X" << total << " " << x->dims();
+      fprintf(stderr, "fw_BN_x___cudnn: %f\n", static_cast<double>(total));
+      VLOG(1) << "fw_BN_x___cudnn:" << total << " " << x->dims();
     }
-
     {
       std::vector<T> xv;
       framework::TensorToVector(*y, ctx.device_context(), &xv);
@@ -214,9 +212,8 @@ class BatchNormKernel<platform::CUDADeviceContext, T>
         }
         total += v1;
       }
-      printf("bn z: %f\n", static_cast<double>(total));
-      std::cout << y->dims() << std::endl;
-      VLOG(1) << "forward bn:" << total << " " << y->dims();
+      fprintf(stderr, "fw_BN_y___cudnn: %f\n", static_cast<double>(total));
+      VLOG(1) << "fw_BN_y___cudnn:" << total << " " << y->dims();
     }
   }
 };
@@ -314,23 +311,6 @@ class BatchNormGradKernel<platform::CUDADeviceContext, T>
 
     {
       std::vector<T> xv;
-      framework::TensorToVector(*d_y, ctx.device_context(), &xv);
-      ctx.device_context().Wait();
-      T total = 0.0;
-      for (T v : xv) {
-        T v1 = v;
-        if (v1 < 0) {
-          v1 = -v1;
-        }
-        total += v1;
-      }
-      printf("bn dx: %f\n", static_cast<double>(total));
-      std::cout << d_y->dims() << std::endl;
-      VLOG(1) << "bn_grad_dy:" << total << " " << d_y->dims();
-    }
-
-    {
-      std::vector<T> xv;
       framework::TensorToVector(*d_x, ctx.device_context(), &xv);
       ctx.device_context().Wait();
       T total = 0.0;
@@ -341,9 +321,23 @@ class BatchNormGradKernel<platform::CUDADeviceContext, T>
         }
         total += v1;
       }
-      printf("bn dx: %f\n", static_cast<double>(total));
-      std::cout << d_x->dims() << std::endl;
-      VLOG(1) << "bn_grad_dx:" << total << " " << d_x->dims();
+      fprintf(stderr, "bw_BN_d_x___cudnn: %f\n", static_cast<double>(total));
+      VLOG(1) << "bw_BN_d_x___cudnn:" << total << " " << d_x->dims();
+    }
+    {
+      std::vector<T> xv;
+      framework::TensorToVector(*d_y, ctx.device_context(), &xv);
+      ctx.device_context().Wait();
+      T total = 0.0;
+      for (T v : xv) {
+        T v1 = v;
+        if (v1 < 0) {
+          v1 = -v1;
+        }
+        total += v1;
+      }
+      fprintf(stderr, "bw_BN_d_y___cudnn: %f\n", static_cast<double>(total));
+      VLOG(1) << "bw_BN_d_y___cudnn:" << total << " " << d_y->dims();
     }
   }
 };
