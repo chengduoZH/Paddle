@@ -30,6 +30,7 @@ __forceinline__ __device__ T __shfl_sync(unsigned, T val, int src_line,
                                          int width) {
   return __shfl(val, src_line, width);
 }
+
 #define CREATE_SHFL_MASK(mask, predicate) mask = 0u;
 #else
 #define FULL_WARP_MASK 0xFFFFFFFF
