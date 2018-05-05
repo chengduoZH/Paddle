@@ -56,7 +56,7 @@ void BroadcastOpHandle::RunImpl() {
   // NOTE: The tensors' Place of input and output must be all on GPU or all on
   // CPU.
   for (auto *out_var_handle : out_var_handles) {
-    if (*out_var_handle == *in_var_handle) {
+    if (out_var_handle->IsNameAndScopeSame(*in_var_handle)) {
       continue;
     }
     auto t_out_p = out_var_handle->place_;
@@ -77,7 +77,7 @@ void BroadcastOpHandle::RunImpl() {
 
   if (platform::is_cpu_place(in_tensor.place())) {
     for (auto *out_var_handle : out_var_handles) {
-      if (*out_var_handle == *in_var_handle) {
+      if (out_var_handle->IsNameAndScopeSame(*in_var_handle)) {
         continue;
       }
       auto &out_p = out_var_handle->place_;
@@ -132,8 +132,8 @@ void BroadcastOpHandle::RunImpl() {
           call();
         }
       }
-      // TODO(zcd): Maybe the unequal operator is not appropriate here.
-      if (*out_handle != *in_var_handle) {
+
+      if (!out_handle->IsNameAndScopeSame(*in_var_handle)) {
         auto out_var = var_scopes.at(in_var_handle->scope_idx_)
                            ->FindVar(out_var_handles[0]->name_);
         paddle::framework::TensorCopy(
