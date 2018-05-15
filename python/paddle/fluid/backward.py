@@ -463,6 +463,7 @@ def append_backward(loss, parameter_list=None, no_grad_set=None,
         "dtype": loss.dtype,
         "force_cpu": False})
     root_block.desc.append_op().copy_from(op_desc)
+    loss.block.var(_append_grad_suffix_(loss.name)).persistable = True
 
     block_no_grad_set = set(map(_strip_grad_suffix_, no_grad_dict[0]))
     op_path = _find_op_path_(root_block, [loss], [], block_no_grad_set)
