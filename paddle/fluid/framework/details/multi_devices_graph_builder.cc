@@ -15,7 +15,6 @@
 #include <utility>
 #include "paddle/fluid/framework/details/broadcast_op_handle.h"
 #include "paddle/fluid/framework/details/computation_op_handle.h"
-#include "paddle/fluid/framework/details/reduce_blockop_handle.h"
 #include "paddle/fluid/framework/details/reduce_op_handle.h"
 #include "paddle/fluid/framework/details/scale_loss_grad_op_handle.h"
 #include "paddle/fluid/framework/details/send_op_handle.h"
@@ -335,15 +334,16 @@ void MultiDevSSAGraphBuilder::RemoveOps(
 }
 
 void MultiDevSSAGraphBuilder::CreateReduceBlockOp(
-    SSAGraph *result, const int root_id, const std::string &reduce_var_name,
+    SSAGraph *result, const int dst_scope_id,
+    const std::string &reduce_var_name,
     const std::unordered_set<VarHandle *> &inputs,
     const std::unordered_set<VarHandle *> &outputs) const {
 #ifdef PADDLE_WITH_CUDA
-  result->ops_.emplace_back(new ReduceBlockOpHandle(
-      local_scopes_, places_, reduce_var_name, root_id, nccl_ctxs_));
+  result->ops_.emplace_back(new ReduceOpHandle(
+      local_scopes_, places_, nccl_ctxs_, dst_scope_id, reduce_var_name));
 #else
-  result->ops_.emplace_back(new ReduceBlockOpHandle(local_scopes_, places_,
-                                                    reduce_var_name, root_id));
+  result->ops_.emplace_back(new ReduceOpHandle(local_scopes_, places_,
+                                               dst_scope_id, reduce_var_name));
 #endif
   auto *op_handle = result->ops_.back().get();
 
