@@ -32,6 +32,11 @@ namespace paddle {
 namespace framework {
 namespace details {
 
+struct ReduceGroup {
+  int dst_dev_id{-1};
+  std::string var_name;
+};
+
 struct ReduceOpHandle : public OpHandleBase {
   const std::vector<Scope *> &local_scopes_;
   const std::vector<platform::Place> &places_;
