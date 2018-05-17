@@ -165,7 +165,7 @@ void ReduceOpHandle::ReduceGroup(
 
 #ifdef PADDLE_WITH_CUDA
 void ReduceOpHandle::NCCLReduce(
-    const std::vector<const LoDTensor *> &lod_tensors, const sizt_t dst_dev_id,
+    const std::vector<const LoDTensor *> &lod_tensors, const size_t dst_dev_id,
     Variable *out_var, std::vector<std::function<void()>> *nccl_reduce_calls) {
   int nccl_type = platform::ToNCCLDataType(lod_tensors[0]->type());
   size_t numel = static_cast<size_t>(lod_tensors[0]->numel());

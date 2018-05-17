@@ -96,7 +96,7 @@ struct ReduceOpHandle : public OpHandleBase {
 
 #ifdef PADDLE_WITH_CUDA
   void NCCLReduce(const std::vector<const LoDTensor *> &lod_tensors,
-                  const sizt_t dst_dev_id, Variable *out_var,
+                  const size_t dst_dev_id, Variable *out_var,
                   std::vector<std::function<void()>> *nccl_reduce_calls);
 #endif
 };
