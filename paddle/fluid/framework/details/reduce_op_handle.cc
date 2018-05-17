@@ -40,9 +40,13 @@ void ReduceOpHandle::RunImpl() {
     var_scopes.emplace_back(var->Get<Scope *>());
   }
 
-  if (var_name_.size() != 0) {
+  if (reduce_group_.dst_scope_id != -1) {
+    PADDLE_ENFORCE(!reduce_group_.var_name.empty(),
+                   "var_name should not be empty.");
     ReduceGroup(out_var_handles, var_scopes);
   } else {
+    PADDLE_ENFORCE_EQ(out_var_handles.size(), 1U,
+                      "The number of output should be one.");
     ReduceInput(in_var_handles, out_var_handles, var_scopes);
   }
 }
@@ -122,8 +126,10 @@ void ReduceOpHandle::ReduceGroup(
   std::vector<const LoDTensor *> lod_tensors = GetGroupValues();
   std::vector<std::function<void()>> nccl_reduce_calls;
   auto dst_dev_id =
-      boost::get<platform::CUDAPlace>(places_[dst_scope_id_]).device;
-  auto reduce_var = local_scopes_[dst_scope_id_]->FindVar(var_name_);
+      boost::get<platform::CUDAPlace>(places_[reduce_group_.dst_scope_id])
+          .device;
+  auto reduce_var = local_scopes_[reduce_group_.dst_scope_id]->FindVar(
+      reduce_group_.var_name);
   NCCLReduce(lod_tensors, dst_dev_id, reduce_var, &nccl_reduce_calls);
 
   this->RunAndRecordEvent([&] {
@@ -137,12 +143,13 @@ void ReduceOpHandle::ReduceGroup(
 #endif
   // Reduce the variable which is in CPU side.
   std::vector<std::vector<const LoDTensor *>> cpu_lod_tensors;
-  std::vector<Variable *> cpu_out_vars;
+  std::vector<framework::Variable *> cpu_out_vars;
   for (auto out_var_h : out_var_handles) {
-    auto out_var = var_scopes[dst_scope_id_]->FindVar(out_var_h->name_);
+    auto out_var =
+        var_scopes[reduce_group_.dst_scope_id]->FindVar(out_var_h->name_);
     PADDLE_ENFORCE_NOT_NULL(out_var);
 
-    if (is_cpu_place(out_var->Get<LoDTensor>().place())) {
+    if (platform::is_cpu_place(out_var->Get<LoDTensor>().place())) {
       std::vector<const LoDTensor *> lod_tensors;
       for (size_t i = 0; i < places_.size(); ++i) {
         lod_tensors.emplace_back(
@@ -193,8 +200,9 @@ void ReduceOpHandle::NCCLReduce(
 
 std::vector<const LoDTensor *> ReduceOpHandle::GetGroupValues() {
   auto get_group_value = [&](int idx) -> const LoDTensor & {
-    auto reduce_var = local_scopes_.at(idx)->FindVar(var_name_);
-    PADDLE_ENFORCE_NOT_NULL(reduce_var, "%s is not found.", var_name_);
+    auto reduce_var = local_scopes_.at(idx)->FindVar(reduce_group_.var_name);
+    PADDLE_ENFORCE_NOT_NULL(reduce_var, "%s is not found.",
+                            reduce_group_.var_name);
     auto &lod_tensor = reduce_var->Get<LoDTensor>();
     PADDLE_ENFORCE(platform::is_gpu_place(lod_tensor.place()));
     return lod_tensor;

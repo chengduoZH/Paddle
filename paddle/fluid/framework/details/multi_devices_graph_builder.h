@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "paddle/fluid/framework/details/build_strategy.h"
+#include "paddle/fluid/framework/details/reduce_op_handle.h"
 #include "paddle/fluid/framework/details/ssa_graph_builder.h"
 
 namespace paddle {
@@ -108,7 +109,7 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
       SSAGraph *result) const;
 
   void CreateReduceBlockOp(
-      SSAGraph *result, const int root_id, const std::string &reduce_var_name,
+      SSAGraph *result, const ReduceGroup &reduce_group,
       const std::unordered_set<VarHandle *> &inputs,
       const std::unordered_set<VarHandle *> &outputs) const;
 

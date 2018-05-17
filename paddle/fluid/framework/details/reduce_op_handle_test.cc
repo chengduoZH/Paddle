@@ -95,20 +95,21 @@ struct TestReduceOpHandle {
       param_scopes_.emplace_back(&local_scope);
     }
     param_scopes_[out_scope_idx]->Var("out");
-
+    ReduceGroup reduce_group;
     if (use_gpu_) {
 #ifdef PADDLE_WITH_CUDA
-      op_handle_.reset(
-          new ReduceOpHandle(local_scopes_, gpu_list_, nccl_ctxs_.get()));
+      op_handle_.reset(new ReduceOpHandle(local_scopes_, gpu_list_,
+                                          nccl_ctxs_.get(), reduce_group));
 #else
       PADDLE_THROW("CUDA is not support.");
 #endif
     } else {
 #ifdef PADDLE_WITH_CUDA
-      op_handle_.reset(
-          new ReduceOpHandle(local_scopes_, gpu_list_, nccl_ctxs_.get()));
+      op_handle_.reset(new ReduceOpHandle(local_scopes_, gpu_list_,
+                                          nccl_ctxs_.get(), reduce_group));
 #else
-      op_handle_.reset(new ReduceOpHandle(local_scopes_, gpu_list_));
+      op_handle_.reset(
+          new ReduceOpHandle(local_scopes_, gpu_list_, reduce_group));
 #endif
     }
 

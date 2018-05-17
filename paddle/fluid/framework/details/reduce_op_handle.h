@@ -32,23 +32,25 @@ namespace paddle {
 namespace framework {
 namespace details {
 
+struct ReduceGroup {
+  int dst_scope_id{-1};
+  std::string var_name;
+};
+
 struct ReduceOpHandle : public OpHandleBase {
   const std::vector<Scope *> &local_scopes_;
   const std::vector<platform::Place> &places_;
-  const size_t dst_scope_id_;
-
+  const ReduceGroup reduce_group_;
 #ifdef PADDLE_WITH_CUDA
   const platform::NCCLContextMap *nccl_ctxs_;
   ReduceOpHandle(const std::vector<Scope *> &local_scopes,
                  const std::vector<platform::Place> &places,
                  const platform::NCCLContextMap *nccl_ctxs,
-                 const size_t dst_scope_id = -1,
-                 const std::string var_name = "")
+                 const ReduceGroup &reduce_group)
       : local_scopes_(local_scopes),
         places_(places),
-        dst_scope_id_(dst_scope_id),
-        nccl_ctxs_(nccl_ctxs),
-        var_name_(var_name) {
+        reduce_group_(reduce_group),
+        nccl_ctxs_(nccl_ctxs) {
     if (nccl_ctxs_) {
       for (auto &p_ctx : nccl_ctxs_->contexts_) {
         dev_ctxes_[platform::CUDAPlace(p_ctx.first)] = p_ctx.second.ctx_.get();
@@ -58,15 +60,11 @@ struct ReduceOpHandle : public OpHandleBase {
 #else
   ReduceOpHandle(const std::vector<Scope *> &local_scopes,
                  const std::vector<platform::Place> &places,
-                 const size_t dst_scope_id = -1,
-                 const std::string var_name = "")
+                 const ReduceGroup &reduce_group)
       : local_scopes_(local_scopes),
         places_(places),
-        dst_scope_id_(dst_scope_id),
-        var_name_(var_name) {}
+        reduce_group_(reduce_group) {}
 #endif
-
-  const std::string var_name_;
 
   std::string Name() const override;
 
