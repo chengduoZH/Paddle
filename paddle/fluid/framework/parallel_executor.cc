@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "paddle/fluid/framework/parallel_executor.h"
-
 #include <string>
 #include <tuple>
 #include <vector>
@@ -22,6 +21,7 @@ limitations under the License. */
 #include "paddle/fluid/platform/nccl_helper.h"
 #endif
 
+#include "paddle/fluid/framework/details/execution_context.h"
 #include "paddle/fluid/framework/details/multi_devices_graph_builder.h"
 #include "paddle/fluid/framework/details/threaded_ssa_graph_executor.h"
 #include "paddle/fluid/platform/profiler.h"
@@ -32,10 +32,16 @@ namespace framework {
 class ParallelExecutorPrivate {
  public:
   explicit ParallelExecutorPrivate(const std::vector<platform::Place> &places)
-      : places_(places) {}
+      : places_(places) {
+    exe_ctxs_.resize(places.size());
+    for (size_t j = 0; j < places_.size(); ++j) {
+      exe_ctxs_[j].place = places_[j];
+    }
+  }
 
   std::vector<platform::Place> places_;
   std::vector<Scope *> local_scopes_;
+  std::vector<framework::details::ExecutionContext> exe_ctxs_;
   Scope *global_scope_;
   std::unique_ptr<details::SSAGraphExecutor> executor_;
 
@@ -191,7 +197,6 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
       }
     }
   }
-
   auto fetch_data = member_->executor_->Run(fetch_tensors);
   *member_->global_scope_->Var(fetched_var_name)->GetMutable<FeedFetchList>() =
       fetch_data;

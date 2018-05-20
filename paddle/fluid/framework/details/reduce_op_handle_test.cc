@@ -28,7 +28,7 @@ const f::DDim kDims = {20, 20};
 struct TestReduceOpHandle {
   bool use_gpu_;
   Scope g_scope_;
-  std::vector<Scope *> local_scopes_;
+  std::vector<ExecutionContext> exe_ctxs_;
   std::vector<Scope *> param_scopes_;
   std::unique_ptr<OpHandleBase> op_handle_;
   std::vector<std::unique_ptr<VarHandleBase>> vars_;
@@ -85,10 +85,12 @@ struct TestReduceOpHandle {
 
   void InitReduceOp(size_t out_scope_idx) {
     // init scope
+    exe_ctxs_.resize(gpu_list_.size());
     for (size_t j = 0; j < gpu_list_.size(); ++j) {
-      local_scopes_.push_back(&(g_scope_.NewScope()));
-      Scope &local_scope = local_scopes_.back()->NewScope();
-      *local_scopes_.back()
+      exe_ctxs_[j].place = gpu_list_[j];
+      exe_ctxs_[j].scope = &(g_scope_.NewScope());
+      Scope &local_scope = exe_ctxs_[j].scope->NewScope();
+      *(exe_ctxs_[j].scope)
            ->Var(details::kLocalExecScopeName)
            ->GetMutable<Scope *>() = &local_scope;
       local_scope.Var("input");
@@ -98,27 +100,25 @@ struct TestReduceOpHandle {
 
     if (use_gpu_) {
 #ifdef PADDLE_WITH_CUDA
-      op_handle_.reset(
-          new ReduceOpHandle(local_scopes_, gpu_list_, nccl_ctxs_.get()));
+      op_handle_.reset(new ReduceOpHandle(exe_ctxs_, nccl_ctxs_.get()));
 #else
       PADDLE_THROW("CUDA is not support.");
 #endif
     } else {
 #ifdef PADDLE_WITH_CUDA
-      op_handle_.reset(
-          new ReduceOpHandle(local_scopes_, gpu_list_, nccl_ctxs_.get()));
+      op_handle_.reset(new ReduceOpHandle(exe_ctxs_, nccl_ctxs_.get()));
 #else
-      op_handle_.reset(new ReduceOpHandle(local_scopes_, gpu_list_));
+      op_handle_.reset(new ReduceOpHandle(exe_ctxs_));
 #endif
     }
 
     // init op handle
     // add input
-    for (size_t j = 0; j < gpu_list_.size(); ++j) {
+    for (size_t j = 0; j < exe_ctxs_.size(); ++j) {
       if (!use_gpu_) {
-        op_handle_->SetDeviceContext(gpu_list_[j], ctxs_[j].get());
+        op_handle_->SetDeviceContext(exe_ctxs_[j].place, ctxs_[j].get());
       }
-      auto *in_var_handle = new VarHandle(1, j, "input", gpu_list_[j]);
+      auto *in_var_handle = new VarHandle(1, j, "input", exe_ctxs_[j].place);
       in_var_handle->generated_op_ = nullptr;
       vars_.emplace_back(in_var_handle);
       op_handle_->AddInput(in_var_handle);
@@ -133,7 +133,7 @@ struct TestReduceOpHandle {
 
     // add output
     auto *out_var_handle =
-        new VarHandle(2, out_scope_idx, "out", gpu_list_[out_scope_idx]);
+        new VarHandle(2, out_scope_idx, "out", exe_ctxs_[out_scope_idx].place);
     vars_.emplace_back(out_var_handle);
     op_handle_->AddOutput(out_var_handle);
 
@@ -153,13 +153,13 @@ struct TestReduceOpHandle {
       send_vector[k] = k;
     }
 
-    for (size_t input_scope_idx = 0; input_scope_idx < gpu_list_.size();
+    for (size_t input_scope_idx = 0; input_scope_idx < exe_ctxs_.size();
          ++input_scope_idx) {
       auto in_var = param_scopes_[input_scope_idx]->FindVar("input");
       PADDLE_ENFORCE_NOT_NULL(in_var);
       auto in_selected_rows = in_var->GetMutable<f::SelectedRows>();
       auto value = in_selected_rows->mutable_value();
-      value->mutable_data<float>(kDims, gpu_list_[input_scope_idx]);
+      value->mutable_data<float>(kDims, exe_ctxs_[input_scope_idx].place);
 
       in_selected_rows->set_height(height);
       in_selected_rows->set_rows(rows);
@@ -209,12 +209,13 @@ struct TestReduceOpHandle {
     }
     f::LoD lod{{0, 10, 20}};
 
-    for (size_t input_scope_idx = 0; input_scope_idx < gpu_list_.size();
+    for (size_t input_scope_idx = 0; input_scope_idx < exe_ctxs_.size();
          ++input_scope_idx) {
       auto in_var = param_scopes_[input_scope_idx]->FindVar("input");
       PADDLE_ENFORCE_NOT_NULL(in_var);
       auto in_lod_tensor = in_var->GetMutable<f::LoDTensor>();
-      in_lod_tensor->mutable_data<float>(kDims, gpu_list_[input_scope_idx]);
+      in_lod_tensor->mutable_data<float>(kDims,
+                                         exe_ctxs_[input_scope_idx].place);
       in_lod_tensor->set_lod(lod);
 
       paddle::framework::TensorFromVector<float>(
@@ -243,7 +244,7 @@ struct TestReduceOpHandle {
     float *ct = result_tensor.data<float>();
 
     for (int64_t j = 0; j < f::product(result_tensor.dims()); ++j) {
-      ASSERT_NEAR(ct[j], send_vector[j] * gpu_list_.size(), 1e-5);
+      ASSERT_NEAR(ct[j], send_vector[j] * exe_ctxs_.size(), 1e-5);
     }
   }
 };

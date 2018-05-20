@@ -16,8 +16,8 @@
 #include <string>
 #include <utility>
 #include <vector>
-
 #include "paddle/fluid/framework/details/build_strategy.h"
+#include "paddle/fluid/framework/details/execution_context.h"
 #include "paddle/fluid/framework/details/ssa_graph_builder.h"
 
 namespace paddle {
@@ -54,9 +54,8 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
 
  private:
   std::string loss_var_name_;
-  const std::vector<platform::Place> &places_;
-  const std::vector<Scope *> &local_scopes_;
   std::unordered_set<std::string> grad_names_;
+  std::vector<ExecutionContext> exe_ctxs_;
 
 #ifdef PADDLE_WITH_CUDA
   platform::NCCLContextMap *nccl_ctxs_;

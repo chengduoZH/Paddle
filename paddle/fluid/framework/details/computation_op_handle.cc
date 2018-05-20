@@ -13,30 +13,28 @@
 // limitations under the License.
 
 #include "paddle/fluid/framework/details/computation_op_handle.h"
-
 #include <string>
 
 namespace paddle {
 namespace framework {
 namespace details {
-ComputationOpHandle::ComputationOpHandle(const OpDesc &op_desc, Scope *scope,
-                                         platform::Place place)
-    : op_(framework::OpRegistry::CreateOp(op_desc)),
-      scope_(scope),
-      place_(place) {}
+ComputationOpHandle::ComputationOpHandle(const OpDesc &op_desc,
+                                         const ExecutionContext &exe_ctx)
+    : op_(framework::OpRegistry::CreateOp(op_desc)), exe_ctx_(exe_ctx) {}
 
 void ComputationOpHandle::RunImpl() {
-  WaitInputVarGenerated(place_);
+  WaitInputVarGenerated(exe_ctx_.place);
 
   this->RunAndRecordEvent([this] {
-    op_->Run(*scope_->FindVar(kLocalExecScopeName)->Get<Scope *>(), place_);
+    op_->Run(*exe_ctx_.scope->FindVar(kLocalExecScopeName)->Get<Scope *>(),
+             exe_ctx_.place);
   });
 }
 
 bool ComputationOpHandle::NeedWait(VarHandleBase *in_var) {
-  bool need_wait =
-      in_var && in_var->generated_op_ &&
-      in_var->generated_op_->DeviceContext(place_) != dev_ctxes_[place_];
+  bool need_wait = in_var && in_var->generated_op_ &&
+                   in_var->generated_op_->DeviceContext(exe_ctx_.place) !=
+                       dev_ctxes_[exe_ctx_.place];
   return need_wait;
 }
 

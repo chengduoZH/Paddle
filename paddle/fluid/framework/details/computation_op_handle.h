@@ -16,7 +16,7 @@
 
 #include <string>
 #include <vector>
-
+#include "paddle/fluid/framework/details/execution_context.h"
 #include "paddle/fluid/framework/details/op_handle_base.h"
 #include "paddle/fluid/framework/op_registry.h"
 #include "paddle/fluid/framework/operator.h"
@@ -28,8 +28,7 @@ namespace framework {
 namespace details {
 struct ComputationOpHandle : public OpHandleBase {
  public:
-  ComputationOpHandle(const OpDesc &op_desc, Scope *scope,
-                      platform::Place place);
+  ComputationOpHandle(const OpDesc &op_desc, const ExecutionContext &exe_ctx);
 
   std::string Name() const override;
 
@@ -40,8 +39,7 @@ struct ComputationOpHandle : public OpHandleBase {
 
  private:
   std::unique_ptr<OperatorBase> op_;
-  Scope *scope_;
-  platform::Place place_;
+  const ExecutionContext exe_ctx_;
 };
 }  // namespace details
 }  // namespace framework

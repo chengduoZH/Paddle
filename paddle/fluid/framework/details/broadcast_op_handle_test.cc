@@ -29,7 +29,7 @@ const f::DDim kDims = {20, 20};
 
 struct TestBroadcastOpHandle {
   std::vector<std::unique_ptr<p::DeviceContext>> ctxs_;
-  std::vector<Scope*> local_scopes_;
+  std::vector<ExecutionContext> exe_ctxs_;
   std::vector<Scope*> param_scopes_;
   Scope g_scope_;
   std::unique_ptr<OpHandleBase> op_handle_;
@@ -62,6 +62,7 @@ struct TestBroadcastOpHandle {
                      << count;
         exit(0);
       }
+
       for (int i = 0; i < count; ++i) {
         auto p = p::CUDAPlace(i);
         gpu_list_.push_back(p);
@@ -85,10 +86,12 @@ struct TestBroadcastOpHandle {
   }
 
   void InitBroadcastOp(size_t input_scope_idx) {
+    exe_ctxs_.resize(gpu_list_.size());
     for (size_t j = 0; j < gpu_list_.size(); ++j) {
-      local_scopes_.push_back(&(g_scope_.NewScope()));
-      Scope& local_scope = local_scopes_.back()->NewScope();
-      *local_scopes_.back()
+      exe_ctxs_[j].place = gpu_list_[j];
+      exe_ctxs_[j].scope = &(g_scope_.NewScope());
+      Scope& local_scope = exe_ctxs_[j].scope->NewScope();
+      *(exe_ctxs_[j].scope)
            ->Var(details::kLocalExecScopeName)
            ->GetMutable<Scope*>() = &local_scope;
       local_scope.Var("out");
@@ -98,22 +101,20 @@ struct TestBroadcastOpHandle {
 
     if (use_gpu_) {
 #ifdef PADDLE_WITH_CUDA
-      op_handle_.reset(
-          new BroadcastOpHandle(local_scopes_, gpu_list_, nccl_ctxs_.get()));
+      op_handle_.reset(new BroadcastOpHandle(exe_ctxs_, nccl_ctxs_.get()));
 #else
       PADDLE_THROW("CUDA is not support.");
 #endif
     } else {
 #ifdef PADDLE_WITH_CUDA
-      op_handle_.reset(
-          new BroadcastOpHandle(local_scopes_, gpu_list_, nccl_ctxs_.get()));
+      op_handle_.reset(new BroadcastOpHandle(exe_ctxs_, nccl_ctxs_.get()));
 #else
-      op_handle_.reset(new BroadcastOpHandle(local_scopes_, gpu_list_));
+      op_handle_.reset(new BroadcastOpHandle(exe_ctxs_));
 #endif
     }
 
-    auto* in_var_handle =
-        new VarHandle(1, input_scope_idx, "input", gpu_list_[input_scope_idx]);
+    auto* in_var_handle = new VarHandle(1, input_scope_idx, "input",
+                                        exe_ctxs_[input_scope_idx].place);
     vars_.emplace_back(in_var_handle);
     op_handle_->AddInput(in_var_handle);
 
@@ -124,11 +125,12 @@ struct TestBroadcastOpHandle {
     dummy_var_handle->generated_op_ = nullptr;
     op_handle_->AddInput(dummy_var_handle);
 
-    for (size_t j = 0; j < gpu_list_.size(); ++j) {
+    for (size_t j = 0; j < exe_ctxs_.size(); ++j) {
       if (!use_gpu_) {
-        op_handle_->SetDeviceContext(gpu_list_[j], ctxs_[j].get());
+        op_handle_->SetDeviceContext(exe_ctxs_[j].place, ctxs_[j].get());
       }
-      VarHandle* out_var_handle = new VarHandle(2, j, "out", gpu_list_[j]);
+      VarHandle* out_var_handle =
+          new VarHandle(2, j, "out", exe_ctxs_[j].place);
       vars_.emplace_back(out_var_handle);
       op_handle_->AddOutput(out_var_handle);
     }
@@ -145,7 +147,7 @@ struct TestBroadcastOpHandle {
     auto in_var = param_scopes_[input_scope_idx]->FindVar("input");
     PADDLE_ENFORCE_NOT_NULL(in_var);
     auto in_lod_tensor = in_var->GetMutable<f::LoDTensor>();
-    in_lod_tensor->mutable_data<float>(kDims, gpu_list_[input_scope_idx]);
+    in_lod_tensor->mutable_data<float>(kDims, exe_ctxs_[input_scope_idx].place);
 
     std::vector<float> send_vector(static_cast<size_t>(f::product(kDims)));
     for (size_t k = 0; k < send_vector.size(); ++k) {
@@ -162,7 +164,7 @@ struct TestBroadcastOpHandle {
     WaitAll();
 
     p::CPUPlace cpu_place;
-    for (size_t j = 0; j < gpu_list_.size(); ++j) {
+    for (size_t j = 0; j < exe_ctxs_.size(); ++j) {
       auto out_var = param_scopes_[j]->FindVar("out");
       PADDLE_ENFORCE_NOT_NULL(out_var);
       auto out_tensor = out_var->Get<f::LoDTensor>();
@@ -183,7 +185,7 @@ struct TestBroadcastOpHandle {
     PADDLE_ENFORCE_NOT_NULL(in_var);
     auto in_selected_rows = in_var->GetMutable<f::SelectedRows>();
     auto value = in_selected_rows->mutable_value();
-    value->mutable_data<float>(kDims, gpu_list_[input_scope_idx]);
+    value->mutable_data<float>(kDims, exe_ctxs_[input_scope_idx].place);
     int height = static_cast<int>(kDims[0]) * 2;
     std::vector<int64_t> rows{0, 1, 2, 3, 3, 0, 14, 7, 3, 1,
                               2, 4, 6, 3, 1, 1, 1,  1, 3, 7};
@@ -202,7 +204,7 @@ struct TestBroadcastOpHandle {
     WaitAll();
 
     p::CPUPlace cpu_place;
-    for (size_t j = 0; j < gpu_list_.size(); ++j) {
+    for (size_t j = 0; j < exe_ctxs_.size(); ++j) {
       auto out_var = param_scopes_[j]->FindVar("out");
       PADDLE_ENFORCE_NOT_NULL(out_var);
       auto& out_select_rows = out_var->Get<f::SelectedRows>();

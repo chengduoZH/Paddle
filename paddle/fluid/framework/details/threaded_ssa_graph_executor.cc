@@ -28,7 +28,13 @@ ThreadedSSAGraphExecutor::ThreadedSSAGraphExecutor(
       places_(places),
       fetch_ctxs_(places),
       running_ops_(0),
-      strategy_(strategy) {}
+      strategy_(strategy) {
+  exe_ctxs_.resize(places.size());
+  for (size_t i = 0; i < places.size(); ++i) {
+    exe_ctxs_[i].place = places_[i];
+    exe_ctxs_[i].scope = local_scopes_[i];
+  }
+}
 
 FeedFetchList ThreadedSSAGraphExecutor::Run(
     const std::vector<std::string> &fetch_tensors) {

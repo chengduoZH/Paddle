@@ -16,6 +16,7 @@
 
 #include <string>
 #include <vector>
+#include "paddle/fluid/framework/details/execution_context.h"
 
 #include "paddle/fluid/framework/details/op_handle_base.h"
 #include "paddle/fluid/framework/lod_tensor.h"
@@ -27,8 +28,7 @@ namespace framework {
 namespace details {
 
 struct NCCLAllReduceOpHandle : public OpHandleBase {
-  NCCLAllReduceOpHandle(const std::vector<Scope *> &local_scopes,
-                        const std::vector<platform::Place> &places,
+  NCCLAllReduceOpHandle(const std::vector<ExecutionContext> &exe_ctxs,
                         const platform::NCCLContextMap &ctxs);
 
   std::string Name() const override;
@@ -41,8 +41,8 @@ struct NCCLAllReduceOpHandle : public OpHandleBase {
   void RunImpl() override;
 
  private:
-  const std::vector<Scope *> &local_scopes_;
-  const std::vector<platform::Place> &places_;
+  const std::vector<ExecutionContext> exe_ctxs_;
+  //  const std::vector<platform::Place> &places_;
   const platform::NCCLContextMap &nccl_ctxs_;
 };
 
