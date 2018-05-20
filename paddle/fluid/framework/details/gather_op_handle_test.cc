@@ -28,7 +28,7 @@ const f::DDim kDims = {20, 20};
 
 struct TestGatherOpHandle {
   std::vector<std::unique_ptr<p::DeviceContext>> ctxs_;
-  std::vector<Scope*> local_scopes_;
+  std::vector<ExecutionContext> exe_ctxs_;
   std::vector<Scope*> param_scopes_;
   Scope g_scope_;
   std::unique_ptr<OpHandleBase> op_handle_;
@@ -70,10 +70,12 @@ struct TestGatherOpHandle {
   }
 
   void InitGatherOp(size_t input_scope_idx) {
+    exe_ctxs_.resize(gpu_list_.size());
     for (size_t j = 0; j < gpu_list_.size(); ++j) {
-      local_scopes_.push_back(&(g_scope_.NewScope()));
-      Scope& local_scope = local_scopes_.back()->NewScope();
-      *local_scopes_.back()
+      exe_ctxs_[j].place = gpu_list_[j];
+      exe_ctxs_[j].scope = &(g_scope_.NewScope());
+      Scope& local_scope = exe_ctxs_[j].scope->NewScope();
+      *(exe_ctxs_[j].scope)
            ->Var(details::kLocalExecScopeName)
            ->GetMutable<Scope*>() = &local_scope;
       local_scope.Var("input");
@@ -81,11 +83,11 @@ struct TestGatherOpHandle {
     }
     param_scopes_[input_scope_idx]->Var("out");
 
-    op_handle_.reset(new GatherOpHandle(local_scopes_, gpu_list_));
+    op_handle_.reset(new GatherOpHandle(exe_ctxs_));
     // add input
-    for (size_t j = 0; j < gpu_list_.size(); ++j) {
-      op_handle_->SetDeviceContext(gpu_list_[j], ctxs_[j].get());
-      auto* in_var_handle = new VarHandle(1, j, "input", gpu_list_[j]);
+    for (size_t j = 0; j < exe_ctxs_.size(); ++j) {
+      op_handle_->SetDeviceContext(exe_ctxs_[j].place, ctxs_[j].get());
+      auto* in_var_handle = new VarHandle(1, j, "input", exe_ctxs_[j].place);
       vars_.emplace_back(in_var_handle);
       op_handle_->AddInput(in_var_handle);
     }
@@ -98,8 +100,8 @@ struct TestGatherOpHandle {
     op_handle_->AddInput(in_dummy_var_handle);
 
     // add output
-    auto* out_var_handle =
-        new VarHandle(2, input_scope_idx, "out", gpu_list_[input_scope_idx]);
+    auto* out_var_handle = new VarHandle(2, input_scope_idx, "out",
+                                         exe_ctxs_[input_scope_idx].place);
     vars_.emplace_back(out_var_handle);
     op_handle_->AddOutput(out_var_handle);
 
@@ -119,13 +121,13 @@ struct TestGatherOpHandle {
       send_vector[k] = k;
     }
 
-    for (size_t input_scope_idx = 0; input_scope_idx < gpu_list_.size();
+    for (size_t input_scope_idx = 0; input_scope_idx < exe_ctxs_.size();
          ++input_scope_idx) {
       auto in_var = param_scopes_.at(input_scope_idx)->FindVar("input");
       PADDLE_ENFORCE_NOT_NULL(in_var);
       auto in_selected_rows = in_var->GetMutable<f::SelectedRows>();
       auto value = in_selected_rows->mutable_value();
-      value->mutable_data<float>(kDims, gpu_list_[input_scope_idx]);
+      value->mutable_data<float>(kDims, exe_ctxs_[input_scope_idx].place);
 
       in_selected_rows->set_height(height);
       in_selected_rows->set_rows(rows);
@@ -164,7 +166,7 @@ struct TestGatherOpHandle {
     float* ct = result_tensor.data<float>();
 
     for (int64_t j = 0;
-         j < f::product(kDims) * static_cast<int64_t>(gpu_list_.size()); ++j) {
+         j < f::product(kDims) * static_cast<int64_t>(exe_ctxs_.size()); ++j) {
       ASSERT_NEAR(ct[j], send_vector[j % send_vector.size()], 1e-5);
     }
   }

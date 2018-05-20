@@ -42,7 +42,7 @@ void ReduceOpHandle::RunImpl() {
   auto in_0_handle = in_var_handles[0];
 
   std::vector<const Scope *> var_scopes;
-  for (auto &exe_ctx : exe_ctxs_) {
+  for (auto exe_ctx : exe_ctxs_) {
     var_scopes.emplace_back(
         exe_ctx.scope->FindVar(kLocalExecScopeName)->Get<Scope *>());
   }

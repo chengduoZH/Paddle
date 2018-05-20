@@ -17,6 +17,7 @@
 #include <map>
 #include <string>
 #include <vector>
+
 #include "paddle/fluid/framework/details/execution_context.h"
 #include "paddle/fluid/framework/details/op_handle_base.h"
 #include "paddle/fluid/framework/lod_tensor.h"
@@ -32,15 +33,13 @@ namespace framework {
 namespace details {
 
 struct ReduceOpHandle : public OpHandleBase {
-  //  const std::vector<Scope *> &local_scopes_;
-  //  const std::vector<platform::Place> &places_;
   const std::vector<ExecutionContext> exe_ctxs_;
 
 #ifdef PADDLE_WITH_CUDA
   const platform::NCCLContextMap *nccl_ctxs_;
-  ReduceOpHandle(const std::vector<ExecutionContext> &exe_ctxs,
+  ReduceOpHandle(const std::vector<ExecutionContext> &exe_contexts,
                  const platform::NCCLContextMap *nccl_ctxs)
-      : exe_ctxs_(exe_ctxs), nccl_ctxs_(nccl_ctxs) {
+      : exe_ctxs_(exe_contexts), nccl_ctxs_(nccl_ctxs) {
     if (nccl_ctxs_) {
       for (auto &p_ctx : nccl_ctxs_->contexts_) {
         dev_ctxes_[platform::CUDAPlace(p_ctx.first)] = p_ctx.second.ctx_.get();
@@ -48,8 +47,8 @@ struct ReduceOpHandle : public OpHandleBase {
     }
   }
 #else
-  explicit ReduceOpHandle(const std::vector<ExecutionContext> &exe_ctxs)
-      : exe_ctxs_(exe_ctxs) {}
+  explicit ReduceOpHandle(const std::vector<ExecutionContext> &exe_contexts)
+      : exe_ctxs_(exe_contexts) {}
 #endif
 
   std::string Name() const override;
