@@ -20,17 +20,16 @@ namespace paddle {
 namespace framework {
 namespace details {
 
-GatherOpHandle::GatherOpHandle(const std::vector<Scope *> &local_scopes,
-                               const std::vector<platform::Place> &places)
-    : local_scopes_(local_scopes), places_(places) {}
+GatherOpHandle::GatherOpHandle(const std::vector<ExecutionContext> &exe_ctxs)
+    : exe_ctxs_(exe_ctxs) {}
 
 void GatherOpHandle::RunImpl() {
-  if (places_.size() == 1) return;
+  if (exe_ctxs_.size() == 1) return;
   // the input and output may have dummy var.
   auto in_var_handles = DynamicCast<VarHandle>(inputs_);
 
   PADDLE_ENFORCE_EQ(
-      in_var_handles.size(), places_.size(),
+      in_var_handles.size(), exe_ctxs_.size(),
       "The number of output should equal to the number of places.");
 
   VarHandle *out_var_handle;
@@ -42,8 +41,9 @@ void GatherOpHandle::RunImpl() {
   }
 
   std::vector<const Scope *> var_scopes;
-  for (auto *s : local_scopes_) {
-    var_scopes.emplace_back(s->FindVar(kLocalExecScopeName)->Get<Scope *>());
+  for (auto &exe_ctx : exe_ctxs_) {
+    var_scopes.emplace_back(
+        exe_ctx.scope->FindVar(kLocalExecScopeName)->Get<Scope *>());
   }
 
   auto in_0_handle = in_var_handles[0];

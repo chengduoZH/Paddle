@@ -32,16 +32,10 @@ namespace framework {
 class ParallelExecutorPrivate {
  public:
   explicit ParallelExecutorPrivate(const std::vector<platform::Place> &places)
-      : places_(places) {
-    exe_ctxs_.resize(places.size());
-    for (size_t j = 0; j < places_.size(); ++j) {
-      exe_ctxs_[j].place = places_[j];
-    }
-  }
+      : places_(places) {}
 
   std::vector<platform::Place> places_;
   std::vector<Scope *> local_scopes_;
-  std::vector<framework::details::ExecutionContext> exe_ctxs_;
   Scope *global_scope_;
   std::unique_ptr<details::SSAGraphExecutor> executor_;
 
