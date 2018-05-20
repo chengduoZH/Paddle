@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-#include "paddle/fluid/framework/details/execution_context.h"
 #include "paddle/fluid/framework/details/op_handle_base.h"
 #include "paddle/fluid/framework/lod_tensor.h"
 #include "paddle/fluid/framework/scope.h"
@@ -31,7 +30,8 @@ namespace details {
 
 struct GatherOpHandle : public OpHandleBase {
  public:
-  explicit GatherOpHandle(const std::vector<ExecutionContext> &exe_ctxs);
+  GatherOpHandle(const std::vector<Scope *> &local_scopes,
+                 const std::vector<platform::Place> &places);
 
   std::string Name() const override;
 
@@ -41,7 +41,8 @@ struct GatherOpHandle : public OpHandleBase {
   void RunImpl() override;
 
  private:
-  const std::vector<ExecutionContext> exe_ctxs_;
+  const std::vector<Scope *> &local_scopes_;
+  const std::vector<platform::Place> &places_;
 };
 
 }  // namespace details
