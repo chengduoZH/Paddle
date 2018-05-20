@@ -22,8 +22,8 @@ namespace framework {
 namespace details {
 
 FetchOpHandle::FetchOpHandle(FeedFetchList *data, size_t offset,
-                             std::vector<Scope *> *local_scopes)
-    : data_(data), offset_(offset), local_scopes_(local_scopes) {}
+                             const std::vector<ExecutionContext> &exe_ctxs)
+    : data_(data), offset_(offset), exe_ctxs_(exe_ctxs) {}
 
 FetchOpHandle::~FetchOpHandle() {
   for (auto *input_var : inputs_) {
@@ -49,11 +49,10 @@ void FetchOpHandle::RunImpl() {
 
   tensors_.resize(inputs_.size());
   platform::CPUPlace cpu;
-  auto &scopes = *local_scopes_;
 
   for (size_t i = 0; i < inputs_.size(); ++i) {
     auto *var_handle = static_cast<VarHandle *>(inputs_[i]);
-    auto &scope = scopes.at(var_handle->scope_idx_);
+    auto &scope = exe_ctxs_.at(var_handle->scope_idx_).scope;
     auto *var = scope->FindVar(kLocalExecScopeName)
                     ->Get<Scope *>()
                     ->FindVar(var_handle->name_);
