@@ -19,11 +19,8 @@ namespace framework {
 namespace details {
 
 SendOpHandle::SendOpHandle(const framework::OpDesc &op_desc,
-                           const Scope *local_scope,
-                           const platform::Place &place)
-    : op_(framework::OpRegistry::CreateOp(op_desc)),
-      local_scope_(local_scope),
-      place_(place) {}
+                           const ExecutionContext &exe_ctx)
+    : op_(framework::OpRegistry::CreateOp(op_desc)), exe_ctx_(exe_ctx) {}
 
 void SendOpHandle::RunImpl() {
   // TODO(wuyi): need further analysis whether wait VarDummyHandle.
@@ -37,10 +34,11 @@ void SendOpHandle::RunImpl() {
       in->generated_op_->RecordWaitEventOnCtx(dev_ctxes_[p]);
     }
   }
-  auto &tmp_scope = local_scope_->FindVar(kLocalExecScopeName)->Get<Scope *>();
+  auto &tmp_scope =
+      exe_ctx_.scope->FindVar(kLocalExecScopeName)->Get<Scope *>();
   // FIXME(wuyi): can not use RunAndRecordEvent here, for it will cause dead
   // lock.
-  op_->Run(*tmp_scope, place_);
+  op_->Run(*tmp_scope, exe_ctx_.place);
 }
 
 std::string SendOpHandle::Name() const { return "send"; }

@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #pragma once
-
 #include <string>
 #include <vector>
+#include "paddle/fluid/framework/details/execution_context.h"
 
 #include "paddle/fluid/framework/details/op_handle_base.h"
 #include "paddle/fluid/framework/feed_fetch_type.h"
@@ -29,7 +29,7 @@ namespace details {
 struct FetchOpHandle : public OpHandleBase {
  public:
   FetchOpHandle(FeedFetchList *data, size_t offset,
-                std::vector<Scope *> *local_scopes);
+                const std::vector<ExecutionContext> &exe_ctxs);
 
   ~FetchOpHandle();
 
@@ -47,7 +47,7 @@ struct FetchOpHandle : public OpHandleBase {
  private:
   FeedFetchList *data_;
   size_t offset_;
-  std::vector<Scope *> *local_scopes_;
+  std::vector<ExecutionContext> exe_ctxs_;
   std::vector<LoDTensor> tensors_;
 };
 

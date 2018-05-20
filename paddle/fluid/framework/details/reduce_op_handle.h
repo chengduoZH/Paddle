@@ -32,8 +32,6 @@ namespace framework {
 namespace details {
 
 struct ReduceOpHandle : public OpHandleBase {
-  //  const std::vector<Scope *> &local_scopes_;
-  //  const std::vector<platform::Place> &places_;
   const std::vector<ExecutionContext> exe_ctxs_;
 
 #ifdef PADDLE_WITH_CUDA

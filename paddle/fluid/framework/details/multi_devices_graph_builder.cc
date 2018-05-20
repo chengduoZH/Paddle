@@ -321,15 +321,14 @@ void MultiDevSSAGraphBuilder::CreateScaleLossGradOp(SSAGraph *result) const {
   for (size_t i = 0; i < exe_ctxs_.size(); ++i) {
 // Insert ScaleCost OpHandle
 #ifdef PADDLE_WITH_CUDA
-    auto *communication_dev_ctx = nccl_ctxs_->DevCtx(exe_ctxs_[i].place);
+    auto *comm_ctx = nccl_ctxs_->DevCtx(exe_ctxs_[i].place);
 #else
-    auto *communication_dev_ctx =
+    auto *comm_ctx =
         platform::DeviceContextPool::Instance().Get(platform::CPUPlace());
 #endif
 
     auto *op_handle =
-        new ScaleLossGradOpHandle(exe_ctxs_.size(), exe_ctxs_[i].scope,
-                                  exe_ctxs_[i].place, communication_dev_ctx);
+        new ScaleLossGradOpHandle(exe_ctxs_.size(), exe_ctxs_[i], comm_ctx);
     result->ops_.emplace_back(op_handle);
 
     // FIXME: Currently ScaleLossGradOp only use device_count as scale
@@ -384,10 +383,8 @@ VarHandle *MultiDevSSAGraphBuilder::CreateReduceOp(SSAGraph *result,
 
 void MultiDevSSAGraphBuilder::CreateSendOp(SSAGraph *result,
                                            const OpDesc &op) const {
-  auto &p = exe_ctxs_[0].place;
-  auto *s = exe_ctxs_[0].scope;
   // FIXME(wuyi): send op always copy from GPU 0
-  result->ops_.emplace_back(new SendOpHandle(op, s, p));
+  result->ops_.emplace_back(new SendOpHandle(op, exe_ctxs_[0]));
   // Create inputs for output on original place and no ssa output
   // is created for send op.
   CreateOpHandleIOs(result, op, 0);

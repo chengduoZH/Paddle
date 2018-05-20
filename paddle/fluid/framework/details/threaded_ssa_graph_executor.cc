@@ -24,15 +24,13 @@ ThreadedSSAGraphExecutor::ThreadedSSAGraphExecutor(
     : SSAGraphExecutor(std::move(graph)),
       pool_(strategy.num_threads_ >= 2 ? new ::ThreadPool(strategy.num_threads_)
                                        : nullptr),
-      local_scopes_(local_scopes),
-      places_(places),
       fetch_ctxs_(places),
       running_ops_(0),
       strategy_(strategy) {
   exe_ctxs_.resize(places.size());
   for (size_t i = 0; i < places.size(); ++i) {
-    exe_ctxs_[i].place = places_[i];
-    exe_ctxs_[i].scope = local_scopes_[i];
+    exe_ctxs_[i].place = places[i];
+    exe_ctxs_[i].scope = local_scopes[i];
   }
 }
 
@@ -158,11 +156,11 @@ void ThreadedSSAGraphExecutor::InsertFetchOps(
   for (size_t i = 0; i < fetch_tensors.size(); ++i) {
     auto &var_name = fetch_tensors[i];
     auto &vars = fetched_vars.at(var_name);
-    auto *op = new FetchOpHandle(fetch_data, i, &local_scopes_);
+    auto *op = new FetchOpHandle(fetch_data, i, exe_ctxs_);
     fetch_ops->emplace_back(op);
 
-    for (auto &p : places_) {
-      op->SetDeviceContext(p, fetch_ctxs_.Get(p));
+    for (auto &exe_ctx : exe_ctxs_) {
+      op->SetDeviceContext(exe_ctx.place, fetch_ctxs_.Get(exe_ctx.place));
     }
 
     for (auto *var : vars) {

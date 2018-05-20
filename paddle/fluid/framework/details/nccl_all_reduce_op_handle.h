@@ -42,7 +42,6 @@ struct NCCLAllReduceOpHandle : public OpHandleBase {
 
  private:
   const std::vector<ExecutionContext> exe_ctxs_;
-  //  const std::vector<platform::Place> &places_;
   const platform::NCCLContextMap &nccl_ctxs_;
 };
 

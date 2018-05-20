@@ -36,7 +36,7 @@ void BroadcastOpHandle::RunImpl() {
 
   PADDLE_ENFORCE_EQ(
       out_var_handles.size(), exe_ctxs_.size(),
-      "The number of output should equal to the number of places.");
+      "The number of output should equal to the number of exe_ctxs_.");
 
   WaitInputVarGenerated();
 

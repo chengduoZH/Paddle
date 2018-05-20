@@ -16,6 +16,7 @@
 
 #include <string>
 #include <vector>
+#include "paddle/fluid/framework/details/execution_context.h"
 
 #include "paddle/fluid/framework/details/op_handle_base.h"
 #include "paddle/fluid/framework/lod_tensor.h"
@@ -28,8 +29,8 @@ namespace framework {
 namespace details {
 
 struct SendOpHandle : public OpHandleBase {
-  SendOpHandle(const framework::OpDesc& op_desc, const Scope* local_scope,
-               const platform::Place& place);
+  SendOpHandle(const framework::OpDesc& op_desc,
+               const ExecutionContext& exe_ctx);
 
   std::string Name() const override;
 
@@ -42,8 +43,7 @@ struct SendOpHandle : public OpHandleBase {
 
  private:
   std::unique_ptr<OperatorBase> op_;
-  const Scope* local_scope_;
-  const platform::Place& place_;
+  const ExecutionContext exe_ctx_;
 };
 
 }  // namespace details

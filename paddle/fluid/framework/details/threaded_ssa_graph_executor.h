@@ -53,8 +53,6 @@ class ThreadedSSAGraphExecutor : public SSAGraphExecutor {
 
  private:
   std::unique_ptr<::ThreadPool> pool_;
-  std::vector<Scope *> local_scopes_;
-  std::vector<platform::Place> places_;
   platform::DeviceContextPool fetch_ctxs_;
   std::unique_ptr<platform::EnforceNotMet> exception_;
   std::atomic<int> running_ops_;
