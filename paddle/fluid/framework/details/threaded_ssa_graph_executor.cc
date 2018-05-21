@@ -87,12 +87,19 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     set.clear();
   };
 
+  auto name = "ThreadedSSAGraphExecutor::Run::Execution_step";
+  std::vector<TimerOnce> step_timers;
+  for (int i = 0; i < 3; ++i) {
+    step_timers.emplace_back(TimerOnce(getStat(name).get(), name, 1 * 1LU));
+  }
+
   {
-    auto name = "ThreadedSSAGraphExecutor::Run::Insert FetchOps";
+    auto name = "ThreadedSSAGraphExecutor::Run::Execution";
     auto stat = getStat(name);
     TimerOnce timer(stat.get(), name, 1 * 1LU);
     // Step 3. Execution
     while (!pending_vars.empty()) {
+      step_timers[0].timer_.start();
       // 1. Run All Ready ops
       // Keep loop until all vars are ready.
       //
@@ -103,10 +110,12 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
       } else {
         run_all_ops(ready_ops);
       }
+      step_timers[0].timer_.stop();
 
       // 2. Find ready variable
+      step_timers[1].timer_.start();
       bool timeout;
-      auto cur_ready_vars = ready_vars.PopAll(1, &timeout);
+      auto cur_ready_vars = ready_vars.PopAll(500, &timeout);
 
       if (timeout) {
         if (exception_) {
@@ -114,11 +123,15 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
           exception_.reset();
           throw exp;
         } else {
+          step_timers[1].timer_.stop();
           continue;
         }
       }
+      step_timers[1].timer_.stop();
+
       // 3. Remove the dependency of ready_var.
       // Find the ready_ops after the ready_var.
+      step_timers[2].timer_.start();
       for (auto ready_var : cur_ready_vars) {
         pending_vars.erase(ready_var);
         for (auto *op : ready_var->pending_ops_) {
@@ -133,7 +146,20 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
           }
         }
       }
+      step_timers[2].timer_.stop();
     }
+  }
+
+  for (size_t i = 0; i < step_timers.size(); ++i) {
+    int64_t time = step_timers[i].timer_.get();
+    LOG(INFO) << "ParallelExecutor::Run_step  " << i << ": " << time / 1000
+              << "ms" << time % 1000 << "us";
+  }
+
+  {
+    auto name = "ThreadedSSAGraphExecutor::Run::Wait FetchOps.";
+    auto stat = getStat(name);
+    TimerOnce timer(stat.get(), name, 1 * 1LU);
     PADDLE_ENFORCE(ready_ops.empty());
 
     // Wait FetchOps.
@@ -141,6 +167,7 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
       fetch_ops.clear();
     }
   }
+
   return fetch_data;
 }
 

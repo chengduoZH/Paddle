@@ -191,6 +191,9 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
   platform::RecordBlock b(0);
   {
     REGISTER_TIMER("ParallelExecutor::Run::Create local scopes");
+    auto name = "ParallelExecutor::Run::Create local scopes";
+    auto stat = getStat(name);
+    TimerOnce timer(stat.get(), name, 1 * 1LU);
     // Create local scopes.
     for (auto it = member_->local_scopes_.rbegin();
          it != member_->local_scopes_.rend(); ++it) {
@@ -221,6 +224,9 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
 
   {
     REGISTER_TIMER("ParallelExecutor::Run-Wait All computational streams");
+    auto name = "ParallelExecutor::Run::Run-Wait All computational streams";
+    auto stat = getStat(name);
+    TimerOnce timer(stat.get(), name, 1 * 1LU);
     // Wait All computational streams
     for (auto p : member_->places_) {
       platform::DeviceContextPool::Instance().Get(p)->Wait();
@@ -229,6 +235,9 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
 
   {
     REGISTER_TIMER("ParallelExecutor::Run-DeleteScope");
+    auto name = "ParallelExecutor::Run::Run-DeleteScope";
+    auto stat = getStat(name);
+    TimerOnce timer(stat.get(), name, 1 * 1LU);
     for (auto &scope : member_->local_scopes_) {
       auto &local_scope =
           *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
