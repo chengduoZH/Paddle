@@ -22,3 +22,4 @@ limitations under the License. */
   class_name(class_name &&) = delete;           \
   class_name(const class_name &other) = delete; \
   class_name &operator=(const class_name &other) = delete
+
