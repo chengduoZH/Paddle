@@ -169,6 +169,7 @@ void ParallelExecutor::BCastParamsToGPUs(
 
 void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
                            const std::string &fetched_var_name) {
+  REGISTER_TIMER("ParallelExecutor::Run");
   platform::RecordBlock b(0);
   // Create local scopes.
   for (auto it = member_->local_scopes_.rbegin();
@@ -197,14 +198,21 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
   *member_->global_scope_->Var(fetched_var_name)->GetMutable<FeedFetchList>() =
       fetch_data;
 
-  // Wait All computational streams
-  for (auto p : member_->places_) {
-    platform::DeviceContextPool::Instance().Get(p)->Wait();
+  {
+    REGISTER_TIMER("ParallelExecutor::Run-Wait All computational streams");
+    // Wait All computational streams
+    for (auto p : member_->places_) {
+      platform::DeviceContextPool::Instance().Get(p)->Wait();
+    }
   }
-  for (auto &scope : member_->local_scopes_) {
-    auto &local_scope =
+
+  {
+    REGISTER_TIMER("ParallelExecutor::Run-DeleteScope");
+    for (auto &scope : member_->local_scopes_) {
+      auto &local_scope =
         *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
-    scope->DeleteScope(local_scope);
+      scope->DeleteScope(local_scope);
+    }
   }
 }
 
