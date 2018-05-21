@@ -41,7 +41,7 @@ struct NCCLAllReduceOpHandle : public OpHandleBase {
   void RunImpl() override;
 
  private:
-  const std::vector<ExecutionContext> exe_ctxs_;
+  const std::vector<ExecutionContext> &exe_ctxs_;
   const platform::NCCLContextMap &nccl_ctxs_;
 };
 

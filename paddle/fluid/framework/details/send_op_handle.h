@@ -43,7 +43,7 @@ struct SendOpHandle : public OpHandleBase {
 
  private:
   std::unique_ptr<OperatorBase> op_;
-  const ExecutionContext exe_ctx_;
+  const ExecutionContext& exe_ctx_;
 };
 
 }  // namespace details

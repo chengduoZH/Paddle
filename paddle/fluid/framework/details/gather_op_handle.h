@@ -31,7 +31,7 @@ namespace details {
 
 struct GatherOpHandle : public OpHandleBase {
  public:
-  explicit GatherOpHandle(const std::vector<ExecutionContext> &exe_ctxs);
+  explicit GatherOpHandle(const std::vector<ExecutionContext>& exe_ctxs);
 
   std::string Name() const override;
 
@@ -41,7 +41,7 @@ struct GatherOpHandle : public OpHandleBase {
   void RunImpl() override;
 
  private:
-  const std::vector<ExecutionContext> exe_ctxs_;
+  const std::vector<ExecutionContext>& exe_ctxs_;
 };
 
 }  // namespace details
