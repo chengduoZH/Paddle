@@ -1,2 +1,2 @@
-cc_library(thread_local SRCS ThreadLocal.cc)
-cc_library(state SRCS State.cc DEPS thread_local)
+cc_library(ThreadLocal SRCS ThreadLocal.cc)
+cc_library(State SRCS State.cc DEPS ThreadLocal)
