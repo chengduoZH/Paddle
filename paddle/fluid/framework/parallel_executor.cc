@@ -12,8 +12,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/timer/Stat.h"
 #include "paddle/fluid/framework/parallel_executor.h"
+#include "paddle/timer/Stat.h"
 
 #include <string>
 #include <tuple>
@@ -210,7 +210,7 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
     REGISTER_TIMER("ParallelExecutor::Run-DeleteScope");
     for (auto &scope : member_->local_scopes_) {
       auto &local_scope =
-        *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
+          *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
       scope->DeleteScope(local_scope);
     }
   }
