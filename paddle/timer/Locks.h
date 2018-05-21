@@ -14,251 +14,231 @@ limitations under the License. */
 
 #pragma once
 
-#include <stdint.h>
+#include <pthread.h>
 #include <sys/time.h>
-#include <iostream>
-#include <list>
-#include <memory>
+#include <condition_variable>
 #include <mutex>
-#include <string>
-#include <unordered_map>
 
-#include "Locks.h"
-#include "ThreadLocal.h"
+#include "Common.h"
 
 namespace paddle {
 // namespace framework {
 
-class Stat;
-
-class StatInfo {
-public:
-  explicit StatInfo(Stat* stat = nullptr) : stat_(stat) {
-    total_ = 0;
-    max_ = 0;
-    count_ = 0;
-    min_ = UINT64_MAX;
-  }
-
-  void reset() {
-    total_ = 0;
-    count_ = 0;
-    max_ = 0;
-    min_ = UINT64_MAX;
-  }
-
-  ~StatInfo();
-
-  Stat* stat_;
-  uint64_t total_;
-  uint64_t max_;
-  uint64_t count_;
-  uint64_t min_;
-};
-
-class Stat;
-typedef std::shared_ptr<Stat> StatPtr;
-
-class StatSet {
-public:
-  explicit StatSet(const std::string& name) : name_(name) {}
-  ~StatSet() {}
-
-  // print to LOG(INFO)
-  void printSegTimerStatus();
-  void printAllStatus();
-
-  StatPtr getStat(const std::string& name) {
-    {
-      ReadLockGuard guard(lock_);
-      auto it = statSet_.find(name);
-      if (it != statSet_.end()) {
-        return it->second;
-      }
-    }
-    StatPtr stat = std::make_shared<Stat>(name);
-    std::lock_guard<RWLock> guard(lock_);
-    auto ret = statSet_.insert(std::make_pair(name, stat));
-    return ret.first->second;
-  }
-
-  // true for showing stats for each thread
-  // false for showing stats aggragated over threads
-  void setThreadInfo(const std::string& name, bool flag);
-
-  // true for showing stats for each thread
-  // false for showing stats aggragated over threads
-  void setThreadInfo(bool flag) {
-    for (auto& iter : statSet_) {
-      setThreadInfo(iter.first, flag);
-    }
-  }
-
-  // reset the counters for all stats
-  // clearRawData means also clearing raw tuning data, because at pserver end,
-  // barrier rawData(timeVector_) is stateful, clearing it will cause rubbish
-  // data, while rawData should be cleared at the new pass (so complicated
-  // pserver code logic, -_- ).
-  void reset(bool clearRawData = true);
-
-private:
-  std::unordered_map<std::string, StatPtr> statSet_;
-  const std::string name_;
-  RWLock lock_;
-};
-
-extern StatSet globalStat;
-
-/*@brief : a simple stat*/
-class Stat {
-public:
-  explicit Stat(const std::string& statName)
-      : destructStat_(nullptr), name_(statName), openThreadInfo_(false) {}
-  ~Stat() {}
-
-  typedef std::list<std::pair<StatInfo*, pid_t>> ThreadLocalBuf;
-
-  const std::string& getName() const { return name_; }
-
-  void addSample(uint64_t value);
-
-  // clear all stats
-  void reset();
-
-  friend std::ostream& operator<<(std::ostream& outPut, const Stat& stat);
-
-  /*  Set operator << whether to print thread info.
-   *  If openThreadInfo_ == true, then print, else print merge thread info.
-   */
-  void setThreadInfo(bool flag) { openThreadInfo_ = flag; }
-
-  bool getThreadInfo() const { return openThreadInfo_; }
-
-  friend class StatInfo;
-
-private:
-  void mergeThreadStat(StatInfo& allThreadStat);
-
-  std::mutex lock_;
-  ThreadLocalBuf threadLocalBuf_;
-  StatInfo destructStat_;
-  ThreadLocal<StatInfo> statInfo_;
-  const std::string name_;
-  bool openThreadInfo_;
-};
-
-extern StatSet globalStat;
-
-inline StatPtr getStat(const std::string& name) {
-  return globalStat.getStat(name);
-}
-
-inline uint64_t nowInMicroSec() {
-  timeval tvTime;
-  (void)gettimeofday(&tvTime, NULL);
-  return tvTime.tv_sec * 1000000LU + tvTime.tv_usec;
-}
-
 /**
- * A simple help class to measure time interval
+ * A simple read-write lock.
+ * The RWlock allows a number of readers or at most one writer
+ * at any point in time.
+ * The RWlock disable copy.
+ *
+ * Lock:
+ *
+ * Use lock() to lock on write mode, no other thread can get it
+ * until unlock.
+ *
+ * Use lock_shared() to lock on read mode, other thread can get
+ * it by using the same method lock_shared().
+ *
+ * Unlock:
+ *
+ * Use unlock() to unlock the lock.
  */
-class Timer {
+class RWLock {
 public:
-  explicit Timer(bool autoStart = true) : total_(0), startStamp_(0) {
-    if (autoStart) {
-      start();
-    }
-  }
-  void start() { startStamp_ = nowInMicroSec(); }
-  void setStartStamp(uint64_t startStamp) { startStamp_ = startStamp; }
-  uint64_t stop() {
-    total_ += nowInMicroSec() - startStamp_;
-    return total_;
-  }
+  RWLock() { pthread_rwlock_init(&rwlock_, NULL); }
+  ~RWLock() { pthread_rwlock_destroy(&rwlock_); }
+  RWLock(const RWLock&) = delete;
+  RWLock& operator=(const RWLock&) = delete;
 
-  uint64_t get() const { return total_; }
-
-  void reset() { total_ = 0; }
+  /**
+   * @brief lock on write mode.
+   * @note the method will block the thread, if failed to get the lock.
+   */
+  // std::mutex interface
+  void lock() { pthread_rwlock_wrlock(&rwlock_); }
+  /**
+   * @brief lock on read mode.
+   * @note if another thread is writing, it can't get the lock,
+   * and will block the thread.
+   */
+  void lock_shared() { pthread_rwlock_rdlock(&rwlock_); }
+  void unlock() { pthread_rwlock_unlock(&rwlock_); }
 
 protected:
-  uint64_t total_;
-  uint64_t startStamp_;
+  pthread_rwlock_t rwlock_;
 };
 
-class TimerOnce {
+/**
+ * The ReadLockGuard is a read mode RWLock
+ * using RAII management mechanism.
+ */
+class ReadLockGuard {
 public:
-  TimerOnce(Stat* stat,
-            const char* info = "",
-            uint64_t threshold = -1,
-            bool autoStart = true,
-            uint64_t startStamp = 0)
-      : stat_(stat), info_(info), timer_(autoStart), threshold_(threshold) {
-    if (!autoStart) {
-      timer_.setStartStamp(startStamp);
-    }
+  /**
+   * @brief Construct Function. Lock on rwlock in read mode.
+   */
+  explicit ReadLockGuard(RWLock& rwlock) : rwlock_(&rwlock) {
+    rwlock_->lock_shared();
   }
-  ~TimerOnce() {
-    uint64_t span = timer_.stop();
-    if (span >= threshold_) {
-      LOG(INFO) << "Stat: [" << stat_->getName() << "] " << info_
-                << " [Span:" << span / 1000 << "ms" << span % 1000 << "us"
-                << "] ";
-    }
-    stat_->addSample(span);
-  }
+
+  /**
+   * @brief Destruct Function.
+   * @note This method just unlock the read mode rwlock,
+   * won't destroy the lock.
+   */
+  ~ReadLockGuard() { rwlock_->unlock(); }
+
+protected:
+  RWLock* rwlock_;
+};
+
+/**
+ * A simple wrapper for spin lock.
+ * The lock() method of SpinLock is busy-waiting
+ * which means it will keep trying to lock until lock on successfully.
+ * The SpinLock disable copy.
+ */
+class SpinLockPrivate;
+class SpinLock {
+public:
+  DISABLE_COPY(SpinLock);
+  SpinLock();
+  ~SpinLock();
+
+  // std::mutext interface
+  void lock();
+  void unlock();
 
 private:
-  Stat* stat_;
-  const char* info_;
-  Timer timer_;
-  uint64_t threshold_;
+  SpinLockPrivate* m;
 };
 
-inline uint64_t registerTimerArg1(uint64_t threshold = -1,
-                                  StatSet& statSet = globalStat) {
-  return threshold;
-}
+/**
+ * A simple wapper of semaphore which can only be shared in the same process.
+ */
+class SemaphorePrivate;
+class Semaphore {
+public:
+  //! Disable copy & assign
+  Semaphore(const Semaphore& other) = delete;
+  Semaphore& operator=(const Semaphore&& other) = delete;
 
-inline StatSet& registerTimerArg2(uint64_t threshold = -1,
-                                  StatSet& statSet = globalStat) {
-  return statSet;
-}
+  //! Enable move.
+  Semaphore(Semaphore&& other) : m(std::move(other.m)) {}
 
-#ifdef PADDLE_DISABLE_TIMER
+public:
+  /**
+   * @brief Construct Function.
+   * @param[in] initValue the initial value of the
+   * semaphore, default 0.
+   */
+  explicit Semaphore(int initValue = 0);
 
-#define REGISTER_TIMER(statName, ...)
-#define REGISTER_TIMER_SET(statName, start, ...)
-#define REGISTER_TIMER_INFO(statName, info)
-#define FOR_TIMING(statement)
+  ~Semaphore();
 
-#else
+  /**
+   * @brief The same as wait(), except if the decrement can not
+   * be performed until ts return false install of blocking.
+   * @param[in] ts an absolute timeout in seconds and nanoseconds
+   * since the Epoch 1970-01-01 00:00:00 +0000(UTC).
+   * @return ture if the decrement proceeds before ts,
+   * else return false.
+   */
+  bool timeWait(struct timespec* ts);
 
-#define FOR_TIMING(statement) statement
+  /**
+   * @brief decrement the semaphore. If the semaphore's value is 0, then call
+   * blocks.
+   */
+  void wait();
 
-// The default arguments are shown in the following line:
-// REGISTER_TIMER(statName, threshold = -1, statSet = globalStat)
-// TODO(yuyang18,wangyanfei01): if UNIQUE_NAME is needed
-#define REGISTER_TIMER(statName, ...)                             \
-  static ::paddle::StatPtr __stat =                               \
-      ::paddle::registerTimerArg2(__VA_ARGS__).getStat(statName); \
-  ::paddle::TimerOnce __timerOnce(                                \
-      __stat.get(), "", ::paddle::registerTimerArg1(__VA_ARGS__));
+  /**
+   * @brief increment the semaphore. If the semaphore's value
+   * greater than 0, wake up a thread blocked in wait().
+   */
+  void post();
 
-#define REGISTER_TIMER_SET(statName, start, ...)                            \
-  static ::paddle::StatPtr __stat =                                         \
-      ::paddle::registerTimerArg2(__VA_ARGS__).getStat(statName);           \
-  ::paddle::TimerOnce __timerOnce(__stat.get(),                             \
-                                  "",                                       \
-                                  ::paddle::registerTimerArg1(__VA_ARGS__), \
-                                  false,                                    \
-                                  start);
+private:
+  SemaphorePrivate* m;
+};
 
-#define REGISTER_TIMER_INFO(statName, info)                                 \
-  static ::paddle::StatPtr __stat = ::paddle::globalStat.getStat(statName); \
-  ::paddle::TimerOnce __timerOnce(                                          \
-      __stat.get(), info, 10 * 1000000LU /*threshold*/);
+/**
+ * A simple wrapper of thread barrier.
+ * The ThreadBarrier disable copy.
+ */
+class ThreadBarrierPrivate;
+class ThreadBarrier {
+public:
+  DISABLE_COPY(ThreadBarrier);
 
-#endif  // DISABLE_TIMER
+  /**
+   * @brief Construct Function. Initialize the barrier should
+   * wait for count threads in wait().
+   */
+  explicit ThreadBarrier(int count);
+  ~ThreadBarrier();
+
+  /**
+   * @brief .
+   * If there were count - 1 threads waiting before,
+   * then wake up all the count - 1 threads and continue run together.
+   * Else block the thread until waked by other thread .
+   */
+  void wait();
+
+private:
+  ThreadBarrierPrivate* m;
+};
+
+/**
+ * A wrapper for condition variable with mutex.
+ */
+class LockedCondition : public std::condition_variable {
+public:
+  /**
+   * @brief execute op and notify one thread which was blocked.
+   * @param[in] op a thread can do something in op before notify.
+   */
+  template <class Op>
+  void notify_one(Op op) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    op();
+    std::condition_variable::notify_one();
+  }
+
+  /**
+   * @brief execute op and notify all the threads which were blocked.
+   * @param[in] op a thread can do something in op before notify.
+   */
+  template <class Op>
+  void notify_all(Op op) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    op();
+    std::condition_variable::notify_all();
+  }
+
+  /**
+   * @brief wait until pred return ture.
+   * @tparam Predicate c++ concepts, describes a function object
+   * that takes a single iterator argument
+   * that is dereferenced and used to
+   * return a value testable as a bool.
+   * @note pred shall not apply any non-constant function
+   * through the dereferenced iterator.
+   */
+  template <class Predicate>
+  void wait(Predicate pred) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    std::condition_variable::wait(lock, pred);
+  }
+
+  /**
+   * @brief get mutex.
+   */
+  std::mutex* mutex() { return &mutex_; }
+
+protected:
+  std::mutex mutex_;
+};
 
 // }  // namespace framework
 }  // namespace paddle
