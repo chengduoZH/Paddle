@@ -12,6 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
+#include "paddle/timer/Stat.h"
 #include "paddle/fluid/framework/parallel_executor.h"
 
 #include <string>
@@ -247,6 +248,9 @@ ParallelExecutor::~ParallelExecutor() {
       member_->global_scope_->DeleteScope(member_->local_scopes_[i]);
     }
   }
+  FOR_TIMING(globalStat.setThreadInfo(true));
+  FOR_TIMING(globalStat.printAllStatus());
+  FOR_TIMING(globalStat.reset());
 }
 
 }  // namespace framework
