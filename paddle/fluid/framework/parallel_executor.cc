@@ -115,6 +115,12 @@ ParallelExecutor::ParallelExecutor(
     member_->var_types_.emplace_back(var->Name(), var->GetType(),
                                      var->Persistable());
   }
+
+  // add timer
+  auto name = "ParallelExecutor - end";
+  auto stat = getStat(name);
+  timer_ = new TimerOnce(stat.get(), name, 1 * 1LU);
+  StartTimer();
 }
 
 void ParallelExecutor::BCastParamsToGPUs(
@@ -165,29 +171,46 @@ void ParallelExecutor::BCastParamsToGPUs(
   PADDLE_THROW("Not compiled with CUDA");
 #endif
 }
+void ParallelExecutor::StartTimer() {
+  timer_->timer_.start();
+  timer_->timer_.reset();
+}
+
+int64_t ParallelExecutor::EndTimer() { return timer_->timer_.stop(); }
 
 void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
                            const std::string &fetched_var_name) {
+  REGISTER_TIMER("ParallelExecutor::Run");
+  auto name = "ParallelExecutor::Run_time";
+  auto stat = getStat(name);
+  TimerOnce timer(stat.get(), name, 1 * 1LU);
+  uint64_t interval_time = EndTimer();
+  LOG(INFO) << "ParallelExecutor::Run_interval_time: " << interval_time / 1000
+            << "ms" << interval_time % 1000 << "us";
+
   platform::RecordBlock b(0);
-  // Create local scopes.
-  for (auto it = member_->local_scopes_.rbegin();
-       it != member_->local_scopes_.rend(); ++it) {
-    auto &scope = *it;
-    Scope &local_scope = scope->NewScope();
-    *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>() =
-        &local_scope;
+  {
+    REGISTER_TIMER("ParallelExecutor::Run::Create local scopes");
+    // Create local scopes.
+    for (auto it = member_->local_scopes_.rbegin();
+         it != member_->local_scopes_.rend(); ++it) {
+      auto &scope = *it;
+      Scope &local_scope = scope->NewScope();
+      *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>() =
+          &local_scope;
 
-    for (auto &name_type_pair : member_->var_types_) {
-      if (scope->FindVar(std::get<0>(name_type_pair)) != nullptr) {
-        continue;
-      }
+      for (auto &name_type_pair : member_->var_types_) {
+        if (scope->FindVar(std::get<0>(name_type_pair)) != nullptr) {
+          continue;
+        }
 
-      if (std::get<2>(name_type_pair)) {  // Persistable
-        InitializeVariable(scope->Var(std::get<0>(name_type_pair)),
-                           std::get<1>(name_type_pair));
-      } else {
-        InitializeVariable(local_scope.Var(std::get<0>(name_type_pair)),
-                           std::get<1>(name_type_pair));
+        if (std::get<2>(name_type_pair)) {  // Persistable
+          InitializeVariable(scope->Var(std::get<0>(name_type_pair)),
+                             std::get<1>(name_type_pair));
+        } else {
+          InitializeVariable(local_scope.Var(std::get<0>(name_type_pair)),
+                             std::get<1>(name_type_pair));
+        }
       }
     }
   }
@@ -196,15 +219,23 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
   *member_->global_scope_->Var(fetched_var_name)->GetMutable<FeedFetchList>() =
       fetch_data;
 
-  // Wait All computational streams
-  for (auto p : member_->places_) {
-    platform::DeviceContextPool::Instance().Get(p)->Wait();
+  {
+    REGISTER_TIMER("ParallelExecutor::Run-Wait All computational streams");
+    // Wait All computational streams
+    for (auto p : member_->places_) {
+      platform::DeviceContextPool::Instance().Get(p)->Wait();
+    }
   }
-  for (auto &scope : member_->local_scopes_) {
-    auto &local_scope =
-        *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
-    scope->DeleteScope(local_scope);
+
+  {
+    REGISTER_TIMER("ParallelExecutor::Run-DeleteScope");
+    for (auto &scope : member_->local_scopes_) {
+      auto &local_scope =
+          *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
+      scope->DeleteScope(local_scope);
+    }
   }
+  StartTimer();
 }
 
 void ParallelExecutor::FeedTensorsIntoLocalScopes(
@@ -239,6 +270,7 @@ void ParallelExecutor::FeedAndSplitTensorIntoLocalScopes(
       t->set_lod(lod_tensors[j].lod());
     }
   }
+  StartTimer();
 }
 
 ParallelExecutor::~ParallelExecutor() {
@@ -247,6 +279,10 @@ ParallelExecutor::~ParallelExecutor() {
       member_->global_scope_->DeleteScope(member_->local_scopes_[i]);
     }
   }
+  FOR_TIMING(globalStat.setThreadInfo(true));
+  FOR_TIMING(globalStat.printAllStatus());
+  FOR_TIMING(globalStat.reset());
+  delete timer_;
 }
 
 }  // namespace framework

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/timer/Stat.h"
 #include "paddle/fluid/framework/details/threaded_ssa_graph_executor.h"
 
 namespace paddle {
