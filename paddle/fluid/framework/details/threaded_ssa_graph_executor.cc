@@ -37,6 +37,8 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   std::unordered_set<VarHandleBase *> pending_vars;
   BlockingQueue<VarHandleBase *> ready_vars;
   std::unordered_set<OpHandleBase *> ready_ops;
+  int continue_count = 0;
+  int loop_count = 0;
   // For ops (e.g. nccl_all_reduce) that need to coordinate multiple
   // streams from multiple GPUs, it's faster to buffer them and schedule
   // together since we currently cannot overlap computation and memcpy streams.
@@ -116,7 +118,7 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
       step_timers[1].timer_.start();
       bool timeout;
       auto cur_ready_vars = ready_vars.PopAll(500, &timeout);
-
+      loop_count++;
       if (timeout) {
         if (exception_) {
           auto exp = *exception_;
@@ -124,6 +126,7 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
           throw exp;
         } else {
           step_timers[1].timer_.stop();
+          continue_count++;
           continue;
         }
       }
@@ -155,7 +158,8 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     LOG(INFO) << "ParallelExecutor::Run_step  " << i << ": " << time / 1000
               << "ms" << time % 1000 << "us";
   }
-
+  LOG(INFO) << "ParallelExecutor::Run::Continue_count "
+            << continue_count << " loop_count " << loop_count;
   {
     auto name = "ThreadedSSAGraphExecutor::Run::Wait FetchOps.";
     auto stat = getStat(name);
