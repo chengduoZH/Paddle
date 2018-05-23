@@ -25,6 +25,7 @@ limitations under the License. */
 #include "paddle/fluid/framework/scope.h"
 #include "paddle/fluid/framework/tensor.h"
 #include "paddle/fluid/platform/device_context.h"
+#include "paddle/timer/Stat.h"
 namespace paddle {
 namespace framework {
 
@@ -66,7 +67,12 @@ class ParallelExecutor {
 
   void BCastParamsToGPUs(const std::unordered_set<std::string> &vars) const;
 
+  void StartTimer();
+
+  int64_t EndTimer();
+
  private:
+  TimerOnce *timer_;
   ParallelExecutorPrivate *member_;
 };
 
