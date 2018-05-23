@@ -14,6 +14,7 @@
 
 #include "paddle/fluid/framework/details/threaded_ssa_graph_executor.h"
 #include "paddle/fluid/framework/threadpool.h"
+// #include "paddle/timer/Stat.h"
 
 namespace paddle {
 namespace framework {
@@ -38,7 +39,9 @@ void ThreadedSSAGraphExecutor::RunOp(
   bool timeout;
   std::deque<OpHandleBase *> local_ops;
   OpHandleBase *current_op = nullptr;
-
+  //  auto name = "ThreadedSSAGraphExecutor::RunOp";
+  //  auto stat = getStat(name);
+  //  TimerOnce timer(stat.get(), name, 1 * 1LU);
   while (true) {
     // 1. If current_op is nullptr, get a runnable op from pending_ops.
     if (current_op == nullptr && local_ops.size() == 0) {
@@ -96,19 +99,47 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   InsertFetchOps(fetch_tensors, &fetch_ops, &fetch_dependencies, &fetch_data);
 
   // Step 2. Collect ready_ops and pending_op_deps
-  BlockingQueue<OpHandleBase *> ready_ops;  // read and write
-  std::unordered_map<OpHandleBase *, std::atomic<size_t>>
-      pending_op_deps;  // only read
+  //  BlockingQueue<OpHandleBase *> ready_ops;  // read and write
+  //  std::unordered_map<OpHandleBase *, std::atomic<size_t>>
+  //      pending_op_deps;  // only read
+  const size_t dev_cnt = places_.size();
+  std::vector<BlockingQueue<OpHandleBase *>> ready_ops(dev_cnt);
+  std::vector<std::unordered_map<OpHandleBase *, std::atomic<size_t>>>
+      pending_op_deps(dev_cnt);
+
+  auto get_device_id = [dev_cnt](OpHandleBase *op) -> int {
+    int dev_id = -1;
+    for (auto var : op->Outputs()) {
+      auto var_h = dynamic_cast<VarHandle *>(var);
+      if (var_h) {
+        dev_id = boost::get<platform::CUDAPlace>(var_h->place_).device;
+        break;
+      }
+    }
+    if (dev_id == -1) {
+      for (auto var : op->Inputs()) {
+        auto var_h = dynamic_cast<VarHandle *>(var);
+        if (var_h) {
+          dev_id = boost::get<platform::CUDAPlace>(var_h->place_).device;
+          break;
+        }
+      }
+    }
+    PADDLE_ENFORCE(dev_id >= 0 && dev_id < dev_cnt);
+    return dev_id;
+  };
 
   for (auto &op : graph_->ops_) {
+    int dev_id = get_device_id(op.get());
     if (op->Inputs().empty()) {
-      ready_ops.Push(op.get());
+      ready_ops[dev_id].Push(op.get());
     } else {
-      pending_op_deps[op.get()] = op->NoDupInputSize();
+      pending_op_deps[dev_id][op.get()] = op->NoDupInputSize();
     }
   }
   for (auto &op : fetch_ops) {
-    pending_op_deps[op.get()] = op->NoDupInputSize();
+    int dev_id = get_device_id(op.get());
+    pending_op_deps[dev_id][op.get()] = op->NoDupInputSize();
   }
 
   // move some pending op to ready ops
@@ -117,9 +148,10 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
       for (auto &version_pair : name_pair.second) {
         if (version_pair->generated_op_ == nullptr) {
           for (auto pending_op : version_pair->pending_ops_) {
-            --pending_op_deps[pending_op];
-            if (pending_op_deps[pending_op] == 0) {
-              ready_ops.Push(pending_op);
+            int dev_id = get_device_id(pending_op);
+            --pending_op_deps[dev_id][pending_op];
+            if (pending_op_deps[dev_id][pending_op] == 0) {
+              ready_ops[dev_id].Push(pending_op);
             }
           }
         }
@@ -130,9 +162,10 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   for (auto &var : graph_->dep_vars_) {
     if (var->generated_op_ == nullptr) {
       for (auto pending_op : var->pending_ops_) {
-        --pending_op_deps[pending_op];
-        if (pending_op_deps[pending_op] == 0) {
-          ready_ops.Push(pending_op);
+        int dev_id = get_device_id(pending_op);
+        --pending_op_deps[dev_id][pending_op];
+        if (pending_op_deps[dev_id][pending_op] == 0) {
+          ready_ops[dev_id].Push(pending_op);
         }
       }
     }
@@ -146,8 +179,9 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   std::vector<std::thread> workers;
   workers.resize(thread_cnt_);
   for (size_t i = 0; i < thread_cnt_; ++i) {
-    workers[i] = std::thread([&total_ops, &ready_ops, &pending_op_deps, this] {
-      RunOp(&total_ops, &ready_ops, &pending_op_deps);
+    workers[i] = std::thread([&total_ops, &ready_ops, &pending_op_deps, i,
+                              dev_cnt, this] {
+      RunOp(&total_ops, &ready_ops[i % dev_cnt], &pending_op_deps[i % dev_cnt]);
     });
   }
 
