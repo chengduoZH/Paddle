@@ -36,15 +36,19 @@ void ThreadedSSAGraphExecutor::RunOp(
     std::atomic<int> *total_ops, BlockingQueue<OpHandleBase *> *ready_ops,
     std::unordered_map<OpHandleBase *, std::atomic<size_t>> *pending_op_deps) {
   bool timeout;
-  //  std::deque<OpHandleBase *> local_ops;
+  std::deque<OpHandleBase *> local_ops;
   OpHandleBase *current_op = nullptr;
 
   while (true) {
     // 1. If current_op is nullptr, get a runnable op from pending_ops.
-    if (current_op == nullptr) {
+    if (current_op == nullptr && local_ops.size() == 0) {
       if ((*total_ops) <= 0) break;
       current_op = ready_ops->Pop(1, &timeout);
       if (timeout) continue;
+    }
+    if (current_op == nullptr) {
+      current_op = local_ops.front();
+      local_ops.pop_front();
     }
 
     // 2. Run the current op.
@@ -71,7 +75,8 @@ void ThreadedSSAGraphExecutor::RunOp(
               current_op != nullptr ||
               (op->IsMultiDeviceTransfer() && strategy_.allow_op_delay_);
           if (push_into_ready_ops) {
-            ready_ops->Push(op);
+            // ready_ops->Push(op);
+            local_ops.emplace_back(op);
           } else {
             current_op = op;
           }

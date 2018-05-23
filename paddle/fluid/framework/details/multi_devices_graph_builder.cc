@@ -157,6 +157,7 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
         }
       }
       if (!is_forwarding && places_.size() > 1) {
+        continue;
         // Currently, we assume that once gradient is generated, it can be
         // broadcast, and each gradient is only broadcast once.
         for (auto &og : op->OutputArgumentNames()) {
