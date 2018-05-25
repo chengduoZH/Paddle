@@ -21,6 +21,8 @@ limitations under the License. */
 #include <unordered_map>
 #include <vector>
 
+#include "paddle/timer/Stat.h"
+
 #include "glog/logging.h"  // For VLOG
 #include "paddle/fluid/framework/attribute.h"
 #include "paddle/fluid/framework/block_desc.h"
@@ -124,6 +126,8 @@ class OperatorBase {
   // Return a new operator instance, which is as same as this.
   // Use unique_ptr to prevent caller forget to delete this pointer.
   virtual std::unique_ptr<OperatorBase> Clone() const = 0;
+  static std::atomic<int64_t> set_dev_time;
+  static int64_t get_switch_dev_time() { return set_dev_time; }
 
  protected:
   std::string type_;

@@ -244,6 +244,9 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
       scope->DeleteScope(local_scope);
     }
   }
+
+  LOG(INFO) << "set_dev_time: "
+            << paddle::framework::OperatorBase::get_switch_dev_time();
   StartTimer();
 }
 
