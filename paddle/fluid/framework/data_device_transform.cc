@@ -34,14 +34,11 @@ static const platform::DeviceContext* GetDeviceContext(
 void TransDataDevice(const Tensor& in, const platform::Place& dst_place,
                      Tensor* out) {
   VLOG(3) << "DeviceTransform in, src_place " << in.place()
-          << " dst_place: " << dst_place;
+          << " dst_place: " << dst_place << "  " << in.dims();
   auto* dev_ctx = GetDeviceContext(in.place(), dst_place);
 
   TensorCopy(in, dst_place, *dev_ctx, out);
-
-  if (in.place().which() != dst_place.which()) {
-    dev_ctx->Wait();
-  }
+  dev_ctx->Wait();
 }
 
 }  // namespace framework

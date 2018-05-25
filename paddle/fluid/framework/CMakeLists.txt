@@ -36,7 +36,12 @@ cc_test(threadpool_test SRCS threadpool_test.cc DEPS threadpool)
 cc_library(scope SRCS scope.cc DEPS glog threadpool)
 cc_test(scope_test SRCS scope_test.cc DEPS scope)
 
-cc_library(data_device_transform SRCS data_device_transform.cc DEPS tensor)
+if(WITH_GPU)
+  nv_library(data_device_transform SRCS data_device_transform.cu DEPS tensor)
+else()
+  cc_library(data_device_transform SRCS data_device_transform.cc DEPS tensor)
+endif()
+
 nv_test(data_device_transform_test SRCS data_device_transform_test.cu
         DEPS operator op_registry init math_function)
 

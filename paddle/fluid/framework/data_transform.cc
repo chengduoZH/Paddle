@@ -22,6 +22,7 @@ namespace paddle {
 namespace framework {
 
 static void PassTensorData(Tensor* from, Tensor* to) {
+  VLOG(1) << "from->data<" << from->data<void>();
   to->ShareDataWith(*from);
   *from = Tensor();
 }
