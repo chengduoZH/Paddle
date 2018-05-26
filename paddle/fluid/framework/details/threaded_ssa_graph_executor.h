@@ -51,7 +51,8 @@ class ThreadedSSAGraphExecutor : public SSAGraphExecutor {
              details::OpHandleBase *op);
   void RunOp(
       std::atomic<int> *total_ops, BlockingQueue<OpHandleBase *> *pending_ops,
-      std::unordered_map<OpHandleBase *, std::atomic<size_t>> *pending_op_deps);
+      std::unordered_map<OpHandleBase *, std::atomic<size_t>> *pending_op_deps,
+      int dev_id);
 
  private:
   std::unique_ptr<::ThreadPool> pool_;

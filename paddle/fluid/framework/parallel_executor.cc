@@ -222,16 +222,16 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
   *member_->global_scope_->Var(fetched_var_name)->GetMutable<FeedFetchList>() =
       fetch_data;
 
-  {
-    REGISTER_TIMER("ParallelExecutor::Run-Wait All computational streams");
-    auto name = "ParallelExecutor::Run::Run-Wait All computational streams";
-    auto stat = getStat(name);
-    TimerOnce timer(stat.get(), name, 1 * 1LU);
-    // Wait All computational streams
-    for (auto p : member_->places_) {
-      platform::DeviceContextPool::Instance().Get(p)->Wait();
-    }
-  }
+  //  {
+  //    REGISTER_TIMER("ParallelExecutor::Run-Wait All computational streams");
+  //    auto name = "ParallelExecutor::Run::Run-Wait All computational streams";
+  //    auto stat = getStat(name);
+  //    TimerOnce timer(stat.get(), name, 1 * 1LU);
+  //    // Wait All computational streams
+  //    for (auto p : member_->places_) {
+  //      platform::DeviceContextPool::Instance().Get(p)->Wait();
+  //    }
+  //  }
 
   {
     REGISTER_TIMER("ParallelExecutor::Run-DeleteScope");

@@ -35,7 +35,8 @@ ThreadedSSAGraphExecutor::ThreadedSSAGraphExecutor(
 
 void ThreadedSSAGraphExecutor::RunOp(
     std::atomic<int> *total_ops, BlockingQueue<OpHandleBase *> *ready_ops,
-    std::unordered_map<OpHandleBase *, std::atomic<size_t>> *pending_op_deps) {
+    std::unordered_map<OpHandleBase *, std::atomic<size_t>> *pending_op_deps,
+    int dev_id) {
   bool timeout;
   std::deque<OpHandleBase *> local_ops;
   OpHandleBase *current_op = nullptr;
@@ -87,6 +88,9 @@ void ThreadedSSAGraphExecutor::RunOp(
       }
     }
   }
+  platform::DeviceContextPool::Instance()
+      .Get(platform::CUDAPlace(dev_id))
+      ->Wait();
 }
 
 FeedFetchList ThreadedSSAGraphExecutor::Run(
@@ -196,10 +200,10 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   std::vector<std::thread> workers;
   workers.resize(dev_cnt);
   for (size_t i = 0; i < dev_cnt; ++i) {
-    workers[i] = std::thread([&total_ops, &ready_ops, &pending_op_deps, i,
-                              dev_cnt, this] {
-      RunOp(&total_ops, &ready_ops[i % dev_cnt], &pending_op_deps[i % dev_cnt]);
-    });
+    workers[i] = std::thread(
+        [&total_ops, &ready_ops, &pending_op_deps, i, dev_cnt, this] {
+          RunOp(&total_ops, &ready_ops[i], &pending_op_deps[i], i);
+        });
   }
 
   for (auto &worker : workers) {
