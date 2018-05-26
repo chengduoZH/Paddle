@@ -171,14 +171,30 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     }
   }
 
+  for (int i = 0; i < ready_ops.size(); ++i) {
+    bool timeout = false;
+    auto ops = ready_ops[i].PopAll(1, &timeout);
+    PADDLE_ENFORCE(timeout == false);
+    for (auto op : ops) {
+      PADDLE_ENFORCE_EQ(i, get_device_id(op));
+    }
+    ready_ops[i].Extend(ops);
+  }
+
+  for (int i = 0; i < pending_op_deps.size(); ++i) {
+    for (auto op : pending_op_deps[i]) {
+      PADDLE_ENFORCE_EQ(i, get_device_id(op.first));
+    }
+  }
+
   // according to total_ops to know whether the loop is over
   std::atomic<int> total_ops(
       static_cast<int>(graph_->ops_.size() + fetch_ops.size()));
 
   // Step 3. Execution
   std::vector<std::thread> workers;
-  workers.resize(thread_cnt_);
-  for (size_t i = 0; i < thread_cnt_; ++i) {
+  workers.resize(dev_cnt);
+  for (size_t i = 0; i < dev_cnt; ++i) {
     workers[i] = std::thread([&total_ops, &ready_ops, &pending_op_deps, i,
                               dev_cnt, this] {
       RunOp(&total_ops, &ready_ops[i % dev_cnt], &pending_op_deps[i % dev_cnt]);
