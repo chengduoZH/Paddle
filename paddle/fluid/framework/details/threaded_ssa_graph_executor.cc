@@ -182,8 +182,9 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   }
 
   for (int i = 0; i < pending_op_deps.size(); ++i) {
-    for (auto op : pending_op_deps[i]) {
-      PADDLE_ENFORCE_EQ(i, get_device_id(op.first));
+    for (auto iter_op = pending_op_deps[i].begin();
+         iter_op != pending_op_deps[i].end(); iter_op++) {
+      PADDLE_ENFORCE_EQ(i, get_device_id((*iter_op).first));
     }
   }
 
