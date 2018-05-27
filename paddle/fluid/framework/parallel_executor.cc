@@ -171,6 +171,7 @@ void ParallelExecutor::BCastParamsToGPUs(
   PADDLE_THROW("Not compiled with CUDA");
 #endif
 }
+
 void ParallelExecutor::StartTimer() {
   timer_->timer_.start();
   timer_->timer_.reset();
@@ -198,6 +199,7 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
     for (auto it = member_->local_scopes_.rbegin();
          it != member_->local_scopes_.rend(); ++it) {
       auto &scope = *it;
+      if (scope->FindVar(details::kLocalExecScopeName) != nullptr) continue;
       Scope &local_scope = scope->NewScope();
       *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>() =
           &local_scope;
@@ -233,17 +235,17 @@ void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
   //    }
   //  }
 
-  {
-    REGISTER_TIMER("ParallelExecutor::Run-DeleteScope");
-    auto name = "ParallelExecutor::Run::Run-DeleteScope";
-    auto stat = getStat(name);
-    TimerOnce timer(stat.get(), name, 1 * 1LU);
-    for (auto &scope : member_->local_scopes_) {
-      auto &local_scope =
-          *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
-      scope->DeleteScope(local_scope);
-    }
-  }
+  //  {
+  //    REGISTER_TIMER("ParallelExecutor::Run-DeleteScope");
+  //    auto name = "ParallelExecutor::Run::Run-DeleteScope";
+  //    auto stat = getStat(name);
+  //    TimerOnce timer(stat.get(), name, 1 * 1LU);
+  //    for (auto &scope : member_->local_scopes_) {
+  //      auto &local_scope =
+  //          *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
+  //      scope->DeleteScope(local_scope);
+  //    }
+  //  }
   StartTimer();
 }
 

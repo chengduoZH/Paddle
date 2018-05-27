@@ -40,9 +40,9 @@ void ThreadedSSAGraphExecutor::RunOp(
   bool timeout;
   std::deque<OpHandleBase *> local_ops;
   OpHandleBase *current_op = nullptr;
-  //  auto name = "ThreadedSSAGraphExecutor::RunOp";
-  //  auto stat = getStat(name);
-  //  TimerOnce timer(stat.get(), name, 1 * 1LU);
+  auto name = "ThreadedSSAGraphExecutor::RunOp";
+  auto stat = getStat(name);
+  TimerOnce timer(stat.get(), name, 1 * 1LU);
   while (true) {
     // 1. If current_op is nullptr, get a runnable op from pending_ops.
     if (current_op == nullptr && local_ops.size() == 0) {
