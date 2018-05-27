@@ -48,7 +48,7 @@ def linear():
     return avg_loss
 
 
-def train(use_cuda, train_program, save_dirname):
+def train(use_cuda, train_program, params_dirname):
     place = fluid.CUDAPlace(0) if use_cuda else fluid.CPUPlace()
 
     trainer = fluid.Trainer(
@@ -57,22 +57,20 @@ def train(use_cuda, train_program, save_dirname):
         optimizer=fluid.optimizer.SGD(learning_rate=0.001))
 
     def event_handler(event):
-        if isinstance(event, fluid.EndEpochEvent):
-            test_metrics = trainer.test(
-                reader=test_reader, feed_order=['x', 'y'])
-            print test_metrics
-            '''
-            
-            ...
-            ['25.768919467926025']
-            ['15.343549569447836']
-            ...
-            
-            '''
-            if float(test_metrics[0]) < 20.0:
-                if save_dirname is not None:
-                    trainer.save_params(save_dirname)
-            return
+        if isinstance(event, fluid.EndStepEvent):
+            if event.step == 10:
+                test_metrics = trainer.test(
+                    reader=test_reader, feed_order=['x', 'y'])
+                print test_metrics
+                '''
+                ...
+                ['25.768919467926025']
+                ['15.343549569447836']
+                ...
+                '''
+                if params_dirname is not None:
+                    trainer.save_params(params_dirname)
+                trainer.stop()
 
     trainer.train(
         reader=train_reader,
@@ -82,13 +80,13 @@ def train(use_cuda, train_program, save_dirname):
 
 
 # infer
-def infer(use_cuda, inference_program, save_dirname=None):
-    if save_dirname is None:
+def infer(use_cuda, inference_program, params_dirname=None):
+    if params_dirname is None:
         return
 
     place = fluid.CUDAPlace(0) if use_cuda else fluid.CPUPlace()
     inferencer = fluid.Inferencer(
-        infer_func=inference_program, param_path=save_dirname, place=place)
+        infer_func=inference_program, param_path=params_dirname, place=place)
 
     batch_size = 10
     tensor_x = numpy.random.uniform(0, 10, [batch_size, 13]).astype("float32")
@@ -102,10 +100,10 @@ def main(use_cuda):
         return
 
     # Directory for saving the trained model
-    save_dirname = "fit_a_line.inference.model"
+    params_dirname = "fit_a_line.inference.model"
 
-    train(use_cuda, linear, save_dirname)
-    infer(use_cuda, inference_program, save_dirname)
+    train(use_cuda, linear, params_dirname)
+    infer(use_cuda, inference_program, params_dirname)
 
 
 class TestFitALine(unittest.TestCase):
