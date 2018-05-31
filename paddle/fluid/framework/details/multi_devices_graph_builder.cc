@@ -15,6 +15,7 @@
 #include <utility>
 #include "paddle/fluid/framework/details/broadcast_op_handle.h"
 #include "paddle/fluid/framework/details/computation_op_handle.h"
+#include "paddle/fluid/framework/details/fuse_vars_op_handle.h"
 #include "paddle/fluid/framework/details/reduce_op_handle.h"
 #include "paddle/fluid/framework/details/scale_loss_grad_op_handle.h"
 #include "paddle/fluid/framework/details/send_op_handle.h"
@@ -45,6 +46,7 @@ MultiDevSSAGraphBuilder::MultiDevSSAGraphBuilder(
       nccl_ctxs_(nccl_ctxs),
       strategy_(strategy) {
 #else
+
 MultiDevSSAGraphBuilder::MultiDevSSAGraphBuilder(
     const std::vector<platform::Place> &places,
     const std::string &loss_var_name,
@@ -207,8 +209,10 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
     }
   }
 
-  // Fuse reduce operation
-  FuseReduceOpHandles(all_vars, &result);
+  if (strategy_.reduce_ == BuildStrategy::ReduceStrategy::kReduce) {
+    // Fuse reduce operation
+    FuseReduceOpHandles(all_vars, &result);
+  }
 
   /*
     Dependency graph has been constructed. However, there are still data
@@ -225,6 +229,7 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
     std::ostringstream sout;
     PrintGraphviz(*graph, sout);
     VLOG(10) << sout.str();
+    std::cout << sout.str();
   }
 
   return std::unique_ptr<SSAGraph>(graph);
@@ -267,59 +272,61 @@ void MultiDevSSAGraphBuilder::FuseReduceOpHandles(
   }
   if (!has_reduce_op) return;
 
-  // Second, alloc continuous address and create new reduce_op
+  // Second, insert FuseVarOpHandle and ReduceBlockOpHandle
   for (size_t dev_id = 0; dev_id < reduce_op_handles.size(); ++dev_id) {
-    // AllocateContinuousAddress
     auto out_var_handles = output_set_of_reduce_op[dev_id];
     if (out_var_handles.size() == 0) continue;
 
+    // Check whether the element's type are consistence.
     platform::Place run_place = (*out_var_handles.begin())->place_;
     proto::VarType::Type out0_var_data_type =
         all_vars.at((*out_var_handles.begin())->name_)->GetDataType();
-
     int64_t total_numel = 0;
     for (auto out_var_handle : out_var_handles) {
       auto var_desc = all_vars.at(out_var_handle->name_);
-
       PADDLE_ENFORCE_EQ(out0_var_data_type, var_desc->GetDataType());
       PADDLE_ENFORCE_EQ(run_place, out_var_handle->place_);
-
       auto dim = framework::make_ddim(var_desc->GetShape());
       int64_t numel = framework::product(dim);
       PADDLE_ENFORCE_GT(numel, 0);
       total_numel += numel;
     }
 
+    // CreateFuseVarOp
     auto reduce_var_name = string::Sprintf("REDUCEBLOCK_DATA_%d", dev_id);
-    for (size_t k = 0; k < this->places_.size(); ++k) {
-      // Allocate gradients memory
-      auto reduce_t = this->local_scopes_.at(k)
+    for (size_t place_id = 0; place_id < this->places_.size(); ++place_id) {
+      PADDLE_ENFORCE(platform::is_gpu_place(this->places_[place_id]));
+      // reduce_var and out_vars of reduceOp are placed in local_scopes_ to
+      // prevent deleted.
+      auto reduce_t = this->local_scopes_.at(place_id)
                           ->Var(reduce_var_name)
                           ->GetMutable<LoDTensor>();
-      PADDLE_ENFORCE(platform::is_gpu_place(this->places_[k]));
 
-      reduce_t->Resize(make_ddim({total_numel}))
-          .mutable_data(this->places_[k],
+      reduce_t->Resize({total_numel})
+          .mutable_data(this->places_[place_id],
                         framework::ToTypeIndex(out0_var_data_type));
-
-      VLOG(10) << this->places_[k] << " " << reduce_var_name
-               << " total_numel: " << total_numel;
 
       int64_t s = 0;
       for (auto out : out_var_handles) {
-        LoDTensor *tensor =
-            this->local_scopes_.at(k)->Var(out->name_)->GetMutable<LoDTensor>();
-
+        LoDTensor *tensor = this->local_scopes_.at(place_id)
+                                ->Var(out->name_)
+                                ->GetMutable<LoDTensor>();
         int64_t mem_size = framework::product(
             framework::make_ddim(all_vars.at(out->name_)->GetShape()));
         tensor->ShareDataWith(reduce_t->Slice(s, s + mem_size));
-
-        VLOG(8) << out->name_ << " mem_size:" << mem_size << " s:" << s
-                << " e:" << s + mem_size;
-
         s += mem_size;
       }
+
+      CreateFuseVarOp(result, place_id, out_var_handles, reduce_var_name);
+      auto *op_handle = result->ops_.back().get();
+
+      // update dependence
+      for (auto reduce_op_handle : reduce_op_handles[dev_id]) {
+        reduce_op_handle->Inputs()[place_id]->generated_op_->AddInput(
+            op_handle->Outputs()[place_id]);
+      }
     }
+    // CreateReduceBlockOp
     CreateReduceBlockOp(result, dev_id, reduce_var_name,
                         input_set_of_reduce_op.at(dev_id),
                         output_set_of_reduce_op.at(dev_id));
@@ -335,7 +342,8 @@ void MultiDevSSAGraphBuilder::RemoveOps(
     for (size_t j = 0; j < reduce_op_handles.size(); ++j) {
       if (reduce_op_handles[j].count((*iter).get())) {
         for (auto in_var : (*iter)->Inputs()) {
-          in_var->pending_ops_.erase(in_var->pending_ops_.find((*iter).get()));
+          auto var_iter = in_var->pending_ops_.find((*iter).get());
+          in_var->pending_ops_.erase(var_iter);
         }
         iter = result->ops_.erase(iter);
         remove_op = true;
@@ -376,6 +384,45 @@ void MultiDevSSAGraphBuilder::CreateReduceBlockOp(
   for (auto output : outputs) {
     op_handle->AddOutput(output);
   }
+}
+
+void MultiDevSSAGraphBuilder::CreateFuseVarOp(
+    SSAGraph *result, size_t place_id,
+    const std::unordered_set<VarHandle *> &vars,
+    const std::string &fused_var) const {
+  std::vector<std::string> fused_var_names;
+  for (auto var : vars) {
+    fused_var_names.emplace_back(var->name_);
+  }
+
+  result->ops_.emplace_back(new FuseVarsOpHandle(
+      fused_var_names, fused_var, local_scopes_[place_id], places_[place_id]));
+
+  auto *op_handle = result->ops_.back().get();
+
+  auto &p = places_[place_id];
+
+  for (auto &each_var_name : fused_var_names) {
+    auto &var_holder = result->vars_[place_id][each_var_name];
+    PADDLE_ENFORCE(!var_holder.empty());
+
+    // insert input var handle
+    auto *in_var = new VarHandle(0, place_id, each_var_name, p);
+    var_holder.emplace(var_holder.begin(), in_var);
+    op_handle->AddInput(in_var);
+
+    // insert output var handle
+    auto *out_var = new VarHandle(1, place_id, each_var_name, p);
+    var_holder.emplace(var_holder.begin() + 1, out_var);
+    op_handle->AddOutput(out_var);
+
+    // update the version
+    for (size_t i = 2; i < var_holder.size(); ++i) {
+      var_holder[i]->version_ += 2;
+    }
+  }
+
+  CreateOpOutput(result, op_handle, fused_var, p, place_id);
 }
 
 bool MultiDevSSAGraphBuilder::IsSparseGradient(
@@ -431,6 +478,7 @@ OpDesc *MultiDevSSAGraphBuilder::GetSendOpDesc(
   }
   return nullptr;
 }
+
 void MultiDevSSAGraphBuilder::InsertNCCLAllReduceOp(
     SSAGraph *result, const std::string &og) const {
 #ifdef PADDLE_WITH_CUDA
@@ -535,12 +583,12 @@ VarHandle *MultiDevSSAGraphBuilder::CreateReduceOp(SSAGraph *result,
   auto *op_handle = result->ops_.back().get();
 
   for (size_t i = 0; i < places_.size(); ++i) {
-    auto &vars = result->vars_[i][og];
 #ifndef PADDLE_WITH_CUDA
     auto &p = places_[i];
     op_handle->SetDeviceContext(p,
                                 platform::DeviceContextPool::Instance().Get(p));
 #endif
+    auto &vars = result->vars_[i][og];
     PADDLE_ENFORCE(!vars.empty());
     auto &prev_grad = vars.back();
     op_handle->AddInput(prev_grad.get());

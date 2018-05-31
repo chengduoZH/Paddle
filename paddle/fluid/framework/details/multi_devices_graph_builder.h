@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #pragma once
+
 #include <string>
 #include <utility>
 #include <vector>
@@ -39,11 +40,13 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
                           platform::NCCLContextMap *nccl_ctxs,
                           const BuildStrategy &strategy);
 #else
+
   MultiDevSSAGraphBuilder(const std::vector<platform::Place> &places,
                           const std::string &loss_var_name,
                           const std::unordered_set<std::string> &params,
                           const std::vector<Scope *> &local_scopes,
                           const BuildStrategy &strategy);
+
 #endif
 
   std::unique_ptr<SSAGraph> Build(const ProgramDesc &program) const override;
@@ -75,8 +78,10 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
                               size_t num_places) const;
 
   void CreateScaleLossGradOp(SSAGraph *result) const;
+
   VarHandle *CreateReduceOp(SSAGraph *result, const std::string &og,
                             int dst_dev_id) const;
+
   void CreateComputationalOp(SSAGraph *result, const OpDesc &op,
                              int dev_id) const;
 
@@ -108,9 +113,14 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
       SSAGraph *result) const;
 
   void CreateReduceBlockOp(
-      SSAGraph *result, const int root_id, const std::string &reduce_var_name,
+      SSAGraph *result, const int dst_scope_id,
+      const std::string &reduce_var_name,
       const std::unordered_set<VarHandle *> &inputs,
       const std::unordered_set<VarHandle *> &outputs) const;
+
+  void CreateFuseVarOp(SSAGraph *result, size_t dev_id,
+                       const std::unordered_set<VarHandle *> &vars,
+                       const std::string &fused_var) const;
 
   void RemoveOps(
       const std::vector<std::unordered_set<OpHandleBase *>> &reduce_op_handles,

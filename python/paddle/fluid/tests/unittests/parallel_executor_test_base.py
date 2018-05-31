@@ -80,7 +80,7 @@ class TestParallelExecutorBase(unittest.TestCase):
 
             for i in xrange(iter):
                 run_executor(exe=exe, feed=feed_dict, fetch_list=[])
-
+                print i
             last_loss, = run_executor(
                 exe=exe, feed=feed_dict, fetch_list=[loss.name])
             end = time.time()
