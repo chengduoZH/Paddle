@@ -113,24 +113,25 @@ def resnet_cifar10(input, class_dim, depth=32, data_format='NCHW'):
     return out
 
 
-# import numpy as np
-# import paddle
-# import paddle.fluid as fluid
-# import paddle.dataset.flowers as flowers
+import numpy as np
+import paddle
+import paddle.fluid as fluid
 
-# def generate_recordio(data_shape, batch_size=1):
-#     with fluid.program_guard(fluid.Program(), fluid.Program()):
-#         reader = paddle.batch(paddle.dataset.flowers.train(), batch_size=batch_size)
-#     feeder = fluid.DataFeeder(
-#         feed_list=[
-#             fluid.layers.data(
-#                 name='data', shape=data_shape, dtype='float32'),
-#             fluid.layers.data(
-#                 name='label', shape=[1], dtype='int64'),
-#         ],
-#         place=fluid.CPUPlace())
-#     fluid.recordio_writer.convert_reader_to_recordio_file(
-#         './flowers_1.recordio', reader, feeder)
+
+def generate_recordio(data_shape, data_set_iteration, output_file,
+                      batch_size=1):
+    with fluid.program_guard(fluid.Program(), fluid.Program()):
+        reader = paddle.batch(data_set_iteration(), batch_size=batch_size)
+    feeder = fluid.DataFeeder(
+        feed_list=[
+            fluid.layers.data(
+                name='data', shape=data_shape, dtype='float32'),
+            fluid.layers.data(
+                name='label', shape=[1], dtype='int64'),
+        ],
+        place=fluid.CPUPlace())
+    fluid.recordio_writer.convert_reader_to_recordio_file(output_file, reader,
+                                                          feeder)
 
 
 def get_model(args):
@@ -150,7 +151,14 @@ def get_model(args):
         model = resnet_imagenet
 
     if args.use_recordio:
-        file_list = ["./flowers_1.recordio"] * 8
+        recordio_name = '../cifar10_1.recordio' if args.data_set == 'cifar10' else '../flowers_1.recordio'
+
+        if not os.path.exists(recordio_name):
+            data_set_iterator = paddle.dataset.cifar.train10 if args.data_set == 'cifar10' else paddle.dataset.flowers.train(
+            )
+            generate_recordio(dshape, data_set_iterator, recordio_name)
+
+        file_list = [recordio_name] * 8
         data_file = fluid.layers.io.open_files(
             filenames=file_list,
             shapes=[[-1] + dshape, [-1, 1]],
