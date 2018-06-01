@@ -150,12 +150,7 @@ def get_model(args):
         model = resnet_imagenet
 
     if args.use_recordio:
-        file_list = [
-            "./flowers_1.recordio", "./flowers_1.recordio",
-            "./flowers_1.recordio", "./flowers_1.recordio",
-            "./flowers_1.recordio", "./flowers_1.recordio",
-            "./flowers_1.recordio", "./flowers_1.recordio"
-        ]
+        file_list = ["./flowers_1.recordio"] * 8
         data_file = fluid.layers.io.open_files(
             filenames=file_list,
             shapes=[[-1] + dshape, [-1, 1]],
