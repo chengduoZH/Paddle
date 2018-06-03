@@ -315,6 +315,9 @@ void MultiDevSSAGraphBuilder::FuseReduceOpHandles(
             framework::make_ddim(all_vars.at(out->name_)->GetShape()));
         tensor->ShareDataWith(reduce_t->Slice(s, s + mem_size));
         s += mem_size;
+        VLOG(1) << out->name_ << " : "
+                << tensor->mutable_data(this->places_[place_id]) << " "
+                << this->places_[place_id];
       }
 
       CreateFuseVarOp(result, place_id, out_var_handles, reduce_var_name);
@@ -323,7 +326,7 @@ void MultiDevSSAGraphBuilder::FuseReduceOpHandles(
       // update dependence
       for (auto reduce_op_handle : reduce_op_handles[dev_id]) {
         reduce_op_handle->Inputs()[place_id]->generated_op_->AddInput(
-            op_handle->Outputs()[place_id]);
+            op_handle->Outputs().back());
       }
     }
     // CreateReduceBlockOp
@@ -401,6 +404,9 @@ void MultiDevSSAGraphBuilder::CreateFuseVarOp(
   auto *op_handle = result->ops_.back().get();
 
   auto &p = places_[place_id];
+
+  op_handle->SetDeviceContext(p,
+                              platform::DeviceContextPool::Instance().Get(p));
 
   for (auto &each_var_name : fused_var_names) {
     auto &var_holder = result->vars_[place_id][each_var_name];
