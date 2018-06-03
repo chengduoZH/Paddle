@@ -13,7 +13,7 @@ limitations under the License. */
 
 namespace ops = paddle::operators;
 REGISTER_OP_CUDA_KERNEL(
-    fuse_vars, ops::FuseVarKernel<paddle::platform::CUDADeviceContext, float>,
-    ops::FuseVarKernel<paddle::platform::CUDADeviceContext, double>,
-    ops::FuseVarKernel<paddle::platform::CUDADeviceContext, int>,
-    ops::FuseVarKernel<paddle::platform::CUDADeviceContext, int64_t>);
+    fuse_vars, ops::FuseVarsKernel<paddle::platform::CUDADeviceContext, float>,
+    ops::FuseVarsKernel<paddle::platform::CUDADeviceContext, double>,
+    ops::FuseVarsKernel<paddle::platform::CUDADeviceContext, int>,
+    ops::FuseVarsKernel<paddle::platform::CUDADeviceContext, int64_t>);

@@ -20,52 +20,30 @@ namespace paddle {
 namespace operators {
 using framework::Tensor;
 
-class FuseVarOp : public framework::OperatorWithKernel {
+class FuseVarsOp : public framework::OperatorWithKernel {
  public:
   using framework::OperatorWithKernel::OperatorWithKernel;
 
   void InferShape(framework::InferShapeContext* ctx) const override {
-    //    PADDLE_ENFORCE(ctx->HasInputs("X"), "Inputs(X) should not be null");
-    //    PADDLE_ENFORCE(ctx->HasOutputs("Y"),
-    //                   "Output(Out) of FuseVarOp should not be null.");
-    //    PADDLE_ENFORCE(ctx->HasOutputs("FusedX"),
-    //                   "Output(FusedX) of FuseVarOp should not be null.");
-    //
-    //    if (ctx->IsRuntime()) {
-    //      return;
-    //    }
-    //
-    //    auto in_vars_type = ctx->GetInputsVarType("X");
-    //    PADDLE_ENFORCE_EQ(in_vars_type[0],
-    //                      paddle::framework::proto::VarType::LOD_TENSOR);
-    //    for (auto in_var_type : in_vars_type) {
-    //      PADDLE_ENFORCE_EQ(in_var_type, in_vars_type[0]);
-    //    }
-    //
-    //    auto var_dims = ctx->GetInputsDim("X");
-    //    PADDLE_ENFORCE_GT(var_dims.size(), 0, "Input tensors count should >
-    //    0.");
-    //    int64_t total_numel = 0;
-    //    for (auto dim : var_dims) {
-    //      int64_t numel = paddle::framework::product(dim);
-    //      PADDLE_ENFORCE_GE(numel, 0);
-    //      total_numel += numel;
-    //    }
-    //    ctx->SetOutputDim("Out", framework::DDim({total_numel}));
+    PADDLE_ENFORCE(ctx->HasInputs("X"), "Inputs(X) should not be null");
+    PADDLE_ENFORCE(ctx->HasOutputs("Y"),
+                   "Output(Y) of FuseVarsOp should not be null.");
+    PADDLE_ENFORCE(ctx->HasOutputs("FusedX"),
+                   "Output(FusedX) of FuseVarsOp should not be null.");
   }
 
  protected:
   framework::OpKernelType GetExpectedKernelType(
       const framework::ExecutionContext& ctx) const override {
-    auto y_vars = ctx.OutputVar("FusedX");
-    auto type = y_vars->GetMutable<framework::LoDTensor>()->type();
+    auto y_vars = ctx.MultiOutputVar("Y");
+    auto type = y_vars[0]->GetMutable<framework::LoDTensor>()->type();
     return framework::OpKernelType(static_cast<framework::proto::VarType::Type>(
                                        framework::ToDataType(type)),
                                    ctx.device_context());
   }
 };
 
-class FuseVarOpMaker : public framework::OpProtoAndCheckerMaker {
+class FuseVarsOpMaker : public framework::OpProtoAndCheckerMaker {
  public:
   void Make() override {
     AddInput("X", "(vector<Tensor>) The input tensors of FuseVar operator.")
@@ -74,7 +52,7 @@ class FuseVarOpMaker : public framework::OpProtoAndCheckerMaker {
     AddOutput("Y", "(vector<Tensor>) The output tensor of FuseVar operator.")
         .AsDuplicable();
     AddComment(R"DOC(
-Sum operator.
+FuseVars operator.
 
 )DOC");
   }
@@ -85,9 +63,9 @@ Sum operator.
 
 namespace ops = paddle::operators;
 
-REGISTER_OPERATOR(fuse_vars, ops::FuseVarOp, ops::FuseVarOpMaker);
+REGISTER_OPERATOR(fuse_vars, ops::FuseVarsOp, ops::FuseVarsOpMaker);
 REGISTER_OP_CPU_KERNEL(
-    fuse_vars, ops::FuseVarKernel<paddle::platform::CPUDeviceContext, float>,
-    ops::FuseVarKernel<paddle::platform::CPUDeviceContext, double>,
-    ops::FuseVarKernel<paddle::platform::CPUDeviceContext, int>,
-    ops::FuseVarKernel<paddle::platform::CPUDeviceContext, int64_t>);
+    fuse_vars, ops::FuseVarsKernel<paddle::platform::CPUDeviceContext, float>,
+    ops::FuseVarsKernel<paddle::platform::CPUDeviceContext, double>,
+    ops::FuseVarsKernel<paddle::platform::CPUDeviceContext, int>,
+    ops::FuseVarsKernel<paddle::platform::CPUDeviceContext, int64_t>);
