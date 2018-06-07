@@ -13,25 +13,30 @@
 // limitations under the License.
 #include <algorithm>
 
+#include "paddle/fluid/framework/details/all_reduce_op_handle.h"
 #include "paddle/fluid/framework/details/container_cast.h"
-#include "paddle/fluid/framework/details/nccl_all_reduce_op_handle.h"
 #include "paddle/fluid/framework/details/reduce_and_gather.h"
 #include "paddle/fluid/framework/details/variable_visitor.h"
 
 namespace paddle {
 namespace framework {
 namespace details {
-NCCLAllReduceOpHandle::NCCLAllReduceOpHandle(
-    const std::vector<Scope *> &local_scopes,
-    const std::vector<platform::Place> &places,
-    const platform::NCCLContextMap &ctxs)
+#ifdef PADDLE_WITH_CUDA
+AllReduceOpHandle::AllReduceOpHandle(const std::vector<Scope *> &local_scopes,
+                                     const std::vector<platform::Place> &places,
+                                     const platform::NCCLContextMap *ctxs)
     : local_scopes_(local_scopes), places_(places), nccl_ctxs_(ctxs) {
   for (auto &p : places_) {
-    this->dev_ctxes_[p] = nccl_ctxs_.DevCtx(p);
+    this->dev_ctxes_[p] = nccl_ctxs_->DevCtx(p);
   }
 }
+#else
+AllReduceOpHandle::AllReduceOpHandle(const std::vector<Scope *> &local_scopes,
+                                     const std::vector<platform::Place> &places)
+    : local_scopes_(local_scopes), places_(places) {}
+#endif
 
-void NCCLAllReduceOpHandle::RunImpl() {
+void AllReduceOpHandle::RunImpl() {
   if (NoDummyInputSize() == 1) {
     return;  // No need to all reduce when GPU count = 1;
   } else {
@@ -58,6 +63,7 @@ void NCCLAllReduceOpHandle::RunImpl() {
     }
 
     if (platform::is_gpu_place(lod_tensors[0]->place())) {
+#ifdef PADDLE_WITH_CUDA
       int dtype = -1;
       size_t numel = 0;
       std::vector<std::function<void()>> all_reduce_calls;
@@ -75,7 +81,7 @@ void NCCLAllReduceOpHandle::RunImpl() {
         }
 
         int dev_id = boost::get<platform::CUDAPlace>(p).device;
-        auto &nccl_ctx = nccl_ctxs_.at(dev_id);
+        auto &nccl_ctx = nccl_ctxs_->at(dev_id);
         auto stream = nccl_ctx.stream();
         auto comm = nccl_ctx.comm_;
         all_reduce_calls.emplace_back([=] {
@@ -90,6 +96,9 @@ void NCCLAllReduceOpHandle::RunImpl() {
           call();
         }
       });
+#else
+      PADDLE_THROW("CUDA is not enabled.");
+#endif
     } else {  // Special handle CPU only Operator's gradient. Like CRF
       auto &trg = *this->local_scopes_[0]
                        ->FindVar(kLocalExecScopeName)
@@ -118,7 +127,7 @@ void NCCLAllReduceOpHandle::RunImpl() {
   }
 }
 
-std::string NCCLAllReduceOpHandle::Name() const { return "nccl_all_reduce"; }
+std::string AllReduceOpHandle::Name() const { return "all_reduce"; }
 }  // namespace details
 }  // namespace framework
 }  // namespace paddle

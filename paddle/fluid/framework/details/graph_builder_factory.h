@@ -58,7 +58,7 @@ class SSAGraphBuilderFactory {
   BuildStrategy strategy_;
 
 #ifdef PADDLE_WITH_CUDA
-  platform::NCCLContextMap* nccl_ctxs_;
+  platform::NCCLContextMap* nccl_ctxs_{nullptr};
 #endif
 };
 

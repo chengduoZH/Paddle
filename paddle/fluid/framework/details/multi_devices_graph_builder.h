@@ -62,6 +62,8 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
   platform::NCCLContextMap *nccl_ctxs_;
 #endif
 
+  BuildStrategy strategy_;
+
   bool IsScaleLossOp(const OpDesc &op) const;
 
   void CreateRPCOp(SSAGraph *result, const OpDesc &op) const;
@@ -100,7 +102,7 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
       const std::vector<std::unordered_set<std::string>> &var_name_on_devices,
       const OpDesc &op) const;
 
-  void InsertNCCLAllReduceOp(SSAGraph *result, const std::string &og) const;
+  void InsertAllReduceOp(SSAGraph *result, const std::string &og) const;
 
   void CreateBroadcastOp(SSAGraph *result, const std::string &p_name,
                          size_t src_dev_id) const;
@@ -108,9 +110,6 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
   bool IsSparseGradient(
       const std::unordered_map<std::string, VarDesc *> &all_vars,
       const std::string &og) const;
-
- private:
-  BuildStrategy strategy_;
 };
 }  // namespace details
 }  // namespace framework
