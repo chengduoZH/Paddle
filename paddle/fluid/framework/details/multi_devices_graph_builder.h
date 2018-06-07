@@ -39,11 +39,13 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
                           platform::NCCLContextMap *nccl_ctxs,
                           const BuildStrategy &strategy);
 #else
+
   MultiDevSSAGraphBuilder(const std::vector<platform::Place> &places,
                           const std::string &loss_var_name,
                           const std::unordered_set<std::string> &params,
                           const std::vector<Scope *> &local_scopes,
                           const BuildStrategy &strategy);
+
 #endif
 
   std::unique_ptr<SSAGraph> Build(const ProgramDesc &program) const override;
@@ -67,6 +69,7 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
   bool IsScaleLossOp(const OpDesc &op) const;
 
   void CreateRPCOp(SSAGraph *result, const OpDesc &op) const;
+
   void CreateDistTrainOp(SSAGraph *result, const OpDesc &op) const;
 
   /**
@@ -89,8 +92,10 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
                               size_t num_places) const;
 
   void CreateScaleLossGradOp(SSAGraph *result) const;
+
   VarHandle *CreateReduceOp(SSAGraph *result, const std::string &og,
                             int dst_dev_id) const;
+
   void CreateComputationalOp(SSAGraph *result, const OpDesc &op,
                              int dev_id) const;
 

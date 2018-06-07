@@ -298,13 +298,27 @@ void MultiDevSSAGraphBuilder::CreateBroadcastOp(SSAGraph *result,
 
   for (size_t i = 0; i < places_.size(); ++i) {
     auto &p = places_[i];
-    SetDeviceContext(op_handle, p);
 
     auto &vars = result->vars_.at(i).at(p_name);
     auto *out_var = new VarHandle(vars.size(), i, p_name, p);
     vars.emplace_back(out_var);
     op_handle->AddOutput(out_var);
+
+    SetDeviceContext(op_handle, p);
   }
+}
+
+void MultiDevSSAGraphBuilder::SetDeviceContext(OpHandleBase *op_handle,
+                                               const platform::Place &p) const {
+#ifndef ADDLE_WITH_CUDA
+  op_handle->SetDeviceContext(p,
+                              platform::DeviceContextPool::Instance().Get(p));
+#else
+  if (nccl_ctxs_ == nullptr) {
+    op_handle->SetDeviceContext(p,
+                                platform::DeviceContextPool::Instance().Get(p));
+  }
+#endif
 }
 
 void MultiDevSSAGraphBuilder::CreateComputationalOp(SSAGraph *result,
@@ -340,18 +354,6 @@ void MultiDevSSAGraphBuilder::InsertAllReduceOp(SSAGraph *result,
     vars.emplace_back(var);
     op_handle->AddOutput(var);
   }
-}
-
-void MultiDevSSAGraphBuilder::SetDeviceContext(OpHandleBase *op_handle,
-                                               const platform::Place &p) const {
-#ifdef ADDLE_WITH_CUDA
-  if (nccl_ctxs_ == nullptr) {
-#endif
-    op_handle->SetDeviceContext(p,
-                                platform::DeviceContextPool::Instance().Get(p));
-#ifdef ADDLE_WITH_CUDA
-  }
-#endif
 }
 
 bool MultiDevSSAGraphBuilder::IsParameterGradientOnce(
@@ -439,9 +441,10 @@ VarHandle *MultiDevSSAGraphBuilder::CreateReduceOp(SSAGraph *result,
 
   for (size_t i = 0; i < places_.size(); ++i) {
     auto &p = places_[i];
+    auto &vars = result->vars_[i][og];
+
     SetDeviceContext(op_handle, p);
 
-    auto &vars = result->vars_[i][og];
     PADDLE_ENFORCE(!vars.empty());
     auto &prev_grad = vars.back();
     op_handle->AddInput(prev_grad.get());

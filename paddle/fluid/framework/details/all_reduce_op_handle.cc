@@ -26,10 +26,8 @@ AllReduceOpHandle::AllReduceOpHandle(const std::vector<Scope *> &local_scopes,
                                      const std::vector<platform::Place> &places,
                                      const platform::NCCLContextMap *ctxs)
     : local_scopes_(local_scopes), places_(places), nccl_ctxs_(ctxs) {
-  if (nccl_ctxs_) {
-    for (auto &p : places_) {
-      this->dev_ctxes_[p] = nccl_ctxs_->DevCtx(p);
-    }
+  for (auto &p : places_) {
+    this->dev_ctxes_[p] = nccl_ctxs_->DevCtx(p);
   }
 }
 #else
