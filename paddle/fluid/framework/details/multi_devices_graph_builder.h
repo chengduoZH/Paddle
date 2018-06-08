@@ -110,6 +110,9 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
   bool IsSparseGradient(
       const std::unordered_map<std::string, VarDesc *> &all_vars,
       const std::string &og) const;
+
+  void SetDeviceContext(OpHandleBase *op_handle,
+                        const platform::Place &p) const;
 };
 }  // namespace details
 }  // namespace framework
