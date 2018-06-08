@@ -297,21 +297,13 @@ void MultiDevSSAGraphBuilder::CreateBroadcastOp(SSAGraph *result,
   op_handle->AddInput(in);
 
   for (size_t i = 0; i < places_.size(); ++i) {
-    auto &vars = result->vars_.at(i).at(p_name);
     auto &p = places_[i];
+    SetDeviceContext(op_handle, p);
+
+    auto &vars = result->vars_.at(i).at(p_name);
     auto *out_var = new VarHandle(vars.size(), i, p_name, p);
     vars.emplace_back(out_var);
     op_handle->AddOutput(out_var);
-// Fixme(zcd): hard code
-#ifndef ADDLE_WITH_CUDA
-    op_handle->SetDeviceContext(p,
-                                platform::DeviceContextPool::Instance().Get(p));
-#else
-    if (nccl_ctxs_ == nullptr) {
-      op_handle->SetDeviceContext(
-          p, platform::DeviceContextPool::Instance().Get(p));
-    }
-#endif
   }
 }
 
@@ -337,15 +329,7 @@ void MultiDevSSAGraphBuilder::InsertAllReduceOp(SSAGraph *result,
   for (size_t i = 0; i < places_.size(); ++i) {
     auto &p = places_[i];
 
-#ifndef ADDLE_WITH_CUDA
-    op_handle->SetDeviceContext(p,
-                                platform::DeviceContextPool::Instance().Get(p));
-#else
-    if (nccl_ctxs_ == nullptr) {
-      op_handle->SetDeviceContext(
-          p, platform::DeviceContextPool::Instance().Get(p));
-    }
-#endif
+    SetDeviceContext(op_handle, p);
 
     auto &vars = result->vars_[i][og];
     PADDLE_ENFORCE(!vars.empty());
@@ -356,6 +340,18 @@ void MultiDevSSAGraphBuilder::InsertAllReduceOp(SSAGraph *result,
     vars.emplace_back(var);
     op_handle->AddOutput(var);
   }
+}
+
+void MultiDevSSAGraphBuilder::SetDeviceContext(OpHandleBase *op_handle,
+                                               const platform::Place &p) const {
+#ifdef ADDLE_WITH_CUDA
+  if (nccl_ctxs_ == nullptr) {
+#endif
+    op_handle->SetDeviceContext(p,
+                                platform::DeviceContextPool::Instance().Get(p));
+#ifdef ADDLE_WITH_CUDA
+  }
+#endif
 }
 
 bool MultiDevSSAGraphBuilder::IsParameterGradientOnce(
@@ -442,22 +438,15 @@ VarHandle *MultiDevSSAGraphBuilder::CreateReduceOp(SSAGraph *result,
   auto *op_handle = result->ops_.back().get();
 
   for (size_t i = 0; i < places_.size(); ++i) {
-    auto &vars = result->vars_[i][og];
-#ifndef PADDLE_WITH_CUDA
     auto &p = places_[i];
-    op_handle->SetDeviceContext(p,
-                                platform::DeviceContextPool::Instance().Get(p));
-#else
-    if (nccl_ctxs_ == nullptr) {
-      auto &p = places_[i];
-      op_handle->SetDeviceContext(
-          p, platform::DeviceContextPool::Instance().Get(p));
-    }
-#endif
+    SetDeviceContext(op_handle, p);
+
+    auto &vars = result->vars_[i][og];
     PADDLE_ENFORCE(!vars.empty());
     auto &prev_grad = vars.back();
     op_handle->AddInput(prev_grad.get());
   }
+
   auto &vars = result->vars_[dst_dev_id][og];
   auto var =
       new VarHandle(vars.size() - 1, dst_dev_id, og, places_[dst_dev_id]);

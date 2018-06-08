@@ -102,7 +102,7 @@ void AllReduceOpHandle::RunImpl() {
 #else
       PADDLE_THROW("CUDA is not enabled.");
 #endif
-    } else {  // Special handle CPU only Operator's gradient. Like CRF
+    } else {
       auto &trg = *this->local_scopes_[0]
                        ->FindVar(kLocalExecScopeName)
                        ->Get<Scope *>()
