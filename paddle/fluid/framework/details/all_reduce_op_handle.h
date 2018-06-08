@@ -34,15 +34,28 @@ struct AllReduceOpHandle : public OpHandleBase {
                     const std::vector<platform::Place> &places,
                     const platform::NCCLContextMap *ctxs);
 #else
+
   AllReduceOpHandle(const std::vector<Scope *> &local_scopes,
                     const std::vector<platform::Place> &places);
+
 #endif
 
   std::string Name() const override;
 
   // Delay and buffer nccl_all_reduce together can significantly increase
   // performance. Disable this feature by returning false.
-  bool IsMultiDeviceTransfer() override { return true; };
+  // Fixme(zcd): hard code
+  bool IsMultiDeviceTransfer() override {
+#ifdef PADDLE_WITH_CUDA
+    if (nccl_ctxs_) {
+      return true;
+    } else {
+      return false;
+    }
+#else
+    return false;
+#endif
+  }
 
  protected:
   void RunImpl() override;
