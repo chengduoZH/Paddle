@@ -45,6 +45,9 @@ class SSAGraphBuilderFactory {
 #ifdef PADDLE_WITH_CUDA
   void SetNCCLContextMap(platform::NCCLContextMap* nccl_ctxs) {
     nccl_ctxs_ = nccl_ctxs;
+    if (nccl_ctxs == nullptr) {
+      VLOG(4) << "nccl_ctxs == nullptr";
+    }
   }
 #endif
 

@@ -52,6 +52,15 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
   void CreateOpHandleIOs(SSAGraph *result, const OpDesc &op,
                          size_t place_id) const;
 
+  bool IsCUDA() const {
+#ifdef PADDLE_WITH_CUDA
+    if (nccl_ctxs_ != nullptr) {
+      return true;
+    }
+#endif
+    return false;
+  }
+
  private:
   std::string loss_var_name_;
   const std::vector<platform::Place> &places_;

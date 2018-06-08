@@ -43,6 +43,9 @@ MultiDevSSAGraphBuilder::MultiDevSSAGraphBuilder(
       local_scopes_(local_scopes),
       nccl_ctxs_(nccl_ctxs),
       strategy_(strategy) {
+  if (nccl_ctxs_ == nullptr) {
+    VLOG(4) << "nccl_ctxs_ == nullptr~~~~~~~";
+  }
 #else
 MultiDevSSAGraphBuilder::MultiDevSSAGraphBuilder(
     const std::vector<platform::Place> &places,
@@ -54,6 +57,7 @@ MultiDevSSAGraphBuilder::MultiDevSSAGraphBuilder(
       local_scopes_(local_scopes),
       strategy_(strategy) {
 #endif
+
   for (auto &p : params) {
     grad_names_.insert(GradVarName(p));
   }
@@ -323,13 +327,14 @@ void MultiDevSSAGraphBuilder::InsertAllReduceOp(SSAGraph *result,
 #else
   result->ops_.emplace_back(new AllReduceOpHandle(local_scopes_, places_));
 #endif
-
   auto *op_handle = result->ops_.back().get();
 
   for (size_t i = 0; i < places_.size(); ++i) {
     auto &p = places_[i];
 
-    SetDeviceContext(op_handle, p);
+    if (!IsCUDA()) {
+      SetDeviceContext(op_handle, p);
+    }
 
     auto &vars = result->vars_[i][og];
     PADDLE_ENFORCE(!vars.empty());
@@ -346,11 +351,13 @@ void MultiDevSSAGraphBuilder::SetDeviceContext(OpHandleBase *op_handle,
                                                const platform::Place &p) const {
 #ifdef ADDLE_WITH_CUDA
   if (nccl_ctxs_ == nullptr) {
-#endif
+    VLOG(4) << "nccl_ctxs_ == nullptr";
     op_handle->SetDeviceContext(p,
                                 platform::DeviceContextPool::Instance().Get(p));
-#ifdef ADDLE_WITH_CUDA
   }
+#else
+  op_handle->SetDeviceContext(p,
+                              platform::DeviceContextPool::Instance().Get(p));
 #endif
 }
 
