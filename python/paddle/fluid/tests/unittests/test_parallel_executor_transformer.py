@@ -167,7 +167,8 @@ class TestTransformer(TestParallelExecutorBase):
 
     @unittest.skip("transformer is buggy in multi gpu")
     def test_main(self):
-        self.check_network_convergence(transformer)
+        self.check_network_convergence(transformer, use_gpu=True)
+        self.check_network_convergence(transformer, use_gpu=False)
 
 
 if __name__ == '__main__':

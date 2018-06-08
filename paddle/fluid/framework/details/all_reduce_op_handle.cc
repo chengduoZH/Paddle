@@ -26,8 +26,10 @@ AllReduceOpHandle::AllReduceOpHandle(const std::vector<Scope *> &local_scopes,
                                      const std::vector<platform::Place> &places,
                                      const platform::NCCLContextMap *ctxs)
     : local_scopes_(local_scopes), places_(places), nccl_ctxs_(ctxs) {
-  for (auto &p : places_) {
-    this->dev_ctxes_[p] = nccl_ctxs_->DevCtx(p);
+  if (nccl_ctxs_) {
+    for (auto &p : places_) {
+      this->dev_ctxes_[p] = nccl_ctxs_->DevCtx(p);
+    }
   }
 }
 #else
@@ -64,6 +66,7 @@ void AllReduceOpHandle::RunImpl() {
 
     if (platform::is_gpu_place(lod_tensors[0]->place())) {
 #ifdef PADDLE_WITH_CUDA
+      PADDLE_ENFORCE(nccl_ctxs_, "nccl_ctxs should not be nullptr.");
       int dtype = -1;
       size_t numel = 0;
       std::vector<std::function<void()>> all_reduce_calls;
