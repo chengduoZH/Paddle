@@ -135,6 +135,11 @@ bool SSAGraphBuilder::IsValidGraph(const SSAGraph *graph) const {
 
   while (!pending_vars.empty()) {
     if (ready_ops.empty()) {
+      if (VLOG_IS_ON(4)) {
+        for (auto pend_var : pending_vars) {
+          VLOG(4) << pend_var->DebugString();
+        }
+      }
       return false;
     }
 
