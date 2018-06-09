@@ -334,6 +334,13 @@ void MultiDevSSAGraphBuilder::InsertNCCLAllReduceOp(
     auto &prev_grad = vars.back();
     op_handle->AddInput(prev_grad.get());
 
+#ifdef ADDLE_WITH_CUDA
+    if (nccl_ctxs_ == nullptr) {
+      op_handle->SetDeviceContext(
+          p, platform::DeviceContextPool::Instance().Get(p));
+    }
+#endif
+
     auto var = new VarHandle(vars.size() - 1, i, og, p);
     vars.emplace_back(var);
     op_handle->AddOutput(var);
