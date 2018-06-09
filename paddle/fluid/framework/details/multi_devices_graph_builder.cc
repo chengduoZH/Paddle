@@ -20,15 +20,12 @@
 #include "paddle/fluid/framework/details/broadcast_op_handle.h"
 #include "paddle/fluid/framework/details/computation_op_handle.h"
 #include "paddle/fluid/framework/details/multi_devices_graph_builder.h"
+#include "paddle/fluid/framework/details/nccl_all_reduce_op_handle.h"
 #include "paddle/fluid/framework/details/reduce_op_handle.h"
 #include "paddle/fluid/framework/details/rpc_op_handle.h"
 #include "paddle/fluid/framework/details/scale_loss_grad_op_handle.h"
 #include "paddle/fluid/framework/op_info.h"
 #include "paddle/fluid/framework/scope.h"
-
-#ifdef PADDLE_WITH_CUDA
-#include "paddle/fluid/framework/details/nccl_all_reduce_op_handle.h"
-#endif
 
 namespace paddle {
 namespace framework {
@@ -324,7 +321,10 @@ void MultiDevSSAGraphBuilder::InsertNCCLAllReduceOp(
     SSAGraph *result, const std::string &og) const {
 #ifdef PADDLE_WITH_CUDA
   result->ops_.emplace_back(
-      new NCCLAllReduceOpHandle(local_scopes_, places_, *nccl_ctxs_));
+      new NCCLAllReduceOpHandle(local_scopes_, places_, nccl_ctxs_));
+#else
+  result->ops_.emplace_back(new NCCLAllReduceOpHandle(local_scopes_, places_));
+#endif
   auto *op_handle = result->ops_.back().get();
 
   for (size_t i = 0; i < places_.size(); ++i) {
@@ -379,7 +379,9 @@ void MultiDevSSAGraphBuilder::CreateScaleLossGradOp(SSAGraph *result) const {
   for (size_t i = 0; i < places_.size(); ++i) {
 // Insert ScaleCost OpHandle
 #ifdef PADDLE_WITH_CUDA
-    auto *communication_dev_ctx = nccl_ctxs_->DevCtx(places_[i]);
+    auto *communication_dev_ctx =
+        nccl_ctxs_ ? nccl_ctxs_->DevCtx(places_[i])
+                   : platform::DeviceContextPool::Instance().Get(places_[i]);
 #else
     auto *communication_dev_ctx =
         platform::DeviceContextPool::Instance().Get(platform::CPUPlace());

@@ -21,15 +21,25 @@
 namespace paddle {
 namespace framework {
 namespace details {
+
+#ifdef PADDLE_WITH_CUDA
 NCCLAllReduceOpHandle::NCCLAllReduceOpHandle(
     const std::vector<Scope *> &local_scopes,
     const std::vector<platform::Place> &places,
-    const platform::NCCLContextMap &ctxs)
+    const platform::NCCLContextMap *ctxs)
     : local_scopes_(local_scopes), places_(places), nccl_ctxs_(ctxs) {
-  for (auto &p : places_) {
-    this->dev_ctxes_[p] = nccl_ctxs_.DevCtx(p);
+  if (ctxs) {
+    for (auto &p : places_) {
+      this->dev_ctxes_[p] = nccl_ctxs_.DevCtx(p);
+    }
   }
 }
+#else
+NCCLAllReduceOpHandle::NCCLAllReduceOpHandle(
+    const std::vector<Scope *> &local_scopes,
+    const std::vector<platform::Place> &places)
+    : local_scopes_(local_scopes), places_(places) {}
+#endif
 
 void NCCLAllReduceOpHandle::RunImpl() {
   if (NoDummyInputSize() == 1) {
