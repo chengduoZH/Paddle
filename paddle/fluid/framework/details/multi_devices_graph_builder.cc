@@ -338,9 +338,6 @@ void MultiDevSSAGraphBuilder::InsertNCCLAllReduceOp(
     vars.emplace_back(var);
     op_handle->AddOutput(var);
   }
-#else
-  PADDLE_ENFORCE("Not implemented");
-#endif
 }
 
 bool MultiDevSSAGraphBuilder::IsParameterGradientOnce(
