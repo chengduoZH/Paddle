@@ -7,6 +7,7 @@ python/paddle/v2/fluid/tests/book/label_semantic_roles.inference.model/
 *.DS_Store
 build/
 build_doc/
+build_*
 *.user
 
 .vscode
