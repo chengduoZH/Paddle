@@ -339,8 +339,14 @@ void MultiDevSSAGraphBuilder::InsertNCCLAllReduceOp(
       op_handle->SetDeviceContext(
           p, platform::DeviceContextPool::Instance().Get(p));
     }
+#else
+    op_handle->SetDeviceContext(p,
+                                platform::DeviceContextPool::Instance().Get(p));
 #endif
 
+    VLOG(4) << "NCCL  - - - " << p;
+    op_handle->DeviceContext(p)->Wait();
+    VLOG(4) << "NCCL  - - - " << p << "  " << op_handle->DeviceContext(p);
     auto var = new VarHandle(vars.size() - 1, i, og, p);
     vars.emplace_back(var);
     op_handle->AddOutput(var);

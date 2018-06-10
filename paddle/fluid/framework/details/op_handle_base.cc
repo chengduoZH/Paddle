@@ -58,11 +58,22 @@ void OpHandleBase::Run(bool use_event) {
 
 void OpHandleBase::RecordWaitEventOnCtx(platform::DeviceContext *waited_ctx) {
 #ifdef PADDLE_WITH_CUDA
+  if (waited_ctx == nullptr) {
+    VLOG(4) << "waited_ctx == nullptr    " << this->Name();
+  }
+  VLOG(4) << "error 1    " << this->Name();
+
   if (platform::is_cpu_place(waited_ctx->GetPlace()) || events_.empty()) {
+    VLOG(4) << "error 2    " << this->Name();
     for (auto &dev_ctx : dev_ctxes_) {
-      dev_ctx.second->Wait();
+      VLOG(4) << "error 3    " << this->Name();
+      if (dev_ctx.second) {
+        dev_ctx.second->Wait();
+      }
+      VLOG(4) << "error 4    " << this->Name();
     }
   } else {
+    VLOG(4) << "error    " << this->Name();
     auto stream =
         static_cast<platform::CUDADeviceContext *>(waited_ctx)->stream();
     for (auto &ev : events_) {
