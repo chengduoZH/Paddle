@@ -331,9 +331,9 @@ void MultiDevSSAGraphBuilder::InsertNCCLAllReduceOp(
     SSAGraph *result, const std::string &og) const {
 #ifdef PADDLE_WITH_CUDA
   result->ops_.emplace_back(
-      new NCCLAllReduceOpHandle(local_scopes_, places_, nccl_ctxs_));
+      new AllReduceOpHandle(local_scopes_, places_, nccl_ctxs_));
 #else
-  result->ops_.emplace_back(new NCCLAllReduceOpHandle(local_scopes_, places_));
+  result->ops_.emplace_back(new AllReduceOpHandle(local_scopes_, places_));
 #endif
   auto *op_handle = result->ops_.back().get();
 
