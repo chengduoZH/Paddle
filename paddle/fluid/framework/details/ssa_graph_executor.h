@@ -28,11 +28,15 @@ class SSAGraphExecutor {
   DISABLE_COPY_AND_ASSIGN(SSAGraphExecutor);
 
  public:
-  SSAGraphExecutor() {}
+  // Steal graph inside
+  explicit SSAGraphExecutor(std::unique_ptr<SSAGraph> &&graph);
 
   virtual ~SSAGraphExecutor();
 
   virtual FeedFetchList Run(const std::vector<std::string> &fetch_tensors) = 0;
+
+ protected:
+  std::unique_ptr<SSAGraph> graph_;
 };
 }  // namespace details
 }  // namespace framework

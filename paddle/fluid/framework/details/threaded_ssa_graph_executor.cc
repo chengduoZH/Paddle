@@ -21,7 +21,7 @@ ThreadedSSAGraphExecutor::ThreadedSSAGraphExecutor(
     const ExecutionStrategy &strategy, const std::vector<Scope *> &local_scopes,
     const std::vector<platform::Place> &places,
     std::unique_ptr<SSAGraph> &&graph)
-    : graph_(std::move(graph)),
+    : SSAGraphExecutor(std::move(graph)),
       pool_(strategy.num_threads_ >= 2 ? new ::ThreadPool(strategy.num_threads_)
                                        : nullptr),
       local_scopes_(local_scopes),
@@ -210,6 +210,7 @@ void ThreadedSSAGraphExecutor::RunOp(
     op_run();
   }
 }
+
 FasterSSAGraphExecutor::FasterSSAGraphExecutor(
     const ExecutionStrategy &strategy, const std::vector<Scope *> &local_scopes,
     const std::vector<platform::Place> &places,
