@@ -228,7 +228,7 @@ FeedFetchList FasterSSAGraphExecutor::Run(
   for (auto &op : graph_->ops_) {
     OpHandleBase *op_ptr = op.get();
     size_t deps = op_ptr->NoReadyInputSize();
-    op_table.emplace(op_ptr, deps);
+    op_table[op_ptr] = deps;
     global_queue.Push(op_ptr);
   }
   std::vector<std::thread> threads;
@@ -248,7 +248,7 @@ FeedFetchList FasterSSAGraphExecutor::Run(
             return;
           }
         }
-        to_run->Run(strategy_.use_event_);
+        to_run->Run(strategy_.use_cuda_);
         OpHandleBase *have_run = to_run;
         to_run = nullptr;
         if (runned_ops_.fetch_add(1) == op_table_size - 1) {
