@@ -50,7 +50,7 @@ void ThreadedSSAGraphExecutor::RunOp(
     try {
       VLOG(10) << current_op << " " << current_op->Name() << " : "
                << current_op->DebugString();
-      current_op->Run(strategy_.use_event_);
+      current_op->Run(strategy_.use_cuda_);
       --(*total_ops);
       VLOG(10) << current_op << " " << current_op->Name() << " Done ";
     } catch (platform::EnforceNotMet ex) {
