@@ -59,7 +59,11 @@ __global__ void KernelConcat(T** inputs, const int* input_cols, int col_size,
 
     int local_col = tid_x - curr_offset;
     int segment_width = curr_col_offset - curr_offset;
+
+    if (curr_segment >= col_size) printf("curr_segment >= col_size");
+
     T* input_ptr = inputs[curr_segment];
+
     int tid_y = blockIdx.y * blockDim.y + threadIdx.y;
     for (; tid_y < output_rows; tid_y += blockDim.y * gridDim.y)
       output[tid_y * output_cols + tid_x] =

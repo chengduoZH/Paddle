@@ -33,6 +33,8 @@ class ConcatKernel : public framework::OpKernel<T> {
     auto place = ctx.GetPlace();
     out->mutable_data<T>(place);
 
+    VLOG(10) << "Concat Input:";
+
     // Sometimes direct copies will be faster, this maybe need deeply analysis.
     if (axis == 0 && ins.size() < 10) {
       size_t output_offset = 0;
@@ -48,11 +50,14 @@ class ConcatKernel : public framework::OpKernel<T> {
       std::vector<framework::Tensor> inputs(ins.size());
       for (size_t j = 0; j < ins.size(); ++j) {
         inputs[j] = *ins[j];
+        VLOG(10) << inputs[j].dims();
       }
       auto& dev_ctx = ctx.template device_context<DeviceContext>();
       paddle::operators::math::ConcatFunctor<DeviceContext, T> concat_functor;
       concat_functor(dev_ctx, inputs, static_cast<int>(axis), out);
     }
+
+    ctx.device_context().Wait();
   }
 };
 
