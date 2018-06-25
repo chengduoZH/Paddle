@@ -133,7 +133,7 @@ ParallelExecutor::ParallelExecutor(
 
 void ParallelExecutor::BCastParamsToGPUs(
     const std::unordered_set<std::string> &vars, const bool use_cuda) const {
-  auto *main_scope = member_->local_scopes_[0];
+  //  auto *main_scope = member_->local_scopes_[0];
 
   // the the initialize bcast, all vars would be bcast from device(0), otherwise
   // bcast from the specified device.
@@ -199,17 +199,18 @@ void ParallelExecutor::BCastParamsToGPUs(
       for (size_t i = 1; i < member_->places_.size(); ++i) {
         auto local_scope = member_->local_scopes_[i];
         auto *t = local_scope->Var(var)->GetMutable<LoDTensor>();
-#ifdef PADDLE_WITH_CUDA
-        if (use_cuda) {
-          t->Resize(dims);
-          t->mutable_data(cpu, main_tensor.type());
-          paddle::framework::TensorCopy(main_tensor, cpu, t);
-        } else {
-          t->ShareDataWith(main_tensor);
-        }
-#else
+        // #ifdef PADDLE_WITH_CUDA
+        //        if (use_cuda) {
+        //          t->Resize(dims);
+        //          t->mutable_data(cpu, main_tensor.type());
+        //          paddle::framework::TensorCopy(main_tensor, cpu, t);
+        //        } else {
+        //          t->ShareDataWith(main_tensor);
+        //        }
+        // #else
+        //        t->ShareDataWith(main_tensor);
+        // #endif
         t->ShareDataWith(main_tensor);
-#endif
       }
     }
   }
