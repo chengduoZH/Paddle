@@ -104,9 +104,19 @@ class TestMNIST(TestParallelExecutorBase):
     def check_simple_fc_convergence(self,
                                     balance_parameter_opt_between_cards,
                                     use_cuda=True):
-        self.check_network_convergence(simple_fc_net, use_cuda=use_cuda)
+        if not use_cuda:
+            balance_parameter_opt_between_cards = True
         self.check_network_convergence(
-            simple_fc_net, use_cuda=use_cuda, allow_op_delay=True)
+            simple_fc_net,
+            use_cuda=use_cuda,
+            balance_parameter_opt_between_cards=balance_parameter_opt_between_cards
+        )
+        self.check_network_convergence(
+            simple_fc_net,
+            use_cuda=use_cuda,
+            allow_op_delay=True,
+            balance_parameter_opt_between_cards=balance_parameter_opt_between_cards
+        )
 
         img = np.zeros(shape=[32, 784], dtype='float32')
         label = np.ones(shape=[32, 1], dtype='int64')
@@ -129,6 +139,9 @@ class TestMNIST(TestParallelExecutorBase):
     def check_simple_fc_parallel_accuracy(self,
                                           balance_parameter_opt_between_cards,
                                           use_cuda=True):
+
+        if not use_cuda:
+            balance_parameter_opt_between_cards = True
         img = np.zeros(shape=[32, 784], dtype='float32')
         label = np.ones(shape=[32, 1], dtype='int64')
         single_first_loss, single_last_loss = self.check_network_convergence(
@@ -163,7 +176,14 @@ class TestMNIST(TestParallelExecutorBase):
 
     def check_batchnorm_fc_convergence(
             self, balance_parameter_opt_between_cards, use_cuda):
-        self.check_network_convergence(fc_with_batchnorm, use_cuda=use_cuda)
+        if not use_cuda:
+            balance_parameter_opt_between_cards = True
+
+        self.check_network_convergence(
+            fc_with_batchnorm,
+            use_cuda=use_cuda,
+            balance_parameter_opt_between_cards=balance_parameter_opt_between_cards
+        )
         img = np.zeros(shape=[32, 784], dtype='float32')
         label = np.ones(shape=[32, 1], dtype='int64')
         self.check_network_convergence(
