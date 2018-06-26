@@ -95,7 +95,7 @@ ParallelExecutor::ParallelExecutor(
   }
 
   if (member_->local_scopes_.size() != 1 && local_scopes.empty()) {
-    BCastParamsToGPUs(bcast_vars, member_->use_cuda_);
+    BCastParamsToGPUs(bcast_vars);
   }
   // Startup Program has been run. All local scopes has correct parameters.
 
@@ -132,9 +132,7 @@ ParallelExecutor::ParallelExecutor(
 }
 
 void ParallelExecutor::BCastParamsToGPUs(
-    const std::unordered_set<std::string> &vars, const bool use_cuda) const {
-  auto *main_scope = member_->local_scopes_[0];
-
+    const std::unordered_set<std::string> &vars) const {
   // the the initialize bcast, all vars would be bcast from device(0), otherwise
   // bcast from the specified device.
   bool initialize = builder_.get() == nullptr ? true : false;
@@ -200,13 +198,9 @@ void ParallelExecutor::BCastParamsToGPUs(
         auto local_scope = member_->local_scopes_[i];
         auto *t = local_scope->Var(var)->GetMutable<LoDTensor>();
 #ifdef PADDLE_WITH_CUDA
-        if (use_cuda) {
-          t->Resize(dims);
-          t->mutable_data(cpu, main_tensor.type());
-          paddle::framework::TensorCopy(main_tensor, cpu, t);
-        } else {
-          t->ShareDataWith(main_tensor);
-        }
+        t->Resize(dims);
+        t->mutable_data(cpu, main_tensor.type());
+        paddle::framework::TensorCopy(main_tensor, cpu, t);
 #else
         t->ShareDataWith(main_tensor);
 #endif
