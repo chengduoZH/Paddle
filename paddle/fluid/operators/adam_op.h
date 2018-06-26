@@ -15,6 +15,7 @@ limitations under the License. */
 #pragma once
 #include <math.h>  // for sqrt in CPU and CUDA
 #include <Eigen/Dense>
+#include <vector>
 #include "paddle/fluid/framework/op_registry.h"
 #include "paddle/fluid/operators/detail/safe_ref.h"
 #include "paddle/fluid/operators/math/selected_rows_functor.h"
@@ -249,7 +250,16 @@ class AdamOpKernel : public framework::OpKernel<T> {
     auto& mom2_out =
         Ref(ctx.Output<LoDTensor>("Moment2Out"), "Must set Moment1Out");
 
-    VLOG(2) << ctx.Outputs("ParamOut")[0] << ": " << param_out.data<void>();
+    {
+      std::vector<T> yv;
+      framework::TensorToVector(param_out, ctx.device_context(), &yv);
+      T total01 = 0.0;
+      for (T v : yv) {
+        total01 += v;
+      }
+      VLOG(2) << ctx.Outputs("ParamOut")[0] << ": " << param_out.data<void>()
+              << ": Before sum: " << total01;
+    }
 
     if (grad_var->IsType<framework::LoDTensor>()) {
       auto& grad = Ref(ctx.Input<LoDTensor>("Grad"), "Must set Grad");
@@ -312,6 +322,17 @@ class AdamOpKernel : public framework::OpKernel<T> {
       for_range(functor);
     } else {
       PADDLE_THROW("Variable type not supported by adam_op");
+    }
+
+    {
+      std::vector<T> yv;
+      framework::TensorToVector(param_out, ctx.device_context(), &yv);
+      T total01 = 0.0;
+      for (T v : yv) {
+        total01 += v;
+      }
+      VLOG(2) << ctx.Outputs("ParamOut")[0] << ": " << param_out.data<void>()
+              << ": After sum: " << total01;
     }
   }
 };
