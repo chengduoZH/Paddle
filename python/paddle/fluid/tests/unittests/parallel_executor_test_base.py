@@ -52,7 +52,9 @@ class TestParallelExecutorBase(unittest.TestCase):
             if seed is not None:
                 startup.random_seed = seed
             loss = method(use_feed=feed_dict is not None)
-            adam = fluid.optimizer.Adam()
+
+            adam = fluid.optimizer.SGD(learning_rate=0.01)
+            #adam = fluid.optimizer.Adam()
             adam.minimize(loss)
             if memory_opt:
                 fluid.memory_optimize(main)
@@ -64,6 +66,7 @@ class TestParallelExecutorBase(unittest.TestCase):
 
             build_strategy = fluid.BuildStrategy()
             build_strategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce if balance_parameter_opt_between_cards else fluid.BuildStrategy.ReduceStrategy.AllReduce
+	    build_strategy.debug_graphviz_path = "./graph.dot"
 
             if use_parallel_executor:
                 exe = fluid.ParallelExecutor(
@@ -84,7 +87,11 @@ class TestParallelExecutorBase(unittest.TestCase):
             first_loss = np.array(first_loss)
 
             for i in xrange(iter):
-                run_executor(exe=exe, feed=feed_dict, fetch_list=[])
+                last_loss, = run_executor(
+                    exe=exe, feed=feed_dict, fetch_list=[loss.name])
+                # run_executor(exe=exe, feed=feed_dict, fetch_list=[])
+                last_loss = np.array(last_loss)
+                print last_loss
 
             last_loss, = run_executor(
                 exe=exe, feed=feed_dict, fetch_list=[loss.name])

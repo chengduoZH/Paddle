@@ -260,11 +260,17 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
     }
   }
 
-  // Insert BCast Ops
-  for (size_t dev_id = 0; dev_id < bcast_var_name_set.size(); ++dev_id) {
-    auto &to_bcast_set = bcast_var_name_set[dev_id];
-    for (auto &bcast_name : to_bcast_set) {
-      CreateBroadcastOp(&result, bcast_name, dev_id);
+  bool use_gpu=true;
+#ifdef PADDLE_WITH_CUDA
+  use_gpu = nccl_ctxs_ != nullptr;
+#endif
+  if(use_gpu){
+    // Insert BCast Ops
+    for (size_t dev_id = 0; dev_id < bcast_var_name_set.size(); ++dev_id) {
+      auto &to_bcast_set = bcast_var_name_set[dev_id];
+      for (auto &bcast_name : to_bcast_set) {
+        CreateBroadcastOp(&result, bcast_name, dev_id);
+      }
     }
   }
   /*

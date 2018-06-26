@@ -127,14 +127,9 @@ void AllReduceOpHandle::RunImpl() {
 
         RunAndRecordEvent(p, [&trg, var, dev_ctx, p, use_cuda] {
 #ifdef PADDLE_WITH_CUDA
-          if (use_cuda) {
-            auto &tensor_dst = *var->GetMutable<framework::LoDTensor>();
-            auto &tensor_src = trg;
-            TensorCopy(tensor_src, p, *dev_ctx, &tensor_dst);
-          } else {
-            auto &tensor_dst = *var->GetMutable<framework::LoDTensor>();
-            tensor_dst.ShareDataWith(trg);
-          }
+          auto &tensor_dst = *var->GetMutable<framework::LoDTensor>();
+          auto &tensor_src = trg;
+          TensorCopy(tensor_src, p, *dev_ctx, &tensor_dst);
 #else
           auto &tensor_dst = *var->GetMutable<framework::LoDTensor>();
           tensor_dst.ShareDataWith(trg);
