@@ -154,7 +154,9 @@ void ParallelExecutor::BCastParamsToGPUs(
     }
 
     auto &main_tensor = main_var->Get<LoDTensor>();
+#ifdef PADDLE_WITH_CUDA
     auto &dims = main_tensor.dims();
+#endif
     if (paddle::platform::is_gpu_place(main_tensor.place())) {
 #ifdef PADDLE_WITH_CUDA
       std::vector<void *> buffers;
@@ -195,9 +197,23 @@ void ParallelExecutor::BCastParamsToGPUs(
       for (size_t i = 1; i < member_->places_.size(); ++i) {
         auto local_scope = member_->local_scopes_[i];
         auto *t = local_scope->Var(var)->GetMutable<LoDTensor>();
-        t->Resize(dims);
-        t->mutable_data(cpu, main_tensor.type());
-        paddle::framework::TensorCopy(main_tensor, cpu, t);
+        if (VLOG_IS_ON(2)) {
+          t->Resize(dims);
+          t->mutable_data(cpu, main_tensor.type());
+          paddle::framework::TensorCopy(main_tensor, cpu, t);
+        } else {
+#ifdef PADDLE_WITH_CUDA
+          if(member_->use_cuda_){
+            t->Resize(dims);
+            t->mutable_data(cpu, main_tensor.type());
+            paddle::framework::TensorCopy(main_tensor, cpu, t);
+          } else{
+            t->ShareDataWith(main_tensor);
+          }
+#else
+          t->ShareDataWith(main_tensor);
+#endif
+        }
       }
     }
   }
@@ -255,3 +271,4 @@ ParallelExecutor::~ParallelExecutor() {
 
 }  // namespace framework
 }  // namespace paddle
+

@@ -84,7 +84,10 @@ class TestParallelExecutorBase(unittest.TestCase):
             first_loss = np.array(first_loss)
 
             for i in xrange(iter):
-                run_executor(exe=exe, feed=feed_dict, fetch_list=[])
+               cur_loss, = run_executor(
+                   exe=exe, feed=feed_dict, fetch_list=[loss.name])
+               cur_loss = np.array(cur_loss)
+               print cur_loss
 
             last_loss, = run_executor(
                 exe=exe, feed=feed_dict, fetch_list=[loss.name])

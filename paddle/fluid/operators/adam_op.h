@@ -249,6 +249,8 @@ class AdamOpKernel : public framework::OpKernel<T> {
     auto& mom2_out =
         Ref(ctx.Output<LoDTensor>("Moment2Out"), "Must set Moment1Out");
 
+    VLOG(2) << ctx.Outputs("ParamOut")[0] << ": " << param_out.data<void>();
+
     if (grad_var->IsType<framework::LoDTensor>()) {
       auto& grad = Ref(ctx.Input<LoDTensor>("Grad"), "Must set Grad");
 

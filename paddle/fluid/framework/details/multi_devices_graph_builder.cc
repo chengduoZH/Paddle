@@ -263,13 +263,30 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
     }
   }
 
-  // Insert BCast Ops
-  for (size_t dev_id = 0; dev_id < bcast_var_name_set.size(); ++dev_id) {
-    auto &to_bcast_set = bcast_var_name_set[dev_id];
-    for (auto &bcast_name : to_bcast_set) {
-      CreateBroadcastOp(&result, bcast_name, dev_id);
+  if (VLOG_IS_ON(2)) {
+    // Insert BCast Ops
+    for (size_t dev_id = 0; dev_id < bcast_var_name_set.size(); ++dev_id) {
+      auto &to_bcast_set = bcast_var_name_set[dev_id];
+      for (auto &bcast_name : to_bcast_set) {
+        CreateBroadcastOp(&result, bcast_name, dev_id);
+      }
+    }
+  } else { 
+    bool use_gpu = false;
+#ifdef PADDLE_WITH_CUDA
+    use_gpu = nccl_ctxs_ != nullptr;
+#endif
+    if (use_gpu) {
+      // Insert BCast Ops
+      for (size_t dev_id = 0; dev_id < bcast_var_name_set.size(); ++dev_id) {
+        auto &to_bcast_set = bcast_var_name_set[dev_id];
+        for (auto &bcast_name : to_bcast_set) {
+          CreateBroadcastOp(&result, bcast_name, dev_id);
+        }
+      }
     }
   }
+
   /*
     Dependency graph has been constructed. However, there are still data
     hazards need to be handled.
@@ -473,7 +490,7 @@ void MultiDevSSAGraphBuilder::ConnectOp(SSAGraph *result, OpHandleBase *op,
 void MultiDevSSAGraphBuilder::CreateDistTrainOp(SSAGraph *result,
                                                 const OpDesc &op) const {
   int op_dev_id = -1;
-  if (op.Type() == "split_byref" || op.Type() == "split_selected_rows") {
+  if (op.Type() == "split_byref") {
     op_dev_id = GetVarDeviceID(op.InputArgumentNames()[0]);
     if (strategy_.reduce_ == BuildStrategy::ReduceStrategy::kAllReduce) {
       op_dev_id = GetAppropriateDeviceID(op.InputArgumentNames());
