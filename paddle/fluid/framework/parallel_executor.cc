@@ -133,8 +133,6 @@ ParallelExecutor::ParallelExecutor(
 
 void ParallelExecutor::BCastParamsToGPUs(
     const std::unordered_set<std::string> &vars, const bool use_cuda) const {
-  auto *main_scope = member_->local_scopes_[0];
-
   // the the initialize bcast, all vars would be bcast from device(0), otherwise
   // bcast from the specified device.
   bool initialize = builder_.get() == nullptr ? true : false;
@@ -156,11 +154,10 @@ void ParallelExecutor::BCastParamsToGPUs(
     }
 
     auto &main_tensor = main_var->Get<LoDTensor>();
-#ifdef PADDLE_WITH_CUDA
-    auto &dims = main_tensor.dims();
-#endif
+
     if (paddle::platform::is_gpu_place(main_tensor.place())) {
 #ifdef PADDLE_WITH_CUDA
+      auto &dims = main_tensor.dims();
       std::vector<void *> buffers;
       size_t numel = main_tensor.numel();
       ncclDataType_t data_type = platform::ToNCCLDataType(main_tensor.type());
@@ -190,7 +187,6 @@ void ParallelExecutor::BCastParamsToGPUs(
         }
         member_->nccl_ctxs_->WaitAll();
       }
-
 #else
       PADDLE_THROW("Not compiled with CUDA");
 #endif
@@ -201,6 +197,7 @@ void ParallelExecutor::BCastParamsToGPUs(
         auto *t = local_scope->Var(var)->GetMutable<LoDTensor>();
 #ifdef PADDLE_WITH_CUDA
         if (use_cuda) {
+          auto &dims = main_tensor.dims();
           t->Resize(dims);
           t->mutable_data(cpu, main_tensor.type());
           paddle::framework::TensorCopy(main_tensor, cpu, t);
