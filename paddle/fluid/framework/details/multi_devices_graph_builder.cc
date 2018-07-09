@@ -284,8 +284,11 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
 #ifdef PADDLE_WITH_CUDA
   use_gpu = nccl_ctxs_ != nullptr;
 #endif
+  bool insert_bcast_for_cpu =
+      !use_gpu && !strategy_.share_parameter_between_cards_;
+  bool insert_bcast_for_gpu = use_gpu;
 
-  if (use_gpu || !(use_gpu || strategy_.share_parameter_between_cards_)) {
+  if (insert_bcast_for_gpu || insert_bcast_for_cpu) {
     // Insert BCast Ops
     for (size_t dev_id = 0; dev_id < bcast_var_name_set.size(); ++dev_id) {
       auto &to_bcast_set = bcast_var_name_set[dev_id];
