@@ -47,6 +47,10 @@ void SSAGraphBuilder::PolishGraphToSupportDataHazards(SSAGraph *graph) {
   }
 }
 
+void SSAGraphBuilder::RemoveIndependentGraph(SSAGraph *graph) const {
+  //
+}
+
 VarHandle *SSAGraphBuilder::CreateOrGetLatestVarHandle(
     SSAGraph *graph, const std::string &each_var_name,
     const platform::Place &place, size_t place_offset) {

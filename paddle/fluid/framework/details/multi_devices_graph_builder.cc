@@ -305,6 +305,11 @@ std::unique_ptr<SSAGraph> MultiDevSSAGraphBuilder::Build(
   PolishGraphToSupportDataHazards(&result);
 
   /*
+   * Remove Other graph
+   */
+  RemoveIndependentGraph(&result);
+
+  /*
    * Only variables should be the leaves of graph.
    */
   AddOutputToLeafOps(&result);

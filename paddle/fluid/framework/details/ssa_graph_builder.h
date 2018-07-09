@@ -44,6 +44,8 @@ class SSAGraphBuilder {
    */
   static void PolishGraphToSupportDataHazards(SSAGraph *graph);
 
+  static void RemoveIndependentGraph(SSAGraph *graph);
+
   static VarHandle *CreateOrGetLatestVarHandle(SSAGraph *graph,
                                                const std::string &each_var_name,
                                                const platform::Place &place,
