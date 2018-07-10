@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/fluid/framework/details/ssa_graph_builder.h"
+#include <deque>
 #include <utility>
+#include <vector>
 
 namespace paddle {
 namespace framework {
@@ -47,8 +49,69 @@ void SSAGraphBuilder::PolishGraphToSupportDataHazards(SSAGraph *graph) {
   }
 }
 
-void SSAGraphBuilder::RemoveIndependentGraph(SSAGraph *graph) const {
-  //
+void SSAGraphBuilder::RemoveIndependentGraph(SSAGraph *graph) {
+  std::unordered_set<VarHandleBase *> visited_var;
+  std::unordered_set<OpHandleBase *> visited_op;
+  std::vector<std::unordered_set<OpHandleBase *>> op_groups;
+
+  auto var_iter = graph->dep_vars_.begin();
+
+  while (visited_op.size() != graph->ops_.size()) {
+    std::unordered_set<OpHandleBase *> current_group;
+
+    VarHandleBase *unvisited = nullptr;
+    for (; var_iter != graph->dep_vars_.end(); ++var_iter) {
+      if (visited_var.count(var_iter->get()) == 0) {
+        unvisited = var_iter->get();
+        visited_var.emplace(unvisited);
+      }
+    }
+
+    if (unvisited == nullptr ||
+        unvisited->pending_ops_.size() ==
+            0) {  // TODO(zcd): for detail error info
+      PADDLE_THROW("The graph has some error");
+    }
+
+    std::deque<OpHandleBase *> need_visite;
+
+    for (auto op : unvisited->pending_ops_) {
+      if (visited_op.count(op) == 0) {
+        need_visite.push_back(op);
+      }
+    }
+
+    while (!need_visite.empty()) {
+      auto op = need_visite.front();
+      need_visite.pop_back();
+
+      visited_op.emplace(op);
+      current_group.emplace(op);
+
+      for (auto &out_var : op->Outputs()) {
+        for (auto pend_op : out_var->pending_ops_) {
+          if (visited_op.count(pend_op) == 0) {
+            need_visite.push_back(pend_op);
+            visited_op.emplace(pend_op);
+            current_group.emplace(op);
+          }
+        }
+      }
+
+      for (auto &in_var : op->Inputs()) {
+        auto gen_op = in_var->generated_op_;
+        if (gen_op && visited_op.count(gen_op) == 0) {
+          visited_op.emplace(gen_op);
+          current_group.emplace(op);
+        }
+      }
+    }
+
+    op_groups.emplace_back(current_group);
+  }
+  if (op_groups.size() > 1) {
+    VLOG(2) << "op_groups:size:" << op_groups.size();
+  }
 }
 
 VarHandle *SSAGraphBuilder::CreateOrGetLatestVarHandle(
