@@ -82,6 +82,8 @@ class OpHandleBase {
 
   size_t NoDummyInputSize() const;
 
+  int deep_id{-1};
+
  protected:
   void RunAndRecordEvent(const std::function<void()> &callback);
 

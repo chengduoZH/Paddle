@@ -32,6 +32,7 @@ class SSAGraghBuilderWithChecker : public SSAGraphBuilder {
   std::unique_ptr<SSAGraph> Build(const ProgramDesc& program) const override {
     auto graph = builder_->Build(program);
     PADDLE_ENFORCE(IsValidGraph(graph.get()));
+    AnalysisDeepId(graph.get());
     return graph;
   }
 
@@ -40,6 +41,8 @@ class SSAGraghBuilderWithChecker : public SSAGraphBuilder {
   }
 
   bool IsValidGraph(const SSAGraph* graph) const;
+
+  void AnalysisDeepId(const SSAGraph* graph) const;
 
  private:
   std::unique_ptr<SSAGraphBuilder> builder_;
