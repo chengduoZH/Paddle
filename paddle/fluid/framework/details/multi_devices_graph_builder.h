@@ -57,7 +57,6 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
   std::string loss_var_name_;
   const std::vector<platform::Place> &places_;
   const std::vector<Scope *> &local_scopes_;
-  std::unordered_set<std::string> grad_names_;
 
 #ifdef PADDLE_WITH_CUDA
   platform::NCCLContextMap *nccl_ctxs_;
@@ -92,10 +91,6 @@ class MultiDevSSAGraphBuilder : public SSAGraphBuilder {
                             int dst_dev_id) const;
   void CreateComputationalOp(SSAGraph *result, const OpDesc &op,
                              int dev_id) const;
-
-  bool IsParameterGradientOnce(
-      const std::string &og,
-      std::unordered_set<std::string> *og_has_been_broadcast) const;
 
   int GetOpDeviceID(const OpDesc &op) const;
 
