@@ -42,24 +42,61 @@ class OpFusionTranspiler(object):
         # get var-op relation
 
         var_op = collections.defaultdict(list)
-        for op in program.block(0).ops:
-            assert isinstance(op, framework.Operator)
-            # for in_name in op.input_names():
-            #     for in_var in op.input(in_name):
-            #         if not var_op.has_key(in_var):
-            #             var_op[in_var] = op
-            #         else:
-            #             assert var_op[in_var] == op
+        momentum_ops = collections.defaultdict(list)
+        op_role_ops = collections.defaultdict(list)
+        op_role_vars_ops = dict()
 
+        for idx in range(len(program.block(0).ops)):
+            op = program.block(0).ops[idx]
+            assert isinstance(op, framework.Operator)
+            # Get the relationship between output and op
             for out_name in op.output_names:
                 for out_var in op.output(out_name):
                     if var_op.has_key(out_var):
                         if var_op[out_var][-1] == op:
-                            assert var_op[out_var][-1] == op
+                            raise TypeError("program has duplicate op.")
                         else:
                             var_op[out_var].append(op)
                     else:
                         var_op[out_var] = [op]
+            # Get all the momemtum op
+            op_role = op.attr('op_role')
+            if op_role_ops.has_key(op_role):
+                op_role_ops[op_role].append(op)
+            else:
+                op_role_ops[op_role] = [op]
 
-        for op in reversed(program.block[0].ops):
-            print op
+            if op_role == 2L:
+                op_role_vars = tuple(op.attr('op_role_var'))
+                if op_role_vars_ops.has_key(op_role_vars):
+                    op_role_vars_ops[op_role_vars].append((op, idx))
+                else:
+                    op_role_vars_ops[op_role_vars] = [(op, idx)]
+
+            if op.type == 'momentum':
+                if momentum_ops.has_key('momentum'):
+                    momentum_ops['momentum'].append(op)
+                else:
+                    momentum_ops['momentum'] = [op]
+
+        delete_op_idx = []
+        for op_role_vars_op in op_role_vars_ops:
+            assert len(op_role_vars_ops[op_role_vars_op]) == 3
+            assert op_role_vars_ops[op_role_vars_op][0][0].type == "scale"
+            assert op_role_vars_ops[op_role_vars_op][1][
+                0].type == "elementwise_add"
+            assert op_role_vars_ops[op_role_vars_op][2][0].type == "momentum"
+            decay_factor = op_role_vars_ops[op_role_vars_op][0][0].attr('scale')
+            op_role_vars_ops[op_role_vars_op][2][0].set_attr('decay',
+                                                             decay_factor)
+            idx1 = op_role_vars_ops[op_role_vars_op][0][1]
+            idx2 = op_role_vars_ops[op_role_vars_op][1][1]
+            delete_op_idx.append(idx1)
+            delete_op_idx.append(idx2)
+
+        delete_num = 0
+        delete_op_idx = np.sort(delete_op_idx)
+        for idx in range(len(delete_op_idx)):
+            op_idx = delete_op_idx[idx] - delete_num
+            program.block(0).remove_op(op_idx)
+            delete_num += 1
