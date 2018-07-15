@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
+
 #include "paddle/fluid/framework/eigen.h"
 #include "paddle/fluid/framework/op_registry.h"
 
@@ -22,7 +23,7 @@ namespace operators {
 template <typename T>
 class MomentumOpKernel : public framework::OpKernel<T> {
  public:
-  void Compute(const framework::ExecutionContext& ctx) const override {
+  void Compute(const framework::ExecutionContext &ctx) const override {
     auto param_out = ctx.Output<framework::Tensor>("ParamOut");
     auto velocity_out = ctx.Output<framework::Tensor>("VelocityOut");
     auto param = ctx.Input<framework::Tensor>("Param");
@@ -34,6 +35,7 @@ class MomentumOpKernel : public framework::OpKernel<T> {
     velocity_out->mutable_data<T>(ctx.GetPlace());
 
     T mu = static_cast<T>(ctx.Attr<float>("mu"));
+    T decay = static_cast<T>(ctx.Attr<float>("decay"));
     bool use_nesterov = ctx.Attr<bool>("use_nesterov");
 
     auto p_out = framework::EigenVector<T>::Flatten(*param_out);
@@ -42,9 +44,9 @@ class MomentumOpKernel : public framework::OpKernel<T> {
     auto p = framework::EigenVector<T>::Flatten(*param);
     auto v = framework::EigenVector<T>::Flatten(*velocity);
     auto g = framework::EigenVector<T>::Flatten(*grad);
-    auto* lr = learning_rate->data<T>();
+    auto *lr = learning_rate->data<T>();
 
-    v_out = v * mu + g;
+    v_out = v * mu + g + p * decay;
     if (use_nesterov) {
       p_out = p - (g - v_out * mu) * lr[0];
     } else {

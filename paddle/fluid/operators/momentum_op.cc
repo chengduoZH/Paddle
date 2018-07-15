@@ -33,6 +33,8 @@ class MomentumOp : public framework::OperatorWithKernel {
                    "Input(velocity) of Momentum should not be null.");
     PADDLE_ENFORCE(ctx->HasInput("LearningRate"),
                    "Input(LearningRate) of Momentum should not be null.");
+    //    PADDLE_ENFORCE(ctx->HasInput("Decay"),
+    //                     "Input(Decay) of Momentum should not be null.");
 
     PADDLE_ENFORCE(ctx->HasOutput("ParamOut"),
                    "Output(ParamOut) of Momentum should not be null.");
@@ -40,14 +42,16 @@ class MomentumOp : public framework::OperatorWithKernel {
                    "Output(VelocityOut) of Momentum should not be null.");
 
     auto param_dim = ctx->GetInputDim("Param");
-    PADDLE_ENFORCE_EQ(
-        param_dim, ctx->GetInputDim("Grad"),
-        "Param and Grad input of MomentumOp should have the same dimension.");
-    PADDLE_ENFORCE_EQ(
-        param_dim, ctx->GetInputDim("Velocity"),
-        "Param and Velocity of MomentumOp should have the same dimension.");
+    PADDLE_ENFORCE_EQ(param_dim, ctx->GetInputDim("Grad"),
+                      "Param and Grad input of MomentumOp should have the "
+                      "same dimension.");
+    PADDLE_ENFORCE_EQ(param_dim, ctx->GetInputDim("Velocity"),
+                      "Param and Velocity of MomentumOp should have the "
+                      "same dimension.");
     PADDLE_ENFORCE_EQ(framework::product(ctx->GetInputDim("LearningRate")), 1,
                       "Learning_rate should be a scalar");
+    //    PADDLE_ENFORCE_EQ(framework::product(ctx->GetInputDim("Decay")), 1,
+    //                        "Learning_rate should be a scalar");
 
     ctx->SetOutputDim("ParamOut", param_dim);
     ctx->SetOutputDim("VelocityOut", param_dim);
@@ -84,6 +88,7 @@ class MomentumOpMaker : public framework::OpProtoAndCheckerMaker {
               "(Tensor) This output is updated velocity. "
               "It shared memory with Input(Velocity).");
 
+    AddAttr<float>("decay", "(float) parameter decay factor.").SetDefault(0.0);
     AddAttr<float>("mu", "(float) Momentum coefficient");
     AddAttr<bool>("use_nesterov",
                   "(bool, default false) "
@@ -100,7 +105,8 @@ velocity = mu * velocity + gradient \\
 if (use\_nesterov):   \\
   param = param - gradient * learning\_rate + mu * velocity * learning\_rate \\
 else:   \\
-  param = param - learning\_rate * velocity. \\
+  param = param + learning\_rate * decay * w  - learning\_rate * velocity. \\
+        &= param + learning\_rate * (decay * w  - velocity).
 $$
 
 )DOC");

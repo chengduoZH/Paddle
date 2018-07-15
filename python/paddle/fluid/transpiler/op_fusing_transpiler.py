@@ -18,6 +18,8 @@ import numpy as np
 from .. import core
 from ..framework import Program
 from ..executor import global_scope
+import collections
+import copy
 
 
 class OpFusionTranspiler(object):
@@ -39,7 +41,7 @@ class OpFusionTranspiler(object):
 
         # get var-op relation
 
-        var_op = dict()
+        var_op = collections.defaultdict(list)
         for op in program.block(0).ops:
             assert isinstance(op, framework.Operator)
             # for in_name in op.input_names():
@@ -52,9 +54,12 @@ class OpFusionTranspiler(object):
             for out_name in op.output_names:
                 for out_var in op.output(out_name):
                     if var_op.has_key(out_var):
-                        assert var_op[out_var] == op
+                        if var_op[out_var][-1] == op:
+                            assert var_op[out_var][-1] == op
+                        else:
+                            var_op[out_var].append(op)
                     else:
-                        var_op[out_var] = op
+                        var_op[out_var] = [op]
 
         for op in reversed(program.block[0].ops):
             print op

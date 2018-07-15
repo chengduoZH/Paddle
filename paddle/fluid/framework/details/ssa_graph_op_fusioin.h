@@ -28,15 +28,9 @@ class OpFusionBuilder : public SSAGraphBuilder {
       : builder_(std::move(builder)) {}
 
   std::unique_ptr<SSAGraph> Build(const ProgramDesc& program) const override {
+    auto graph = builder_->Build(program);
+
     // 1. 获取输出变量和op之间的对应关系
-    //  for (auto *var : program->Block(0).AllVars()) {
-    //    all_vars_.emplace(var->Name(), var);
-    //  }
-    //
-    //  std::unordered_map<std::string, >
-    //
-    //  for (auto *op : program->Block(0).AllOps()) {
-    //  }
 
     // 2. 对graph进行拓扑排序
 
@@ -46,9 +40,6 @@ class OpFusionBuilder : public SSAGraphBuilder {
 
     // 将FC(mul + add_bias + relu)
 
-    auto graph = builder_->Build(program);
-    PADDLE_ENFORCE(IsValidGraph(graph.get()));
-    AnalysisDeepId(graph.get());
     return graph;
   }
 
