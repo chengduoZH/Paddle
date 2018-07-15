@@ -20,15 +20,15 @@ namespace ops = paddle::operators;
 namespace plat = paddle::platform;
 
 REGISTER_OP_CUDA_KERNEL(
-    elementwise_add,
-    ops::ElementwiseAddReluKernel<plat::CUDADeviceContext, float>,
-    ops::ElementwiseAddReluKernel<plat::CUDADeviceContext, double>,
-    ops::ElementwiseAddReluKernel<plat::CUDADeviceContext, int>,
-    ops::ElementwiseAddReluKernel<plat::CUDADeviceContext, int64_t>,
-    ops::ElementwiseAddReluKernel<plat::CUDADeviceContext, plat::float16>);
+    fused_elementwise_add_relu,
+    ops::FusedElementwiseAddReluKernel<plat::CUDADeviceContext, float>,
+    ops::FusedElementwiseAddReluKernel<plat::CUDADeviceContext, double>,
+    ops::FusedElementwiseAddReluKernel<plat::CUDADeviceContext, int>,
+    ops::FusedElementwiseAddReluKernel<plat::CUDADeviceContext, int64_t>,
+    ops::FusedElementwiseAddReluKernel<plat::CUDADeviceContext, plat::float16>);
 REGISTER_OP_CUDA_KERNEL(
-    elementwise_add_grad,
-    ops::ElementwiseAddReluGradKernel<plat::CUDADeviceContext, float>,
-    ops::ElementwiseAddReluGradKernel<plat::CUDADeviceContext, double>,
-    ops::ElementwiseAddReluGradKernel<plat::CUDADeviceContext, int>,
-    ops::ElementwiseAddReluGradKernel<plat::CUDADeviceContext, int64_t>);
+    fused_elementwise_add_relu_grad,
+    ops::FusedElementwiseAddReluGradKernel<plat::CUDADeviceContext, float>,
+    ops::FusedElementwiseAddReluGradKernel<plat::CUDADeviceContext, double>,
+    ops::FusedElementwiseAddReluGradKernel<plat::CUDADeviceContext, int>,
+    ops::FusedElementwiseAddReluGradKernel<plat::CUDADeviceContext, int64_t>);

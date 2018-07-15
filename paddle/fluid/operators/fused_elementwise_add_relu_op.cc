@@ -15,19 +15,24 @@ limitations under the License. */
 #include "paddle/fluid/operators/fused_elementwise_add_relu_op.h"
 #include "paddle/fluid/operators/elementwise_op.h"
 namespace ops = paddle::operators;
-REGISTER_ELEMWISE_OP(elementwise_add_relu, "AddRelu", "Out = max(X + Y, 0)");
+REGISTER_ELEMWISE_OP(fused_elementwise_add_relu, "AddRelu",
+                     "Out = max(X + Y, 0)");
 REGISTER_OP_CPU_KERNEL(
-    elementwise_add_relu,
-    ops::ElementwiseAddReluKernel<paddle::platform::CPUDeviceContext, float>,
-    ops::ElementwiseAddReluKernel<paddle::platform::CPUDeviceContext, double>,
-    ops::ElementwiseAddReluKernel<paddle::platform::CPUDeviceContext, int>,
-    ops::ElementwiseAddReluKernel<paddle::platform::CPUDeviceContext, int64_t>);
+    fused_elementwise_add_relu,
+    ops::FusedElementwiseAddReluKernel<paddle::platform::CPUDeviceContext,
+                                       float>,
+    ops::FusedElementwiseAddReluKernel<paddle::platform::CPUDeviceContext,
+                                       double>,
+    ops::FusedElementwiseAddReluKernel<paddle::platform::CPUDeviceContext, int>,
+    ops::FusedElementwiseAddReluKernel<paddle::platform::CPUDeviceContext,
+                                       int64_t>);
 REGISTER_OP_CPU_KERNEL(
-    elementwise_add_relu_grad,
-    ops::ElementwiseAddReluGradKernel<paddle::platform::CPUDeviceContext,
-                                      float>,
-    ops::ElementwiseAddReluGradKernel<paddle::platform::CPUDeviceContext,
-                                      double>,
-    ops::ElementwiseAddReluGradKernel<paddle::platform::CPUDeviceContext, int>,
-    ops::ElementwiseAddReluGradKernel<paddle::platform::CPUDeviceContext,
-                                      int64_t>);
+    fused_elementwise_add_relu_grad,
+    ops::FusedElementwiseAddReluGradKernel<paddle::platform::CPUDeviceContext,
+                                           float>,
+    ops::FusedElementwiseAddReluGradKernel<paddle::platform::CPUDeviceContext,
+                                           double>,
+    ops::FusedElementwiseAddReluGradKernel<paddle::platform::CPUDeviceContext,
+                                           int>,
+    ops::FusedElementwiseAddReluGradKernel<paddle::platform::CPUDeviceContext,
+                                           int64_t>);

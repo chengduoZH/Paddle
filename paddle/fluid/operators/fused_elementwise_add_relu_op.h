@@ -30,10 +30,10 @@ struct AddAddReluFunctor {
 };
 
 template <typename DeviceContext, typename T>
-void default_elementwise_add_relu(const framework::ExecutionContext& ctx,
-                                  const framework::Tensor* x,
-                                  const framework::Tensor* y,
-                                  framework::Tensor* z) {
+void default_fused_elementwise_add_relu(const framework::ExecutionContext& ctx,
+                                        const framework::Tensor* x,
+                                        const framework::Tensor* y,
+                                        framework::Tensor* z) {
   int axis = ctx.Attr<int>("axis");
   ElementwiseComputeEx<AddAddReluFunctor<T>, DeviceContext, T>(
       ctx, x, y, axis, AddAddReluFunctor<T>(), z);
@@ -43,9 +43,9 @@ template <typename DeviceContext, typename T>
 typename std::enable_if<
     std::is_floating_point<T>::value &&
     std::is_same<DeviceContext, platform::CPUDeviceContext>::value>::type
-elementwise_add_relu(const framework::ExecutionContext& ctx,
-                     const framework::Tensor* x, const framework::Tensor* y,
-                     framework::Tensor* z) {
+fused_elementwise_add_relu(const framework::ExecutionContext& ctx,
+                           const framework::Tensor* x,
+                           const framework::Tensor* y, framework::Tensor* z) {
   auto eigen_x = framework::EigenVector<T>::Flatten(*x);
   auto eigen_y = framework::EigenVector<T>::Flatten(*y);
   auto eigen_z = framework::EigenVector<T>::Flatten(*z);
@@ -58,14 +58,14 @@ template <typename DeviceContext, typename T>
 typename std::enable_if<
     !std::is_floating_point<T>::value ||
     !std::is_same<DeviceContext, platform::CPUDeviceContext>::value>::type
-elementwise_add_relu(const framework::ExecutionContext& ctx,
-                     const framework::Tensor* x, const framework::Tensor* y,
-                     framework::Tensor* z) {
-  default_elementwise_add_relu<DeviceContext, T>(ctx, x, y, z);
+fused_elementwise_add_relu(const framework::ExecutionContext& ctx,
+                           const framework::Tensor* x,
+                           const framework::Tensor* y, framework::Tensor* z) {
+  default_fused_elementwise_add_relu<DeviceContext, T>(ctx, x, y, z);
 }
 
 template <typename DeviceContext, typename T>
-class ElementwiseAddReluKernel : public framework::OpKernel<T> {
+class FusedElementwiseAddReluKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& ctx) const override {
     using Tensor = framework::Tensor;
@@ -77,9 +77,9 @@ class ElementwiseAddReluKernel : public framework::OpKernel<T> {
 
     auto dims_equal = x->dims() == y->dims();
     if (dims_equal) {
-      elementwise_add_relu<DeviceContext, T>(ctx, x, y, z);
+      fused_elementwise_add_relu<DeviceContext, T>(ctx, x, y, z);
     } else {
-      default_elementwise_add_relu<DeviceContext, T>(ctx, x, y, z);
+      default_fused_elementwise_add_relu<DeviceContext, T>(ctx, x, y, z);
     }
   }
 };
@@ -92,13 +92,11 @@ struct IdentityGrad {
 };
 
 template <typename DeviceContext, typename T>
-void default_elementwise_add_relu_grad(const framework::ExecutionContext& ctx,
-                                       const framework::Tensor* x,
-                                       const framework::Tensor* y,
-                                       const framework::Tensor* out,
-                                       const framework::Tensor* dout,
-                                       framework::Tensor* dx,
-                                       framework::Tensor* dy) {
+void default_fused_elementwise_add_relu_grad(
+    const framework::ExecutionContext& ctx, const framework::Tensor* x,
+    const framework::Tensor* y, const framework::Tensor* out,
+    const framework::Tensor* dout, framework::Tensor* dx,
+    framework::Tensor* dy) {
   int axis = ctx.Attr<int>("axis");
 
   ElemwiseGradCompute<DeviceContext, T, IdentityGrad<T>, IdentityGrad<T>>(
@@ -110,12 +108,12 @@ template <typename DeviceContext, typename T>
 typename std::enable_if<
     std::is_floating_point<T>::value &&
     std::is_same<DeviceContext, platform::CPUDeviceContext>::value>::type
-elementwise_add_relu_grad(const framework::ExecutionContext& ctx,
-                          const framework::Tensor* x,
-                          const framework::Tensor* y,
-                          const framework::Tensor* out,
-                          const framework::Tensor* dout, framework::Tensor* dx,
-                          framework::Tensor* dy) {
+fused_elementwise_add_relu_grad(const framework::ExecutionContext& ctx,
+                                const framework::Tensor* x,
+                                const framework::Tensor* y,
+                                const framework::Tensor* out,
+                                const framework::Tensor* dout,
+                                framework::Tensor* dx, framework::Tensor* dy) {
   auto blas = math::GetBlas<DeviceContext, T>(ctx);
 
   if (dx) {
@@ -133,18 +131,18 @@ template <typename DeviceContext, typename T>
 typename std::enable_if<
     !std::is_floating_point<T>::value ||
     !std::is_same<DeviceContext, platform::CPUDeviceContext>::value>::type
-elementwise_add_relu_grad(const framework::ExecutionContext& ctx,
-                          const framework::Tensor* x,
-                          const framework::Tensor* y,
-                          const framework::Tensor* out,
-                          const framework::Tensor* dout, framework::Tensor* dx,
-                          framework::Tensor* dy) {
-  default_elementwise_add_relu_grad<DeviceContext, T>(ctx, x, y, out, dout, dx,
-                                                      dy);
+fused_elementwise_add_relu_grad(const framework::ExecutionContext& ctx,
+                                const framework::Tensor* x,
+                                const framework::Tensor* y,
+                                const framework::Tensor* out,
+                                const framework::Tensor* dout,
+                                framework::Tensor* dx, framework::Tensor* dy) {
+  default_fused_elementwise_add_relu_grad<DeviceContext, T>(ctx, x, y, out,
+                                                            dout, dx, dy);
 }
 
 template <typename DeviceContext, typename T>
-class ElementwiseAddReluGradKernel : public framework::OpKernel<T> {
+class FusedElementwiseAddReluGradKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& ctx) const override {
     using Tensor = framework::Tensor;
@@ -157,10 +155,11 @@ class ElementwiseAddReluGradKernel : public framework::OpKernel<T> {
     auto* dy = ctx.Output<Tensor>(framework::GradVarName("Y"));
 
     if (platform::is_cpu_place(ctx.GetPlace()) && (x->dims() == y->dims())) {
-      elementwise_add_relu_grad<DeviceContext, T>(ctx, x, y, out, dout, dx, dy);
+      fused_elementwise_add_relu_grad<DeviceContext, T>(ctx, x, y, out, dout,
+                                                        dx, dy);
     } else {
-      default_elementwise_add_relu_grad<DeviceContext, T>(ctx, x, y, out, dout,
-                                                          dx, dy);
+      default_fused_elementwise_add_relu_grad<DeviceContext, T>(ctx, x, y, out,
+                                                                dout, dx, dy);
     }
   }
 };
