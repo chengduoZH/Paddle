@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from paddle.fluid import framework as framework
 import os
 import numpy as np
 from .. import core
@@ -39,7 +40,7 @@ class OpFusionTranspiler(object):
         # get var-op relation
 
         var_op = dict()
-        for op in program.block[0].ops:
+        for op in program.block(0).ops:
             assert isinstance(op, framework.Operator)
             # for in_name in op.input_names():
             #     for in_var in op.input(in_name):
@@ -48,12 +49,12 @@ class OpFusionTranspiler(object):
             #         else:
             #             assert var_op[in_var] == op
 
-            for out_name in op.output_names():
+            for out_name in op.output_names:
                 for out_var in op.output(out_name):
                     if var_op.has_key(out_var):
                         assert var_op[out_var] == op
                     else:
-                        var_op[out_var] == op
+                        var_op[out_var] = op
 
         for op in reversed(program.block[0].ops):
             print op
