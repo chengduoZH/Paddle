@@ -89,6 +89,20 @@ class OpFusionTranspiler(object):
             decay_factor = op_role_vars_ops[op_role_vars_op][0][0].attr('scale')
             op_role_vars_ops[op_role_vars_op][2][0].set_attr('decay',
                                                              decay_factor)
+
+            # it doesn't need to rename input here.
+
+            # scale_op = op_role_vars_ops[op_role_vars_op][0][0]
+            elementwise_add_op = op_role_vars_ops[op_role_vars_op][1][0]
+            # momentum_op = op_role_vars_ops[op_role_vars_op][2][0]
+            # for p in momentum_op.input_names():
+            #     p_arg_names = momentum_op.inputput(p)
+            #     if var_name in p_arg_names:
+            #         op_desc.set_input(p, [
+            #             new_name if x == var_name else x
+            #             for x in p_arg_names
+            #         ])
+
             idx1 = op_role_vars_ops[op_role_vars_op][0][1]
             idx2 = op_role_vars_ops[op_role_vars_op][1][1]
             delete_op_idx.append(idx1)
