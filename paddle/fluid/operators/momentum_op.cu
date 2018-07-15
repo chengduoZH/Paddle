@@ -20,22 +20,23 @@ namespace operators {
 
 template <typename T>
 __global__ void MomentumKernel(const T* p, const T* g, const T* v,
-                               const T* learning_rate, const T mu,
-                               const int64_t num, bool use_nesterov, T* p_out,
-                               T* v_out) {
+                               const T* learning_rate, const T decay_factor,
+                               const T mu, const int64_t num, bool use_nesterov,
+                               T* p_out, T* v_out) {
   T lr = learning_rate[0];
+  T decay = decay_factor;
   if (use_nesterov) {
     for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < num;
          i += blockDim.x * gridDim.x) {
       T g_val = g[i];
-      T v_new = v[i] * mu + g_val;
+      T v_new = v[i] * mu + g_val + decay * p[i];
       v_out[i] = v_new;
       p_out[i] = p[i] - (g_val - v_new * mu) * lr;
     }
   } else {
     for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < num;
          i += blockDim.x * gridDim.x) {
-      T v_new = v[i] * mu + g[i];
+      T v_new = v[i] * mu + g[i] + decay * p[i];
       v_out[i] = v_new;
       p_out[i] = p[i] - lr * v_new;
     }
@@ -56,6 +57,7 @@ class MomentumOpCUDAKernel : public framework::OpKernel<T> {
     T* p_out = param_out->mutable_data<T>(ctx.GetPlace());
     T* v_out = velocity_out->mutable_data<T>(ctx.GetPlace());
 
+    T decay = static_cast<T>(ctx.Attr<float>("decay"));
     T mu = static_cast<T>(ctx.Attr<float>("mu"));
     bool use_nesterov = ctx.Attr<bool>("use_nesterov");
 
@@ -63,11 +65,12 @@ class MomentumOpCUDAKernel : public framework::OpKernel<T> {
     auto* v = velocity->data<T>();
     auto* g = grad->data<T>();
     auto* lr = learning_rate->data<T>();
+    auto* decay_factor = decay->data<T>();
 
     int block = 512;
     int grid = (param->numel() + block - 1) / block;
     MomentumKernel<T><<<grid, block, 0, ctx.cuda_device_context().stream()>>>(
-        p, g, v, lr, mu, param->numel(), use_nesterov, p_out, v_out);
+        p, g, v, lr, decay, mu, param->numel(), use_nesterov, p_out, v_out);
   }
 };
 

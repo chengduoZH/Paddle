@@ -14,6 +14,7 @@
 
 from distribute_transpiler import DistributeTranspiler
 from inference_transpiler import InferenceTranspiler
+from op_fusing_transpiler import OpFusionTranspiler
 from memory_optimization_transpiler import memory_optimize, release_memory
 from ps_dispatcher import HashName, RoundRobin
 
@@ -24,5 +25,5 @@ __all__ = [
     "release_memory",
     "HashName",
     "RoundRobin",
-    "op_fusing_transpiler",
+    "OpFusionTranspiler",
 ]

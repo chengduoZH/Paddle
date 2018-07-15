@@ -55,6 +55,9 @@ MultiDevSSAGraphBuilder::MultiDevSSAGraphBuilder(
       local_scopes_(local_scopes),
       strategy_(strategy) {
 #endif
+  for (auto &p : params) {
+    grad_names_.insert(GradVarName(p));
+  }
   balance_vars_.resize(places_.size(), 0);
   if (strategy_.enable_data_balance_ && places_.size() == 1) {
     LOG(WARNING) << "It is no need to enable data balance when there is only "
@@ -400,6 +403,18 @@ void MultiDevSSAGraphBuilder::InsertDataBalanceOp(
       op_handle->AddOutput(var);
     }
   }
+}
+
+bool MultiDevSSAGraphBuilder::IsParameterGradientOnce(
+    const std::string &og,
+    std::unordered_set<std::string> *og_has_been_broadcast) const {
+  bool is_pg_once =
+      grad_names_.count(og) != 0 && og_has_been_broadcast->count(og) == 0;
+  if (is_pg_once) {
+    // Insert NCCL AllReduce Op
+    og_has_been_broadcast->insert(og);
+  }
+  return is_pg_once;
 }
 
 int MultiDevSSAGraphBuilder::GetOpDeviceID(const OpDesc &op) const {
