@@ -39,11 +39,7 @@ class OpFusionTranspiler(object):
         if not isinstance(program, Program):
             raise TypeError("program should be as Program type")
 
-        # get var-op relation
-
         var_op = collections.defaultdict(list)
-        momentum_ops = collections.defaultdict(list)
-        op_role_ops = collections.defaultdict(list)
         op_role_vars_ops = dict()
 
         for idx in range(len(program.block(0).ops)):
@@ -59,25 +55,17 @@ class OpFusionTranspiler(object):
                             var_op[out_var].append(op)
                     else:
                         var_op[out_var] = [op]
+
             # Get all the momemtum op
             op_role = op.attr('op_role')
-            if op_role_ops.has_key(op_role):
-                op_role_ops[op_role].append(op)
-            else:
-                op_role_ops[op_role] = [op]
 
+            # Collect opt ops
             if op_role == 2L:
                 op_role_vars = tuple(op.attr('op_role_var'))
                 if op_role_vars_ops.has_key(op_role_vars):
                     op_role_vars_ops[op_role_vars].append((op, idx))
                 else:
                     op_role_vars_ops[op_role_vars] = [(op, idx)]
-
-            if op.type == 'momentum':
-                if momentum_ops.has_key('momentum'):
-                    momentum_ops['momentum'].append(op)
-                else:
-                    momentum_ops['momentum'] = [op]
 
         delete_op_idx = []
         for op_role_vars_op in op_role_vars_ops:
@@ -89,20 +77,7 @@ class OpFusionTranspiler(object):
             decay_factor = op_role_vars_ops[op_role_vars_op][0][0].attr('scale')
             op_role_vars_ops[op_role_vars_op][2][0].set_attr('decay',
                                                              decay_factor)
-
             # it doesn't need to rename input here.
-
-            # scale_op = op_role_vars_ops[op_role_vars_op][0][0]
-            elementwise_add_op = op_role_vars_ops[op_role_vars_op][1][0]
-            # momentum_op = op_role_vars_ops[op_role_vars_op][2][0]
-            # for p in momentum_op.input_names():
-            #     p_arg_names = momentum_op.inputput(p)
-            #     if var_name in p_arg_names:
-            #         op_desc.set_input(p, [
-            #             new_name if x == var_name else x
-            #             for x in p_arg_names
-            #         ])
-
             idx1 = op_role_vars_ops[op_role_vars_op][0][1]
             idx2 = op_role_vars_ops[op_role_vars_op][1][1]
             delete_op_idx.append(idx1)
@@ -114,3 +89,64 @@ class OpFusionTranspiler(object):
             op_idx = delete_op_idx[idx] - delete_num
             program.block(0).remove_op(op_idx)
             delete_num += 1
+
+    def fuse_elementwise_add_and_relu(self, program):
+
+        if not isinstance(program, Program):
+            raise TypeError("program should be as Program type")
+
+        elementwise_add_ops = collections.defaultdict(list)
+        relu_ops = collections.defaultdict(list)
+
+        for idx in range(len(program.block(0).ops)):
+            op = program.block(0).ops[idx]
+            assert isinstance(op, framework.Operator)
+
+            # Collect elementwiseadd
+            if op.type == "elementwise_add":
+                if elementwise_add_ops.has_key(op.output_arg_names[0]):
+                    raise TypeError("program has duplicate op.")
+                else:
+                    elementwise_add_ops[op.output_arg_names[
+                        0]] = [op, op.input_arg_names, idx]
+            if op.type == "relu":
+                if relu_ops.has_key(op.input_arg_names[0]):
+                    raise TypeError("program has duplicate op.")
+                else:
+                    relu_ops[op.input_arg_names[
+                        0]] = [op, op.output_arg_names, idx]
+                    if elementwise_add_ops.has_key(op.input_arg_names[0]):
+                        assert elementwise_add_ops[op.input_arg_names[0]][
+                            2] == idx - 1
+
+                        ele_op_idx = elementwise_add_ops[op.input_arg_names[0]][
+                            2]
+                        ele_op = elementwise_add_ops[op.input_arg_names[0]][0]
+                        input = elementwise_add_ops[op.input_arg_names[0]][1]
+                        output = op.output_arg_names[0]
+                        del_out = op.input_arg_names[0]
+
+                        x_var = self.block.var(input[0])
+                        y_var = self.block.var(input[1])
+                        out_var = self.block.var(output)
+
+                        program.block(0).remove_var(del_out)
+
+                        program.block(0).remove_op(ele_op_idx)
+                        program.block(0).remove_op(idx)
+
+                        axis = ele_op.attr("axis")
+                        op_role = op.attr('op_role')
+                        op_role_var = op.attr('op_role_var')
+
+                        program.block(0).insert_op(
+                            ele_op_idx,
+                            type="fused_elementwise_add_relu",
+                            inputs={"X": x_var,
+                                    "Y": y_var},
+                            outputs={"Out": out_var},
+                            attrs={
+                                "axis": axis,
+                                "op_role": op_role,
+                                "op_role_var": op_role_var
+                            })

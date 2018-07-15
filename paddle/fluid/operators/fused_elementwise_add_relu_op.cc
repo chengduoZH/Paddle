@@ -17,6 +17,7 @@ limitations under the License. */
 namespace ops = paddle::operators;
 REGISTER_ELEMWISE_OP(fused_elementwise_add_relu, "AddRelu",
                      "Out = max(X + Y, 0)");
+
 REGISTER_OP_CPU_KERNEL(
     fused_elementwise_add_relu,
     ops::FusedElementwiseAddReluKernel<paddle::platform::CPUDeviceContext,
