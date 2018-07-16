@@ -178,13 +178,13 @@ class OpFusionTranspiler(object):
                     relu_grad_ops[op.output_arg_names[
                         0]] = [op.input_arg_names, idx]
                     if elementwise_add_grad_ops.has_key(op.output_arg_names[0]):
-
                         ele_grad_op_idx = elementwise_add_grad_ops[
                             op.output_arg_names[0]][-1]
                         ele_grad_op = program.block(0).ops[ele_grad_op_idx]
                         ele_grad_op.input_arg_names[1] = op.input_arg_names[1]
-                        ele_grad_op.type = "fuse_elementwise_add_relu_grad"
+                        ele_grad_op.set_attr("use_relue", True)
                         program.block(0).remove_op(idx)
+                        delete_op_idx.append(idx)
 
             if op.type == "elementwise_add_grad":
                 if elementwise_add_grad_ops.has_key(op.input_arg_names[1]):
@@ -199,7 +199,14 @@ class OpFusionTranspiler(object):
                             -1]
                         input = relu_grad_ops[op.input_arg_names[1]][0][1]
                         op.input_arg_names[1] = input
-                        op.type = "fuse_elementwise_add_relu_grad"
-                        program.block(0).remove_op(relu_grad_op_idx)
+                        op.set_attr("use_relue", True)
+                        delete_op_idx.append(relu_grad_op_idx)
 
             idx -= 1
+
+        delete_num = 0
+        delete_op_idx = np.sort(delete_op_idx)
+        for idx in range(len(delete_op_idx)):
+            op_idx = delete_op_idx[idx] - delete_num
+            program.block(0).remove_op(op_idx)
+            delete_num += 1
