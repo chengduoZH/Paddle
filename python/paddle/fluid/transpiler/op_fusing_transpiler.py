@@ -98,7 +98,9 @@ class OpFusionTranspiler(object):
         elementwise_add_ops = collections.defaultdict(list)
         relu_ops = collections.defaultdict(list)
 
-        for idx in range(len(program.block(0).ops)):
+        delete_op_idx = []
+        idx = 0
+        while idx < len(program.block(0).ops):
             op = program.block(0).ops[idx]
             assert isinstance(op, framework.Operator)
 
@@ -124,20 +126,18 @@ class OpFusionTranspiler(object):
                         ele_op = elementwise_add_ops[op.input_arg_names[0]][0]
                         input = elementwise_add_ops[op.input_arg_names[0]][1]
                         output = op.output_arg_names[0]
-                        del_out = op.input_arg_names[0]
 
-                        x_var = self.block.var(input[0])
-                        y_var = self.block.var(input[1])
-                        out_var = self.block.var(output)
-
-                        program.block(0).remove_var(del_out)
-
-                        program.block(0).remove_op(ele_op_idx)
-                        program.block(0).remove_op(idx)
+                        x_var = program.block(0).var(input[0])
+                        y_var = program.block(0).var(input[1])
+                        out_var = program.block(0).var(output)
 
                         axis = ele_op.attr("axis")
                         op_role = op.attr('op_role')
                         op_role_var = op.attr('op_role_var')
+
+                        program.block(0).remove_op(ele_op_idx)
+                        # program.block(0).remove_op(idx)
+                        delete_op_idx.append(idx)
 
                         program.block(0).insert_op(
                             ele_op_idx,
@@ -146,7 +146,60 @@ class OpFusionTranspiler(object):
                                     "Y": y_var},
                             outputs={"Out": out_var},
                             attrs={
-                                "axis": axis,
+                                "axis": int(axis),
                                 "op_role": op_role,
-                                "op_role_var": op_role_var
+                                "op_role_var": op_role_var,
                             })
+                        # continue
+            idx += 1
+
+        delete_num = 0
+        delete_op_idx = np.sort(delete_op_idx)
+        for idx in range(len(delete_op_idx)):
+            op_idx = delete_op_idx[idx] - delete_num
+            program.block(0).remove_op(op_idx)
+            delete_num += 1
+
+        # Remove Grad
+        elementwise_add_grad_ops = collections.defaultdict(list)
+        relu_grad_ops = collections.defaultdict(list)
+
+        delete_op_idx = []
+        idx = len(program.block(0).ops) - 1
+        while idx >= 0:
+            op = program.block(0).ops[idx]
+            assert isinstance(op, framework.Operator)
+
+            # Collect elementwiseadd
+            if op.type == "relu_grad":
+                if relu_grad_ops.has_key(op.output_arg_names[0]):
+                    raise TypeError("program has duplicate op.")
+                else:
+                    relu_grad_ops[op.output_arg_names[
+                        0]] = [op.input_arg_names, idx]
+                    if elementwise_add_grad_ops.has_key(op.output_arg_names[0]):
+
+                        ele_grad_op_idx = elementwise_add_grad_ops[
+                            op.output_arg_names[0]][-1]
+                        ele_grad_op = program.block(0).ops[ele_grad_op_idx]
+                        ele_grad_op.input_arg_names[1] = op.input_arg_names[1]
+                        ele_grad_op.type = "fuse_elementwise_add_relu_grad"
+                        program.block(0).remove_op(idx)
+
+            if op.type == "elementwise_add_grad":
+                if elementwise_add_grad_ops.has_key(op.input_arg_names[1]):
+                    raise TypeError("program has duplicate op.")
+                else:
+                    elementwise_add_grad_ops[op.input_arg_names[
+                        1]] = [op.input_arg_names, op.output_arg_names, idx]
+
+                    if relu_grad_ops.has_key(op.input_arg_names[1]):
+
+                        relu_grad_op_idx = relu_grad_ops[op.input_arg_names[1]][
+                            -1]
+                        input = relu_grad_ops[op.input_arg_names[1]][0][1]
+                        op.input_arg_names[1] = input
+                        op.type = "fuse_elementwise_add_relu_grad"
+                        program.block(0).remove_op(relu_grad_op_idx)
+
+            idx -= 1

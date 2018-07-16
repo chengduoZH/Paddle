@@ -26,13 +26,27 @@ struct AddFunctor {
   inline HOSTDEVICE T operator()(T a, T b) const { return a + b; }
 };
 
+template <typename T>
+struct AddAndReluFunctor {
+  inline HOSTDEVICE T operator()(T a, T b) const {
+    T z = a + b;
+    return z > 0 ? z : 0;
+  }
+};
+
 template <typename DeviceContext, typename T>
 void default_elementwise_add(const framework::ExecutionContext& ctx,
                              const framework::Tensor* x,
                              const framework::Tensor* y, framework::Tensor* z) {
   int axis = ctx.Attr<int>("axis");
-  ElementwiseComputeEx<AddFunctor<T>, DeviceContext, T>(ctx, x, y, axis,
-                                                        AddFunctor<T>(), z);
+  bool use_relu = ctx.Attr<bool>("use_relu");
+  if (use_relu) {
+    ElementwiseComputeEx<AddAndReluFunctor<T>, DeviceContext, T>(
+        ctx, x, y, axis, AddAndReluFunctor<T>(), z);
+  } else {
+    ElementwiseComputeEx<AddFunctor<T>, DeviceContext, T>(ctx, x, y, axis,
+                                                          AddFunctor<T>(), z);
+  }
 }
 
 template <typename DeviceContext, typename T>
@@ -85,6 +99,13 @@ struct IdentityGrad {
   HOSTDEVICE T operator()(T x, T y, T out, T dout) const { return dout; }
 };
 
+template <typename T>
+struct IdentityReluGrad {
+  HOSTDEVICE T operator()(T x, T y, T out, T dout) const {
+    return dout * (out > 0);
+  }
+};
+
 template <typename DeviceContext, typename T>
 void default_elementwise_add_grad(const framework::ExecutionContext& ctx,
                                   const framework::Tensor* x,
@@ -94,10 +115,17 @@ void default_elementwise_add_grad(const framework::ExecutionContext& ctx,
                                   framework::Tensor* dx,
                                   framework::Tensor* dy) {
   int axis = ctx.Attr<int>("axis");
-
-  ElemwiseGradCompute<DeviceContext, T, IdentityGrad<T>, IdentityGrad<T>>(
-      ctx, *x, *y, *out, *dout, axis, dx, dy, IdentityGrad<T>(),
-      IdentityGrad<T>());
+  int use_relu = ctx.Attr<bool>("use_relu");
+  if (use_relu) {
+    ElemwiseGradCompute<DeviceContext, T, IdentityReluGrad<T>,
+                        IdentityReluGrad<T>>(ctx, *x, *y, *out, *dout, axis, dx,
+                                             dy, IdentityReluGrad<T>(),
+                                             IdentityReluGrad<T>());
+  } else {
+    ElemwiseGradCompute<DeviceContext, T, IdentityGrad<T>, IdentityGrad<T>>(
+        ctx, *x, *y, *out, *dout, axis, dx, dy, IdentityGrad<T>(),
+        IdentityGrad<T>());
+  }
 }
 
 template <typename DeviceContext, typename T>
