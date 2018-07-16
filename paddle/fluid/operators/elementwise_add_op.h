@@ -115,7 +115,14 @@ void default_elementwise_add_grad(const framework::ExecutionContext& ctx,
                                   framework::Tensor* dx,
                                   framework::Tensor* dy) {
   int axis = ctx.Attr<int>("axis");
-  bool use_relu = ctx.Attr<bool>("use_relu");
+  // bool use_relu = ctx.Attr<bool>("use_relu");
+  // hard code
+  bool use_relu = false;  //  ctx.Attr<bool>("use_relu");
+  if (axis == -2) {
+    axis = -1;
+    use_relu = true;
+  }
+
   if (use_relu) {
     ElemwiseGradCompute<DeviceContext, T, IdentityReluGrad<T>,
                         IdentityReluGrad<T>>(ctx, *x, *y, *out, *dout, axis, dx,

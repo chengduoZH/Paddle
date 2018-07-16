@@ -167,7 +167,7 @@ class OpFusionTranspiler(object):
                         relu_grad_op_idx = relu_grad_ops[key][-1]
                         op.input_arg_names[1] = relu_grad_ops[key][0][1]
                         op.set_attr("use_relu", True)
-                        # hard code 
+                        # hard code
                         assert op.attr("axis") == -1
                         op.set_attr("axis", -2)
                         delete_op_idx.append(relu_grad_op_idx)
