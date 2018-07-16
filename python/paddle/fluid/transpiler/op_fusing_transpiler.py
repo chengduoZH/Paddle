@@ -13,13 +13,12 @@
 # limitations under the License.
 
 from paddle.fluid import framework as framework
-import os
 import numpy as np
-from .. import core
 from ..framework import Program
-from ..executor import global_scope
 import collections
-import copy
+import os
+from .. import core
+from ..executor import global_scope
 
 
 class OpFusionTranspiler(object):
@@ -111,7 +110,7 @@ class OpFusionTranspiler(object):
                 else:
                     elementwise_add_ops[op.output_arg_names[
                         0]] = [op, op.input_arg_names, idx]
-            if op.type == "relu":
+            elif op.type == "relu":
                 if relu_ops.has_key(op.input_arg_names[0]):
                     raise TypeError("program has duplicate op.")
                 else:
@@ -121,7 +120,6 @@ class OpFusionTranspiler(object):
                     if elementwise_add_ops.has_key(op.input_arg_names[0]):
                         assert elementwise_add_ops[op.input_arg_names[0]][
                             2] == idx - 1
-
                         ele_op = elementwise_add_ops[op.input_arg_names[0]][0]
                         ele_op.output_arg_names[0] = op.output_arg_names[0]
                         ele_op.set_attr("use_relu", True)
@@ -143,8 +141,8 @@ class OpFusionTranspiler(object):
         relu_grad_ops = collections.defaultdict(list)
 
         delete_op_idx = []
-        idx = len(program.block(0).ops) - 1
-        while idx >= 0:
+        idx = 0
+        while idx < len(program.block(0).ops):
             op = program.block(0).ops[idx]
             assert isinstance(op, framework.Operator)
 
@@ -156,30 +154,25 @@ class OpFusionTranspiler(object):
                     relu_grad_ops[op.output_arg_names[
                         0]] = [op.input_arg_names, idx]
                     if elementwise_add_grad_ops.has_key(op.output_arg_names[0]):
-                        ele_grad_op_idx = elementwise_add_grad_ops[
-                            op.output_arg_names[0]][-1]
-                        ele_grad_op = program.block(0).ops[ele_grad_op_idx]
-                        ele_grad_op.input_arg_names[1] = op.input_arg_names[1]
-                        ele_grad_op.set_attr("use_relu", True)
-                        # program.block(0).remove_op(idx)
-                        delete_op_idx.append(idx)
-
-            if op.type == "elementwise_add_grad":
-                if elementwise_add_grad_ops.has_key(op.input_arg_names[1]):
+                        raise TypeError("program has duplicate op.")
+            elif op.type == "elementwise_add_grad":
+                key = op.input_arg_names[1]
+                if elementwise_add_grad_ops.has_key(key):
                     raise TypeError("program has duplicate op.")
                 else:
-                    elementwise_add_grad_ops[op.input_arg_names[
-                        1]] = [op.input_arg_names, op.output_arg_names, idx]
+                    elementwise_add_grad_ops[key] = \
+                        [op.input_arg_names, op.output_arg_names, idx]
 
-                    if relu_grad_ops.has_key(op.input_arg_names[1]):
-                        relu_grad_op_idx = relu_grad_ops[op.input_arg_names[1]][
-                            -1]
-                        input = relu_grad_ops[op.input_arg_names[1]][0][1]
-                        op.input_arg_names[1] = input
+                    if relu_grad_ops.has_key(key):
+                        relu_grad_op_idx = relu_grad_ops[key][-1]
+                        op.input_arg_names[1] = relu_grad_ops[key][0][1]
                         op.set_attr("use_relu", True)
+                        # hard code 
+                        assert op.attr("axis") == -1
+                        op.set_attr("axis", -2)
                         delete_op_idx.append(relu_grad_op_idx)
 
-            idx -= 1
+            idx += 1
 
         delete_num = 0
         delete_op_idx = np.sort(delete_op_idx)
