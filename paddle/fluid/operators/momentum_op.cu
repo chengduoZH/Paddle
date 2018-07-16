@@ -65,7 +65,6 @@ class MomentumOpCUDAKernel : public framework::OpKernel<T> {
     auto* v = velocity->data<T>();
     auto* g = grad->data<T>();
     auto* lr = learning_rate->data<T>();
-    auto* decay_factor = decay->data<T>();
 
     int block = 512;
     int grid = (param->numel() + block - 1) / block;
