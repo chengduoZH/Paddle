@@ -117,40 +117,18 @@ class OpFusionTranspiler(object):
                 else:
                     relu_ops[op.input_arg_names[
                         0]] = [op, op.output_arg_names, idx]
+
                     if elementwise_add_ops.has_key(op.input_arg_names[0]):
                         assert elementwise_add_ops[op.input_arg_names[0]][
                             2] == idx - 1
 
-                        ele_op_idx = elementwise_add_ops[op.input_arg_names[0]][
-                            2]
                         ele_op = elementwise_add_ops[op.input_arg_names[0]][0]
-                        input = elementwise_add_ops[op.input_arg_names[0]][1]
-                        output = op.output_arg_names[0]
-
-                        x_var = program.block(0).var(input[0])
-                        y_var = program.block(0).var(input[1])
-                        out_var = program.block(0).var(output)
-
-                        axis = ele_op.attr("axis")
-                        op_role = op.attr('op_role')
-                        op_role_var = op.attr('op_role_var')
-
-                        program.block(0).remove_op(ele_op_idx)
-                        # program.block(0).remove_op(idx)
+                        ele_op.output_arg_names[0] = op.output_arg_names[0]
+                        ele_op.set_attr("use_relu", True)
+                        ele_op.set_attr("op_role", op.attr('op_role'))
+                        ele_op.set_attr("op_role_var", op.attr('op_role_var'))
                         delete_op_idx.append(idx)
 
-                        program.block(0).insert_op(
-                            ele_op_idx,
-                            type="fused_elementwise_add_relu",
-                            inputs={"X": x_var,
-                                    "Y": y_var},
-                            outputs={"Out": out_var},
-                            attrs={
-                                "axis": int(axis),
-                                "op_role": op_role,
-                                "op_role_var": op_role_var,
-                            })
-                        # continue
             idx += 1
 
         delete_num = 0
@@ -182,8 +160,8 @@ class OpFusionTranspiler(object):
                             op.output_arg_names[0]][-1]
                         ele_grad_op = program.block(0).ops[ele_grad_op_idx]
                         ele_grad_op.input_arg_names[1] = op.input_arg_names[1]
-                        ele_grad_op.set_attr("use_relue", True)
-                        program.block(0).remove_op(idx)
+                        ele_grad_op.set_attr("use_relu", True)
+                        # program.block(0).remove_op(idx)
                         delete_op_idx.append(idx)
 
             if op.type == "elementwise_add_grad":
@@ -194,12 +172,11 @@ class OpFusionTranspiler(object):
                         1]] = [op.input_arg_names, op.output_arg_names, idx]
 
                     if relu_grad_ops.has_key(op.input_arg_names[1]):
-
                         relu_grad_op_idx = relu_grad_ops[op.input_arg_names[1]][
                             -1]
                         input = relu_grad_ops[op.input_arg_names[1]][0][1]
                         op.input_arg_names[1] = input
-                        op.set_attr("use_relue", True)
+                        op.set_attr("use_relu", True)
                         delete_op_idx.append(relu_grad_op_idx)
 
             idx -= 1
