@@ -17,8 +17,8 @@ limitations under the License. */
 #include <string>
 #include <vector>
 #include "paddle/fluid/framework/op_registry.h"
+#include "paddle/fluid/operators/elementwise_op_function.h"
 #include "paddle/fluid/operators/math/functors.h"
-#include "paddle/fluid/platform/for_range.h"
 
 namespace paddle {
 namespace operators {
@@ -69,6 +69,7 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
     Tensor *output = ctx.Output<Tensor>("Out");
 
     auto out_data_ptr = output->mutable_data<T>(ctx.GetPlace());
+    int axis = ctx.Attr<int>("axis");
 
     std::vector<std::string> functors =
         ctx.Attr<std::vector<std::string>>("functor_list");
@@ -83,18 +84,22 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
 
     if (mode == 1) {
       T scale = 0.1;
-      math::BinaryCompoundFunctor<T, math::AddFunctor<T>, math::ScaleFunctor<T>>
-          binary_compound_functor(math::AddFunctor<T>(),
-                                  math::ScaleFunctor<T>(scale));
+      using BinaryCompound = math::BinaryCompoundFunctor<T, math::AddFunctor<T>,
+                                                         math::ScaleFunctor<T>>;
 
-      for_range(binary_compound_functor);
+      ElementwiseComputeEx<BinaryCompound, DeviceContext, T>(
+          ctx, in_x, in_y, axis,
+          BinaryCompound(math::AddFunctor<T>(), math::ScaleFunctor<T>(scale)),
+          output);
     } else {
       T scale = 0.1;
-      math::UnaryCompoundFunctor<T, math::ScaleFunctor<T>, math::AddFunctor<T>>
-          unary_compound_functor(math::ScaleFunctor<T>(scale),
-                                 math::AddFunctor<T>());
 
-      for_range(unary_compound_functor);
+      using UnaryCompound = math::UnaryCompoundFunctor<T, math::ScaleFunctor<T>,
+                                                       math::AddFunctor<T>>;
+      ElementwiseComputeEx<UnaryCompound, DeviceContext, T>(
+          ctx, in_x, in_y, axis,
+          UnaryCompound(math::ScaleFunctor<T>(scale), math::AddFunctor<T>()),
+          output);
     }
   }
 
