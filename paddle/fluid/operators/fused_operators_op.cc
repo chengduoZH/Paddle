@@ -12,6 +12,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
+#include <string>
+#include <vector>
+
 #include "paddle/fluid/operators/fused_operators_op.h"
 
 namespace paddle {
@@ -38,9 +41,9 @@ framework::OpKernelType FusedOperatorsOp::GetExpectedKernelType(
     const framework::ExecutionContext &ctx) const {
   PADDLE_ENFORCE_EQ(ctx.Input<Tensor>("X")->type(),
                     ctx.Input<Tensor>("Y")->type(),
-                    "The element's type of input should be the same.")
+                    "The element's type of input should be the same.");
   auto input_data_type = framework::ToDataType(ctx.Input<Tensor>("X")->type());
-  framework::OpKernelType(input_data_type, ctx.GetPlace());
+  return framework::OpKernelType(input_data_type, ctx.GetPlace());
 }
 
 void FusedOperatorsMaker::Make() {
@@ -87,13 +90,13 @@ framework::OpKernelType FusedOperatorsOpGrad::GetExpectedKernelType(
     const framework::ExecutionContext &ctx) const {
   auto input_data_type_index = ctx.Input<Tensor>("X")->type();
   PADDLE_ENFORCE_EQ(input_data_type_index, ctx.Input<Tensor>("Y")->type(),
-                    "The element's type of input should be the same.")
+                    "The element's type of input should be the same.");
   PADDLE_ENFORCE_EQ(input_data_type_index,
                     ctx.Input<Tensor>(framework::GradVarName("Out"))->type(),
-                    "The element's type of input should be the same.")
+                    "The element's type of input should be the same.");
 
   auto input_data_type = framework::ToDataType(input_data_type_index);
-  framework::OpKernelType(input_data_type, ctx.GetPlace());
+  return framework::OpKernelType(input_data_type, ctx.GetPlace());
 }
 
 }  // namespace operators
