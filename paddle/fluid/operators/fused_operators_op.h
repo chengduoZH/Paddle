@@ -66,46 +66,55 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
     std::vector<std::string> functors =
         ctx.Attr<std::vector<std::string>>("functor_list");
 
-    int mode = FuncitonMode(functors);
-    T scale = 0.1;
+    FuncitonMode func_mode = GetFuncitonMode(functors);
 
-    if (mode == 1) {
-      using BinaryCompound = math::BinaryCompoundFunctor<T, math::AddFunctor<T>,
-                                                         math::ScaleFunctor<T>>;
+    if (func_mode == FuncitonMode::BinaryCompound) {
+      T scale = 0.1;
+      using BinaryCompoundFunctor =
+          math::BinaryCompoundFunctor<T, math::AddFunctor<T>,
+                                      math::ScaleFunctor<T>>;
 
-      ElementwiseComputeEx<BinaryCompound, DeviceContext, T>(
+      ElementwiseComputeEx<BinaryCompoundFunctor, DeviceContext, T>(
           ctx, in_x, in_y, axis,
-          BinaryCompound(math::AddFunctor<T>(), math::ScaleFunctor<T>(scale)),
+          BinaryCompoundFunctor(math::AddFunctor<T>(),
+                                math::ScaleFunctor<T>(scale)),
           output);
-    } else {
-      using UnaryCompound = math::UnaryCompoundFunctor<T, math::ScaleFunctor<T>,
-                                                       math::AddFunctor<T>>;
 
-      ElementwiseComputeEx<UnaryCompound, DeviceContext, T>(
+    } else {
+      T scale = 0.1;
+      using UnaryCompoundFunctor =
+          math::UnaryCompoundFunctor<T, math::ScaleFunctor<T>,
+                                     math::AddFunctor<T>>;
+
+      ElementwiseComputeEx<UnaryCompoundFunctor, DeviceContext, T>(
           ctx, in_x, in_y, axis,
-          UnaryCompound(math::ScaleFunctor<T>(scale), math::AddFunctor<T>()),
+          UnaryCompoundFunctor(math::ScaleFunctor<T>(scale),
+                               math::AddFunctor<T>()),
           output);
     }
   }
 
-  int FuncitonMode(const std::vector<std::string> &functors) const {
+  FuncitonMode GetFuncitonMode(const std::vector<std::string> &functors) const {
     std::unordered_set<std::string> unary_fun = {"scale", "relu"};
-    std::unordered_set<std::string> binary_fun = {"add"};
+    std::unordered_set<std::string> binary_fun = {"add", "sub"};
     std::string unary_fun_str;
     int flag = -1;
+    FuncitonMode func_mode = FuncitonMode::BinaryCompound;
     if (binary_fun.count(functors[0])) {
       unary_fun_str = functors[1];
-      flag = 2;
     } else if (binary_fun.count(functors[1])) {
       unary_fun_str = functors[0];
-      flag = 1;
+      func_mode = FuncitonMode::UnaryCompound;
     } else {
       PADDLE_THROW("functor list is invalid.");
     }
     size_t pos = unary_fun_str.find(",");
     PADDLE_ENFORCE_EQ(unary_fun.count(unary_fun_str.substr(0, pos)), 1);
-    return flag;
+    return func_mode;
   }
+
+ private:
+  enum class FuncitonMode { UnaryCompound, BinaryCompound };
 };
 
 template <typename DeviceContext, typename T>
@@ -132,63 +141,72 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
         ctx.template device_context<DeviceContext>(),
         static_cast<size_t>(numel));
 
-    int mode = FuncitonMode(functors);  // TODO(zcd): get function mode
-    T scale = 0.1;
+    FuncitonMode func_mode =
+        GetFuncitonMode(functors);  // TODO(zcd): get function mode
 
-    if (mode == 1) {
-      using UnaryCompoundDx =
+    if (func_mode == FuncitonMode::UnaryCompound) {
+      T scale = 0.1;
+      using UnaryCompoundDxFunctor =
           math::UnaryCompoundGradDxFunctor<T, math::ScaleGradFunctor<T>,
                                            math::AddFunctor<T>,
                                            math::AddGradFunctor<T>>;
-      using UnaryCompoundDy =
+      using UnaryCompoundDyFunctor =
           math::UnaryCompoundGradDyFunctor<T, math::ScaleGradFunctor<T>,
                                            math::AddFunctor<T>,
                                            math::AddGradFunctor<T>>;
 
-      ElemwiseGradCompute<DeviceContext, T, UnaryCompoundDx, UnaryCompoundDy>(
+      ElemwiseGradCompute<DeviceContext, T, UnaryCompoundDxFunctor,
+                          UnaryCompoundDyFunctor>(
           ctx, *in_x, *in_y, *in_out, *in_out_grad, axis, x_grad, y_grad,
-          UnaryCompoundDx(math::ScaleGradFunctor<T>(scale),
-                          math::AddFunctor<T>(), math::AddGradFunctor<T>()),
-          UnaryCompoundDy(math::ScaleGradFunctor<T>(scale),
-                          math::AddFunctor<T>(), math::AddGradFunctor<T>()));
+          UnaryCompoundDxFunctor(math::ScaleGradFunctor<T>(scale),
+                                 math::AddFunctor<T>(),
+                                 math::AddGradFunctor<T>()),
+          UnaryCompoundDyFunctor(math::ScaleGradFunctor<T>(scale),
+                                 math::AddFunctor<T>(),
+                                 math::AddGradFunctor<T>()));
 
     } else {
-      using BinaryCompoundDx =
+      T scale = 0.1;
+      using BinaryCompoundDxFunctor =
           math::BinaryCompoundGradDxFunctor<T, math::AddGradFunctor<T>,
                                             math::ScaleFunctor<T>>;
-      using BinaryCompoundDy =
+      using BinaryCompoundDyFunctor =
           math::BinaryCompoundGradDyFunctor<T, math::AddGradFunctor<T>,
                                             math::ScaleFunctor<T>,
                                             math::ScaleGradFunctor<T>>;
 
-      ElemwiseGradCompute<DeviceContext, T, BinaryCompoundDx, BinaryCompoundDy>(
+      ElemwiseGradCompute<DeviceContext, T, BinaryCompoundDxFunctor,
+                          BinaryCompoundDyFunctor>(
           ctx, *in_x, *in_y, *in_out, *in_out_grad, axis, x_grad, y_grad,
-          BinaryCompoundDx(math::AddGradFunctor<T>(),
-                           math::ScaleFunctor<T>(scale)),
-          BinaryCompoundDy(math::AddGradFunctor<T>(),
-                           math::ScaleFunctor<T>(scale),
-                           math::ScaleGradFunctor<T>(scale)));
+          BinaryCompoundDxFunctor(math::AddGradFunctor<T>(),
+                                  math::ScaleFunctor<T>(scale)),
+          BinaryCompoundDyFunctor(math::AddGradFunctor<T>(),
+                                  math::ScaleFunctor<T>(scale),
+                                  math::ScaleGradFunctor<T>(scale)));
     }
   }
 
-  int FuncitonMode(const std::vector<std::string> &functors) const {
+  FuncitonMode GetFuncitonMode(const std::vector<std::string> &functors) const {
     std::unordered_set<std::string> unary_fun = {"scale", "relu"};
-    std::unordered_set<std::string> binary_fun = {"add"};
+    std::unordered_set<std::string> binary_fun = {"add", "sub"};
     std::string unary_fun_str;
     int flag = -1;
+    FuncitonMode func_mode = FuncitonMode::BinaryCompound;
     if (binary_fun.count(functors[0])) {
       unary_fun_str = functors[1];
-      flag = 2;
     } else if (binary_fun.count(functors[1])) {
       unary_fun_str = functors[0];
-      flag = 1;
+      func_mode = FuncitonMode::UnaryCompound;
     } else {
       PADDLE_THROW("functor list is invalid.");
     }
     size_t pos = unary_fun_str.find(",");
     PADDLE_ENFORCE_EQ(unary_fun.count(unary_fun_str.substr(0, pos)), 1);
-    return flag;
+    return func_mode;
   }
+
+ private:
+  enum class FuncitonMode { UnaryCompound, BinaryCompound };
 };
 
 }  // namespace operators
