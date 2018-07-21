@@ -29,36 +29,30 @@ class FusedOperatorsOp : public framework::OperatorWithKernel {
  public:
   using framework::OperatorWithKernel::OperatorWithKernel;
 
-  void InferShape(framework::InferShapeContext *ctx) const override{};
+  void InferShape(framework::InferShapeContext *ctx) const override;
 
  protected:
-  //  framework::OpKernelType GetExpectedKernelType(
-  //      const framework::ExecutionContext& ctx) const override{};
+  framework::OpKernelType GetExpectedKernelType(
+      const framework::ExecutionContext &ctx) const override;
 };
 
 class FusedOperatorsMaker : public framework::OpProtoAndCheckerMaker {
  public:
-  void Make() override {
-    AddInput("Inputs", "(vector<Tensor>)").AsDuplicable();
-    AddOutput("Output", "vector<Tensor>");
-    AddAttr<int>("axis", "").SetDefault(-1);
-    AddAttr<std::vector<std::string>>("functor_list", "");
+  void Make() override;
+};
 
-    AddComment(R"DOC(
-FusedOperators Operator.
+class FusedOperatorsOpGrad : public framework::OperatorWithKernel {
+ public:
+  using framework::OperatorWithKernel::OperatorWithKernel;
 
-for example,
+  void InferShape(framework::InferShapeContext *ctx) const override;
 
-add;scale,k
-div;relu
-
-)DOC");
-  };
+ protected:
+  framework::OpKernelType GetExpectedKernelType(
+      const framework::ExecutionContext &ctx) const override;
 };
 
 using Tensor = framework::Tensor;
-using SelectedRows = framework::SelectedRows;
-using LoDTensor = framework::LoDTensor;
 
 template <typename DeviceContext, typename T>
 class FusedOperatorsKernel : public framework::OpKernel<T> {
@@ -79,6 +73,7 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
       using BinaryCompound = paddle::operators::math::BinaryCompoundFunctor<
           T, paddle::operators::math::AddFunctor<T>,
           paddle::operators::math::ScaleFunctor<T>>;
+
       ElementwiseComputeEx<BinaryCompound, DeviceContext, T>(
           ctx, in_x, in_y, axis,
           BinaryCompound(paddle::operators::math::AddFunctor<T>(),
@@ -88,6 +83,7 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
       using UnaryCompound = paddle::operators::math::UnaryCompoundFunctor<
           T, paddle::operators::math::ScaleFunctor<T>,
           paddle::operators::math::AddFunctor<T>>;
+
       ElementwiseComputeEx<UnaryCompound, DeviceContext, T>(
           ctx, in_x, in_y, axis,
           UnaryCompound(paddle::operators::math::ScaleFunctor<T>(scale),
@@ -148,7 +144,6 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
           math::UnaryCompoundGradDxFunctor<T, math::ScaleGradFunctor<T>,
                                            math::AddFunctor<T>,
                                            math::AddGradFunctor<T>>;
-
       using UnaryCompoundDy =
           math::UnaryCompoundGradDyFunctor<T, math::ScaleGradFunctor<T>,
                                            math::AddFunctor<T>,
@@ -165,7 +160,6 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
       using BinaryCompoundDx =
           math::BinaryCompoundGradDxFunctor<T, math::AddGradFunctor<T>,
                                             math::ScaleFunctor<T>>;
-
       using BinaryCompoundDy =
           math::BinaryCompoundGradDyFunctor<T, math::AddGradFunctor<T>,
                                             math::ScaleFunctor<T>,
@@ -199,17 +193,6 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
     PADDLE_ENFORCE_EQ(unary_fun.count(unary_fun_str.substr(0, pos)), 1);
     return flag;
   }
-};
-
-class FusedOperatorsOpGrad : public framework::OperatorWithKernel {
- public:
-  using framework::OperatorWithKernel::OperatorWithKernel;
-
-  void InferShape(framework::InferShapeContext *ctx) const override {}
-
- protected:
-  //  framework::OpKernelType GetExpectedKernelType(
-  //      const framework::ExecutionContext& ctx) const override {}
 };
 
 }  // namespace operators
