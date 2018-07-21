@@ -70,24 +70,20 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
     T scale = 0.1;
 
     if (mode == 1) {
-      using BinaryCompound = paddle::operators::math::BinaryCompoundFunctor<
-          T, paddle::operators::math::AddFunctor<T>,
-          paddle::operators::math::ScaleFunctor<T>>;
+      using BinaryCompound = math::BinaryCompoundFunctor<T, math::AddFunctor<T>,
+                                                         math::ScaleFunctor<T>>;
 
       ElementwiseComputeEx<BinaryCompound, DeviceContext, T>(
           ctx, in_x, in_y, axis,
-          BinaryCompound(paddle::operators::math::AddFunctor<T>(),
-                         paddle::operators::math::ScaleFunctor<T>(scale)),
+          BinaryCompound(math::AddFunctor<T>(), math::ScaleFunctor<T>(scale)),
           output);
     } else {
-      using UnaryCompound = paddle::operators::math::UnaryCompoundFunctor<
-          T, paddle::operators::math::ScaleFunctor<T>,
-          paddle::operators::math::AddFunctor<T>>;
+      using UnaryCompound = math::UnaryCompoundFunctor<T, math::ScaleFunctor<T>,
+                                                       math::AddFunctor<T>>;
 
       ElementwiseComputeEx<UnaryCompound, DeviceContext, T>(
           ctx, in_x, in_y, axis,
-          UnaryCompound(paddle::operators::math::ScaleFunctor<T>(scale),
-                        paddle::operators::math::AddFunctor<T>()),
+          UnaryCompound(math::ScaleFunctor<T>(scale), math::AddFunctor<T>()),
           output);
     }
   }
