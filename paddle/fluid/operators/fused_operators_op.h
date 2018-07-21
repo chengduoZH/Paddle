@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 PaddlePaddle Authors. All Rights Reserved.
+/* Copyright (c) 2018 PaddlePaddle Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ limitations under the License. */
 #include "paddle/fluid/operators/elementwise_op_function.h"
 #include "paddle/fluid/operators/math/functors.h"
 
+namespace math = paddle::operators::math;
+
 namespace paddle {
 namespace operators {
-
-using Tensor = framework::Tensor;
 
 class FusedOperatorsOp : public framework::OperatorWithKernel {
  public:
@@ -41,6 +41,7 @@ class FusedOperatorsMaker : public framework::OpProtoAndCheckerMaker {
   void Make() override {
     AddInput("Inputs", "(vector<Tensor>)").AsDuplicable();
     AddOutput("Output", "vector<Tensor>");
+    AddAttr<int>("axis", "").SetDefault(-1);
     AddAttr<std::vector<std::string>>("functor_list", "");
 
     AddComment(R"DOC(
@@ -58,7 +59,6 @@ div;relu
 using Tensor = framework::Tensor;
 using SelectedRows = framework::SelectedRows;
 using LoDTensor = framework::LoDTensor;
-using math = paddle::operators::math;
 
 template <typename DeviceContext, typename T>
 class FusedOperatorsKernel : public framework::OpKernel<T> {
@@ -68,37 +68,30 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
     const Tensor *in_y = ctx.Input<Tensor>("Y");
     Tensor *output = ctx.Output<Tensor>("Out");
 
-    auto out_data_ptr = output->mutable_data<T>(ctx.GetPlace());
     int axis = ctx.Attr<int>("axis");
-
     std::vector<std::string> functors =
         ctx.Attr<std::vector<std::string>>("functor_list");
 
-    int64_t numel = in_x->numel();
-
-    platform::ForRange<DeviceContext> for_range(
-        ctx.template device_context<DeviceContext>(),
-        static_cast<size_t>(numel));
-
     int mode = FuncitonMode(functors);
+    T scale = 0.1;
 
     if (mode == 1) {
-      T scale = 0.1;
-      using BinaryCompound = math::BinaryCompoundFunctor<T, math::AddFunctor<T>,
-                                                         math::ScaleFunctor<T>>;
-
+      using BinaryCompound = paddle::operators::math::BinaryCompoundFunctor<
+          T, paddle::operators::math::AddFunctor<T>,
+          paddle::operators::math::ScaleFunctor<T>>;
       ElementwiseComputeEx<BinaryCompound, DeviceContext, T>(
           ctx, in_x, in_y, axis,
-          BinaryCompound(math::AddFunctor<T>(), math::ScaleFunctor<T>(scale)),
+          BinaryCompound(paddle::operators::math::AddFunctor<T>(),
+                         paddle::operators::math::ScaleFunctor<T>(scale)),
           output);
     } else {
-      T scale = 0.1;
-
-      using UnaryCompound = math::UnaryCompoundFunctor<T, math::ScaleFunctor<T>,
-                                                       math::AddFunctor<T>>;
+      using UnaryCompound = paddle::operators::math::UnaryCompoundFunctor<
+          T, paddle::operators::math::ScaleFunctor<T>,
+          paddle::operators::math::AddFunctor<T>>;
       ElementwiseComputeEx<UnaryCompound, DeviceContext, T>(
           ctx, in_x, in_y, axis,
-          UnaryCompound(math::ScaleFunctor<T>(scale), math::AddFunctor<T>()),
+          UnaryCompound(paddle::operators::math::ScaleFunctor<T>(scale),
+                        paddle::operators::math::AddFunctor<T>()),
           output);
     }
   }
@@ -136,6 +129,7 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
     Tensor *x_grad = ctx.Output<Tensor>(framework::GradVarName("X"));
     Tensor *y_grad = ctx.Output<Tensor>(framework::GradVarName("Y"));
 
+    int axis = ctx.Attr<int>("axis");
     std::vector<std::string> functors =
         ctx.Attr<std::vector<std::string>>("functor_list");
 
@@ -147,52 +141,43 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
         static_cast<size_t>(numel));
 
     int mode = FuncitonMode(functors);  // TODO(zcd): get function mode
+    T scale = 0.1;
 
     if (mode == 1) {
-      T scale = 0.1;
-      if (x_grad) {
-        auto x_grad_data_ptr = x_grad->mutable_data<T>(ctx.GetPlace());
-        math::UnaryCompoundGradDxFunctor<T, math::ScaleGradFunctor<T>,
-                                         math::AddFunctor<T>,
-                                         math::AddGradFunctor<T>>
-            unary_compound_functor(math::ScaleGradFunctor<T>(scale),
-                                   math::AddFunctor<T>(),
-                                   math::AddGradFunctor<T>());
+      using UnaryCompoundDx =
+          math::UnaryCompoundGradDxFunctor<T, math::ScaleGradFunctor<T>,
+                                           math::AddFunctor<T>,
+                                           math::AddGradFunctor<T>>;
 
-        for_range(unary_compound_functor);
-      }
+      using UnaryCompoundDy =
+          math::UnaryCompoundGradDyFunctor<T, math::ScaleGradFunctor<T>,
+                                           math::AddFunctor<T>,
+                                           math::AddGradFunctor<T>>;
 
-      if (y_grad) {
-        auto y_grad_data_ptr = y_grad->mutable_data<T>(ctx.GetPlace());
-        math::UnaryCompoundGradDyFunctor<T, math::ScaleGradFunctor<T>,
-                                         math::AddFunctor<T>,
-                                         math::AddGradFunctor<T>>
-            unary_compound_functor(math::ScaleGradFunctor<T>(scale),
-                                   math::AddFunctor<T>(),
-                                   math::AddGradFunctor<T>());
-
-        for_range(unary_compound_functor);
-      }
+      ElemwiseGradCompute<DeviceContext, T, UnaryCompoundDx, UnaryCompoundDy>(
+          ctx, *in_x, *in_y, *in_out, *in_out_grad, axis, x_grad, y_grad,
+          UnaryCompoundDx(math::ScaleGradFunctor<T>(scale),
+                          math::AddFunctor<T>(), math::AddGradFunctor<T>()),
+          UnaryCompoundDy(math::ScaleGradFunctor<T>(scale),
+                          math::AddFunctor<T>(), math::AddGradFunctor<T>()));
 
     } else {
-      T scale = 0.1;
-      if (x_grad) {
-        math::BinaryCompoundGradDxFunctor<T, math::AddGradFunctor<T>,
-                                          math::ScaleFunctor<T>>
-            binary_compound_functor(math::AddGradFunctor<T>(),
-                                    math::ScaleFunctor<T>(scale));
-        for_range(binary_compound_functor);
-      }
-      if (y_grad) {
-        math::BinaryCompoundGradDyFunctor<T, math::AddGradFunctor<T>,
-                                          math::ScaleFunctor<T>,
-                                          math::ScaleGradFunctor<T>>
-            binary_compound_functor(math::AddGradFunctor<T>(),
-                                    math::ScaleFunctor<T>(scale),
-                                    math::ScaleGradFunctor<T>(scale));
+      using BinaryCompoundDx =
+          math::BinaryCompoundGradDxFunctor<T, math::AddGradFunctor<T>,
+                                            math::ScaleFunctor<T>>;
 
-        for_range(binary_compound_functor);
-      }
+      using BinaryCompoundDy =
+          math::BinaryCompoundGradDyFunctor<T, math::AddGradFunctor<T>,
+                                            math::ScaleFunctor<T>,
+                                            math::ScaleGradFunctor<T>>;
+
+      ElemwiseGradCompute<DeviceContext, T, BinaryCompoundDx, BinaryCompoundDy>(
+          ctx, *in_x, *in_y, *in_out, *in_out_grad, axis, x_grad, y_grad,
+          BinaryCompoundDx(math::AddGradFunctor<T>(),
+                           math::ScaleFunctor<T>(scale)),
+          BinaryCompoundDy(math::AddGradFunctor<T>(),
+                           math::ScaleFunctor<T>(scale),
+                           math::ScaleGradFunctor<T>(scale)));
     }
   }
 

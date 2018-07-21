@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 PaddlePaddle Authors. All Rights Reserved.
+/* Copyright (c) 2018 PaddlePaddle Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,12 +14,13 @@ limitations under the License. */
 
 #include "paddle/fluid/operators/fused_operators_op.h"
 
-REGISTER_OP_CPU_KERNEL(
+namespace ops = paddle::operators;
+REGISTER_OP_CUDA_KERNEL(
     fused_operators,
     ops::FusedOperatorsKernel<paddle::platform::CUDADeviceContext, float>,
     ops::FusedOperatorsKernel<paddle::platform::CUDADeviceContext, double>);
 
-REGISTER_OP_CPU_KERNEL(
+REGISTER_OP_CUDA_KERNEL(
     fused_operators_grad,
     ops::FusedOperatorsGradKernel<paddle::platform::CUDADeviceContext, float>,
     ops::FusedOperatorsGradKernel<paddle::platform::CUDADeviceContext, double>);
