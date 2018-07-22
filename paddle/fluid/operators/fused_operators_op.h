@@ -103,7 +103,6 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
     std::unordered_set<std::string> unary_fun = {"scale", "relu"};
     std::unordered_set<std::string> binary_fun = {"add", "sub"};
     std::string unary_fun_str;
-    int flag = -1;
     int func_mode = 2;
     if (binary_fun.count(functors[0])) {
       unary_fun_str = functors[1];
@@ -194,7 +193,6 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
     std::unordered_set<std::string> unary_fun = {"scale", "relu"};
     std::unordered_set<std::string> binary_fun = {"add", "sub"};
     std::string unary_fun_str;
-    int flag = -1;
     int func_mode = 2;
     if (binary_fun.count(functors[0])) {
       unary_fun_str = functors[1];
