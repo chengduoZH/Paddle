@@ -103,6 +103,11 @@ framework::OpKernelType FusedOperatorsOpGrad::GetExpectedKernelType(
 }  // namespace paddle
 
 namespace ops = paddle::operators;
+REGISTER_OPERATOR(fused_operators, ops::FusedOperatorsOp,
+                  ops::FusedOperatorsMaker,
+                  paddle::framework::DefaultGradOpDescMaker<true>);
+REGISTER_OPERATOR(fused_operators_grad, ops::FusedOperatorsOpGrad);
+
 REGISTER_OP_CPU_KERNEL(
     fused_operators,
     ops::FusedOperatorsKernel<paddle::platform::CPUDeviceContext, float>,

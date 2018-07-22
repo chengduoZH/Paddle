@@ -213,9 +213,3 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
 
 }  // namespace operators
 }  // namespace paddle
-
-namespace ops = paddle::operators;
-REGISTER_OPERATOR(fused_operators, ops::FusedOperatorsOp,
-                  ops::FusedOperatorsMaker,
-                  paddle::framework::DefaultGradOpDescMaker<true>);
-REGISTER_OPERATOR(fused_operators_grad, ops::FusedOperatorsOpGrad);
