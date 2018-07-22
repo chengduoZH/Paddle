@@ -69,6 +69,11 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
     FuncitonMode func_mode = GetFuncitonMode(functors);
 
     if (func_mode == FuncitonMode::BinaryCompound) {
+      //      auto unary_fun_str = functors[1];
+      //      size_t pos = unary_fun_str.find(",");
+      //      std::string scale_str = unary_fun_str.substr(pos,
+      //      unary_fun_str.size());
+
       T scale = 0.1;
       using BinaryCompoundFunctor =
           math::BinaryCompoundFunctor<T, math::AddFunctor<T>,
