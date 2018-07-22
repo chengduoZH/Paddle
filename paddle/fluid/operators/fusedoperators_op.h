@@ -52,6 +52,25 @@ class FusedOperatorsOpGrad : public framework::OperatorWithKernel {
       const framework::ExecutionContext &ctx) const override;
 };
 
+static bool IsUnaryCompound(const std::vector<std::string> &functors) {
+  std::unordered_set<std::string> unary_fun = {"scale", "relu"};
+  std::unordered_set<std::string> binary_fun = {"add", "sub"};
+
+  std::string unary_fun_str;
+  bool unary_compound = false;
+  if (binary_fun.count(functors[0])) {
+    unary_fun_str = functors[1];
+  } else if (binary_fun.count(functors[1])) {
+    unary_fun_str = functors[0];
+    unary_compound = true;
+  } else {
+    PADDLE_THROW("functor list is invalid.");
+  }
+  size_t pos = unary_fun_str.find(",");
+  PADDLE_ENFORCE_EQ(unary_fun.count(unary_fun_str.substr(0, pos)), 1);
+  return unary_compound;
+}
+
 using Tensor = framework::Tensor;
 
 template <typename DeviceContext, typename T>
@@ -66,26 +85,13 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
     std::vector<std::string> functors =
         ctx.Attr<std::vector<std::string>>("functor_list");
 
-    int func_mode = GetFuncitonMode(functors);
+    bool unary_compound = IsUnaryCompound(functors);
 
-    if (func_mode == 2) {
+    if (unary_compound) {
       //      auto unary_fun_str = functors[1];
       //      size_t pos = unary_fun_str.find(",");
       //      std::string scale_str = unary_fun_str.substr(pos,
       //      unary_fun_str.size());
-
-      T scale = 0.1;
-      using BinaryCompoundFunctor =
-          math::BinaryCompoundFunctor<T, math::AddFunctor<T>,
-                                      math::ScaleFunctor<T>>;
-
-      ElementwiseComputeEx<BinaryCompoundFunctor, DeviceContext, T>(
-          ctx, in_x, in_y, axis,
-          BinaryCompoundFunctor(math::AddFunctor<T>(),
-                                math::ScaleFunctor<T>(scale)),
-          output);
-
-    } else {
       T scale = 0.1;
       using UnaryCompoundFunctor =
           math::UnaryCompoundFunctor<T, math::ScaleFunctor<T>,
@@ -96,29 +102,20 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
           UnaryCompoundFunctor(math::ScaleFunctor<T>(scale),
                                math::AddFunctor<T>()),
           output);
-    }
-  }
 
-  int GetFuncitonMode(const std::vector<std::string> &functors) const {
-    std::unordered_set<std::string> unary_fun = {"scale", "relu"};
-    std::unordered_set<std::string> binary_fun = {"add", "sub"};
-    std::string unary_fun_str;
-    int func_mode = 2;
-    if (binary_fun.count(functors[0])) {
-      unary_fun_str = functors[1];
-    } else if (binary_fun.count(functors[1])) {
-      unary_fun_str = functors[0];
-      func_mode = 1;
     } else {
-      PADDLE_THROW("functor list is invalid.");
-    }
-    size_t pos = unary_fun_str.find(",");
-    PADDLE_ENFORCE_EQ(unary_fun.count(unary_fun_str.substr(0, pos)), 1);
-    return func_mode;
-  }
+      T scale = 0.1;
+      using BinaryCompoundFunctor =
+          math::BinaryCompoundFunctor<T, math::AddFunctor<T>,
+                                      math::ScaleFunctor<T>>;
 
-  // private:
-  //  enum class FuncitonMode { UnaryCompound, BinaryCompound };
+      ElementwiseComputeEx<BinaryCompoundFunctor, DeviceContext, T>(
+          ctx, in_x, in_y, axis,
+          BinaryCompoundFunctor(math::AddFunctor<T>(),
+                                math::ScaleFunctor<T>(scale)),
+          output);
+    }
+  }
 };
 
 template <typename DeviceContext, typename T>
@@ -145,9 +142,10 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
         ctx.template device_context<DeviceContext>(),
         static_cast<size_t>(numel));
 
-    int func_mode = GetFuncitonMode(functors);  // TODO(zcd): get function mode
+    bool unary_compound =
+        IsUnaryCompound(functors);  // TODO(zcd): get function mode
 
-    if (func_mode == 1) {
+    if (unary_compound) {
       T scale = 0.1;
       using UnaryCompoundDxFunctor =
           math::UnaryCompoundGradDxFunctor<T, math::ScaleGradFunctor<T>,
@@ -188,27 +186,6 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
                                   math::ScaleGradFunctor<T>(scale)));
     }
   }
-
-  int GetFuncitonMode(const std::vector<std::string> &functors) const {
-    std::unordered_set<std::string> unary_fun = {"scale", "relu"};
-    std::unordered_set<std::string> binary_fun = {"add", "sub"};
-    std::string unary_fun_str;
-    int func_mode = 2;
-    if (binary_fun.count(functors[0])) {
-      unary_fun_str = functors[1];
-    } else if (binary_fun.count(functors[1])) {
-      unary_fun_str = functors[0];
-      func_mode = 1;
-    } else {
-      PADDLE_THROW("functor list is invalid.");
-    }
-    size_t pos = unary_fun_str.find(",");
-    PADDLE_ENFORCE_EQ(unary_fun.count(unary_fun_str.substr(0, pos)), 1);
-    return func_mode;
-  }
-
-  // private:
-  //  enum class FuncitonMode { UnaryCompound, BinaryCompound };
 };
 
 }  // namespace operators

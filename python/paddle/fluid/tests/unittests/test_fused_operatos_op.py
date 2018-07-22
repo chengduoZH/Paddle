@@ -19,7 +19,7 @@ from op_test import OpTest
 
 class TestElementwiseAddOp(OpTest):
     def setUp(self):
-        self.op_type = "fused_operators"
+        self.op_type = "fusedoperators"
         self.dtype = np.float32
         self.axis = -1
         self.init_dtype()
@@ -30,7 +30,7 @@ class TestElementwiseAddOp(OpTest):
             'X': OpTest.np_dtype_to_fluid_dtype(self.x),
             'Y': OpTest.np_dtype_to_fluid_dtype(self.y)
         }
-        self.attrs = {'axis': self.axis, 'functor_list': ["add", "scale,0.1"]}
+        self.attrs = {'axis': self.axis, 'functor_list': ["scale,0.1", "add"]}
         self.outputs = {'Out': self.out}
 
     def init_input_output(self):
@@ -91,6 +91,9 @@ class TestFusedOperatorsOp_broadcast_0(TestElementwiseAddOp):
         self.scale = 0.1
         self.out = (self.x + self.y.reshape(2, 1, 1)) * self.scale
 
+    def init_axis(self):
+        self.axis = 0
+
 
 class TestFusedOperatorsOp_broadcast_1(TestElementwiseAddOp):
     def init_input_output(self):
@@ -98,6 +101,9 @@ class TestFusedOperatorsOp_broadcast_1(TestElementwiseAddOp):
         self.y = np.random.rand(3).astype(self.dtype)
         self.scale = 0.1
         self.out = (self.x + self.y.reshape(1, 3, 1)) * self.scale
+
+    def init_axis(self):
+        self.axis = 1
 
 
 class TestFusedOperatorsOp_broadcast_2(TestElementwiseAddOp):
