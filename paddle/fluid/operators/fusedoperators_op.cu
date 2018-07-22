@@ -12,15 +12,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/fluid/operators/fused_operators_op.h"
+#include "paddle/fluid/operators/fusedoperators_op.h"
 
 namespace ops = paddle::operators;
 REGISTER_OP_CUDA_KERNEL(
-    fused_operators,
+    fusedoperators,
     ops::FusedOperatorsKernel<paddle::platform::CUDADeviceContext, float>,
     ops::FusedOperatorsKernel<paddle::platform::CUDADeviceContext, double>);
 
 REGISTER_OP_CUDA_KERNEL(
-    fused_operators_grad,
+    fusedoperators_grad,
     ops::FusedOperatorsGradKernel<paddle::platform::CUDADeviceContext, float>,
     ops::FusedOperatorsGradKernel<paddle::platform::CUDADeviceContext, double>);

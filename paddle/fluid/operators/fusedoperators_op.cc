@@ -15,7 +15,7 @@ limitations under the License. */
 #include <string>
 #include <vector>
 
-#include "paddle/fluid/operators/fused_operators_op.h"
+#include "paddle/fluid/operators/fusedoperators_op.h"
 
 namespace paddle {
 namespace operators {
@@ -103,17 +103,17 @@ framework::OpKernelType FusedOperatorsOpGrad::GetExpectedKernelType(
 }  // namespace paddle
 
 namespace ops = paddle::operators;
-REGISTER_OPERATOR(fused_operators, ops::FusedOperatorsOp,
+REGISTER_OPERATOR(fusedoperators, ops::FusedOperatorsOp,
                   ops::FusedOperatorsMaker,
                   paddle::framework::DefaultGradOpDescMaker<true>);
-REGISTER_OPERATOR(fused_operators_grad, ops::FusedOperatorsOpGrad);
+REGISTER_OPERATOR(fusedoperators_grad, ops::FusedOperatorsOpGrad);
 
 REGISTER_OP_CPU_KERNEL(
-    fused_operators,
+    fusedoperators,
     ops::FusedOperatorsKernel<paddle::platform::CPUDeviceContext, float>,
     ops::FusedOperatorsKernel<paddle::platform::CPUDeviceContext, double>);
 
 REGISTER_OP_CPU_KERNEL(
-    fused_operators_grad,
+    fusedoperators_grad,
     ops::FusedOperatorsGradKernel<paddle::platform::CPUDeviceContext, float>,
     ops::FusedOperatorsGradKernel<paddle::platform::CPUDeviceContext, double>);
