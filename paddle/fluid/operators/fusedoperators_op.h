@@ -71,11 +71,6 @@ static bool IsUnaryCompound(const std::vector<std::string> &functors) {
   return unary_compound;
 }
 
-template <typename T>
-math::ScaleFunctor<T> GetFunctor(std::string functor) {
-  return;
-}
-
 using Tensor = framework::Tensor;
 
 template <typename DeviceContext, typename T>
