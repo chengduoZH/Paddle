@@ -71,6 +71,11 @@ static bool IsUnaryCompound(const std::vector<std::string> &functors) {
   return unary_compound;
 }
 
+template <typename T>
+math::ScaleFunctor<T> GetFunctor(std::string functor) {
+  return;
+}
+
 using Tensor = framework::Tensor;
 
 template <typename DeviceContext, typename T>
@@ -86,13 +91,21 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
         ctx.Attr<std::vector<std::string>>("functor_list");
 
     bool unary_compound = IsUnaryCompound(functors);
+    T scale;
+
+    auto unary_fun_str = functors[0];
+    if (!unary_compound) {
+      auto unary_fun_str = functors[1];
+    }
+    size_t pos = unary_fun_str.find(",");
+    std::string scale_str = unary_fun_str.substr(pos + 1, unary_fun_str.size());
+    try {
+      scale = std::stof(scale_str);
+    } catch (...) {
+      PADDLE_THROW("%s cannot convert to float.", scale_str);
+    }
 
     if (unary_compound) {
-      //      auto unary_fun_str = functors[1];
-      //      size_t pos = unary_fun_str.find(",");
-      //      std::string scale_str = unary_fun_str.substr(pos,
-      //      unary_fun_str.size());
-      T scale = 0.1;
       using UnaryCompoundFunctor =
           math::UnaryCompoundFunctor<T, math::ScaleFunctor<T>,
                                      math::AddFunctor<T>>;
@@ -104,7 +117,6 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
           output);
 
     } else {
-      T scale = 0.1;
       using BinaryCompoundFunctor =
           math::BinaryCompoundFunctor<T, math::AddFunctor<T>,
                                       math::ScaleFunctor<T>>;
@@ -142,11 +154,22 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
         ctx.template device_context<DeviceContext>(),
         static_cast<size_t>(numel));
 
-    bool unary_compound =
-        IsUnaryCompound(functors);  // TODO(zcd): get function mode
+    bool unary_compound = IsUnaryCompound(functors);
+    T scale;
+
+    auto unary_fun_str = functors[0];
+    if (!unary_compound) {
+      auto unary_fun_str = functors[1];
+    }
+    size_t pos = unary_fun_str.find(",");
+    std::string scale_str = unary_fun_str.substr(pos + 1, unary_fun_str.size());
+    try {
+      scale = std::stof(scale_str);
+    } catch (...) {
+      PADDLE_THROW("%s cannot convert to float.", scale_str);
+    }
 
     if (unary_compound) {
-      T scale = 0.1;
       using UnaryCompoundDxFunctor =
           math::UnaryCompoundGradDxFunctor<T, math::ScaleGradFunctor<T>,
                                            math::AddFunctor<T>,
@@ -165,9 +188,7 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
           UnaryCompoundDyFunctor(math::ScaleGradFunctor<T>(scale),
                                  math::AddFunctor<T>(),
                                  math::AddGradFunctor<T>()));
-
     } else {
-      T scale = 0.1;
       using BinaryCompoundDxFunctor =
           math::BinaryCompoundGradDxFunctor<T, math::AddGradFunctor<T>,
                                             math::ScaleFunctor<T>>;
