@@ -47,8 +47,9 @@ framework::OpKernelType FusedOperatorsOp::GetExpectedKernelType(
 }
 
 void FusedOperatorsMaker::Make() {
-  AddInput("Inputs", "(vector<Tensor>)").AsDuplicable();
-  AddOutput("Output", "vector<Tensor>");
+  AddInput("X", "(vector<Tensor>)");
+  AddInput("Y", "(vector<Tensor>)");
+  AddOutput("Out", "vector<Tensor>");
   AddAttr<int>("axis", "").SetDefault(-1);
   AddAttr<std::vector<std::string>>("functor_list", "");
 
