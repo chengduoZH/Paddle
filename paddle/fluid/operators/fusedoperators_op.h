@@ -88,10 +88,7 @@ class FusedOperatorsKernel : public framework::OpKernel<T> {
     bool unary_compound = IsUnaryCompound(functors);
     T scale;
 
-    auto unary_fun_str = functors[0];
-    if (!unary_compound) {
-      unary_fun_str = functors[1];
-    }
+    auto unary_fun_str = unary_compound ? functors[0] : functors[1];
     size_t pos = unary_fun_str.find(",");
     std::string scale_str = unary_fun_str.substr(pos + 1, unary_fun_str.size());
     try {
@@ -152,10 +149,7 @@ class FusedOperatorsGradKernel : public framework::OpKernel<T> {
     bool unary_compound = IsUnaryCompound(functors);
     T scale;
 
-    auto unary_fun_str = functors[0];
-    if (!unary_compound) {
-      unary_fun_str = functors[1];
-    }
+    auto unary_fun_str = unary_compound ? functors[0] : functors[1];
     size_t pos = unary_fun_str.find(",");
     std::string scale_str = unary_fun_str.substr(pos + 1, unary_fun_str.size());
     try {
