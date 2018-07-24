@@ -15,18 +15,22 @@ limitations under the License. */
 #include <string>
 #include <vector>
 
-#include "paddle/fluid/operators/fusedoperators_op.h"
+#include "paddle/fluid/operators/fused_elemwise_activation_op.h"
 
 namespace paddle {
 namespace operators {
 
-void FusedOperatorsOp::InferShape(framework::InferShapeContext *ctx) const {
-  PADDLE_ENFORCE(ctx->HasInput("X"),
-                 "Input(X) of FusedOperatorsOp op should not be null.");
-  PADDLE_ENFORCE(ctx->HasInput("Y"),
-                 "Input(Y) of FusedOperatorsOp op should not be null.");
-  PADDLE_ENFORCE(ctx->HasOutput("Out"),
-                 "Output(Out) of FusedOperatorsOp op should not be null.");
+void FusedElemwiseActivationOp::InferShape(
+    framework::InferShapeContext *ctx) const {
+  PADDLE_ENFORCE(
+      ctx->HasInput("X"),
+      "Input(X) of FusedElemwiseActivationOp op should not be null.");
+  PADDLE_ENFORCE(
+      ctx->HasInput("Y"),
+      "Input(Y) of FusedElemwiseActivationOp op should not be null.");
+  PADDLE_ENFORCE(
+      ctx->HasOutput("Out"),
+      "Output(Out) of FusedElemwiseActivationOp op should not be null.");
 
   auto x_dim = ctx->GetInputDim("X");
   auto y_dim = ctx->GetInputDim("Y");
@@ -37,7 +41,7 @@ void FusedOperatorsOp::InferShape(framework::InferShapeContext *ctx) const {
   ctx->ShareLoD("X", /*->*/ "Out");
 }
 
-framework::OpKernelType FusedOperatorsOp::GetExpectedKernelType(
+framework::OpKernelType FusedElemwiseActivationOp::GetExpectedKernelType(
     const framework::ExecutionContext &ctx) const {
   PADDLE_ENFORCE_EQ(ctx.Input<Tensor>("X")->type(),
                     ctx.Input<Tensor>("Y")->type(),
@@ -46,7 +50,7 @@ framework::OpKernelType FusedOperatorsOp::GetExpectedKernelType(
   return framework::OpKernelType(input_data_type, ctx.GetPlace());
 }
 
-void FusedOperatorsMaker::Make() {
+void FusedElemwiseActivationMaker::Make() {
   AddInput("X", "(vector<Tensor>)");
   AddInput("Y", "(vector<Tensor>)");
   AddOutput("Out", "vector<Tensor>");
@@ -60,9 +64,9 @@ void FusedOperatorsMaker::Make() {
   AddAttr<std::string>("functor_list", "The functors that should be fused.");
 
   AddComment(R"DOC(
-FusedOperators Operator.
+FusedElemwiseActivation Operator.
 
-At present, FusedOperators supports only two combinations of two
+At present, FusedElemwiseActivation supports only two combinations of two
 types(elementwise_op and activation_op) of Op.
 
     z = f1(x, f2(y))
@@ -75,7 +79,8 @@ for example:
 )DOC");
 }
 
-void FusedOperatorsOpGrad::InferShape(framework::InferShapeContext *ctx) const {
+void FusedElemwiseActivationOpGrad::InferShape(
+    framework::InferShapeContext *ctx) const {
   PADDLE_ENFORCE(ctx->HasInput("X"), "Input(X) should not be null");
   PADDLE_ENFORCE(ctx->HasInput("Y"), "Input(Y) should not be null");
   PADDLE_ENFORCE(ctx->HasInput(framework::GradVarName("Out")),
@@ -98,7 +103,7 @@ void FusedOperatorsOpGrad::InferShape(framework::InferShapeContext *ctx) const {
   }
 }
 
-framework::OpKernelType FusedOperatorsOpGrad::GetExpectedKernelType(
+framework::OpKernelType FusedElemwiseActivationOpGrad::GetExpectedKernelType(
     const framework::ExecutionContext &ctx) const {
   auto input_data_type_index = ctx.Input<Tensor>("X")->type();
   PADDLE_ENFORCE_EQ(input_data_type_index, ctx.Input<Tensor>("Y")->type(),
@@ -115,17 +120,22 @@ framework::OpKernelType FusedOperatorsOpGrad::GetExpectedKernelType(
 }  // namespace paddle
 
 namespace ops = paddle::operators;
-REGISTER_OPERATOR(fusedoperators, ops::FusedOperatorsOp,
-                  ops::FusedOperatorsMaker,
+REGISTER_OPERATOR(fused_elemwise_activation, ops::FusedElemwiseActivationOp,
+                  ops::FusedElemwiseActivationMaker,
                   paddle::framework::DefaultGradOpDescMaker<true>);
-REGISTER_OPERATOR(fusedoperators_grad, ops::FusedOperatorsOpGrad);
+REGISTER_OPERATOR(fused_elemwise_activation_grad,
+                  ops::FusedElemwiseActivationOpGrad);
 
 REGISTER_OP_CPU_KERNEL(
-    fusedoperators,
-    ops::FusedOperatorsKernel<paddle::platform::CPUDeviceContext, float>,
-    ops::FusedOperatorsKernel<paddle::platform::CPUDeviceContext, double>);
+    fused_elemwise_activation,
+    ops::FusedElemwiseActivationKernel<paddle::platform::CPUDeviceContext,
+                                       float>,
+    ops::FusedElemwiseActivationKernel<paddle::platform::CPUDeviceContext,
+                                       double>);
 
 REGISTER_OP_CPU_KERNEL(
-    fusedoperators_grad,
-    ops::FusedOperatorsGradKernel<paddle::platform::CPUDeviceContext, float>,
-    ops::FusedOperatorsGradKernel<paddle::platform::CPUDeviceContext, double>);
+    fused_elemwise_activation_grad,
+    ops::FusedElemwiseActivationGradKernel<paddle::platform::CPUDeviceContext,
+                                           float>,
+    ops::FusedElemwiseActivationGradKernel<paddle::platform::CPUDeviceContext,
+                                           double>);
