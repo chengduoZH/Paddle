@@ -102,6 +102,8 @@ class Graph {
     return ret;
   }
 
+  void ReleaseNode(ir::Node *node) { RemoveNode(node); }
+
  private:
   // This method takes ownership of `node`.
   ir::Node *AddNode(ir::Node *node) {
