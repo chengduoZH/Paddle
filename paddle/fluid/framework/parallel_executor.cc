@@ -20,6 +20,7 @@ limitations under the License. */
 
 #include "paddle/fluid/framework/ir/graph.h"
 #include "paddle/fluid/framework/ir/graph_viz_pass.h"
+#include "paddle/fluid/framework/ir/op_fusion_pass.h"
 
 #ifdef PADDLE_WITH_CUDA
 #include "paddle/fluid/platform/nccl_helper.h"
@@ -367,6 +368,7 @@ ParallelExecutor::~ParallelExecutor() {
 }  // namespace framework
 }  // namespace paddle
 
+USE_PASS(op_fusion_pass);
 USE_PASS(graph_viz_pass);
 USE_PASS(multi_device_pass);
 USE_PASS(multi_device_check_pass);
