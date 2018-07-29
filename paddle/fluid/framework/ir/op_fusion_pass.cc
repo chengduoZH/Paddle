@@ -33,14 +33,6 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
   std::vector<ir::Node *> topo_order;
   PADDLE_ENFORCE(GetTopoOrder(nodes, &topo_order), "");
 
-  if (VLOG_IS_ON(10)) {
-    std::stringstream out;
-    for (auto &node : topo_order) {
-      out << node->Op()->Type() << ", ";
-    }
-    VLOG(10) << out.str();
-  }
-
   std::unordered_map<const Node *, Node *> internal_nodes;
   std::unordered_set<ir::Node *> need_removed_nodes;
 
@@ -187,7 +179,6 @@ Node *OpFusionPass::FuseOperators(
     } else {
       auto &in_var_gen_node = var->inputs[0];
       need_removed_nodes->emplace(var);
-
       for (auto &in_var : in_var_gen_node->inputs) {
         PADDLE_ENFORCE(in_var->IsVariable());
         fused_node->inputs.emplace_back(in_var);
@@ -385,6 +376,15 @@ bool OpFusionPass::GetTopoOrder(const std::unordered_set<ir::Node *> &nodes,
     }
     ready_vars.clear();
   }
+
+  if (VLOG_IS_ON(10)) {
+    std::stringstream out;
+    for (auto &node : *topo_order) {
+      out << node->Op()->Type() << ", ";
+    }
+    VLOG(10) << out.str();
+  }
+
   return true;
 }
 
