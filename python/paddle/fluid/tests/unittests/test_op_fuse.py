@@ -37,11 +37,11 @@ def simple_fc_net(use_feed):
         reader = fluid.layers.io.double_buffer(reader)
         img, label = fluid.layers.read_file(reader)
     hidden = img
-    for _ in xrange(2):
+    for _ in xrange(4):
         hidden = fluid.layers.fc(
             hidden,
             size=200,
-            act='relu',
+            act='tanh',
             bias_attr=fluid.ParamAttr(
                 initializer=fluid.initializer.Constant(value=1.0)))
     prediction = fluid.layers.fc(hidden, size=10, act='softmax')
@@ -107,18 +107,64 @@ class TestMNIST(TestParallelExecutorBase):
         label = np.ones(shape=[32, 1], dtype='int64')
         return img, label
 
+    def _compare_reduce_and_allreduce(self, model, use_cuda, random_data=True):
+        if use_cuda and not core.is_compiled_with_cuda():
+            return
+        self.check_network_convergence(
+            model, use_cuda=use_cuda, use_reduce=True)
+        self.check_network_convergence(
+            model, use_cuda=use_cuda, allow_op_delay=True, use_reduce=True)
+
+        img, label = self._init_data(random_data)
+
+        all_reduce_first_loss, all_reduce_last_loss = self.check_network_convergence(
+            model,
+            feed_dict={"image": img,
+                       "label": label},
+            use_cuda=use_cuda,
+            use_reduce=False)
+        reduce_first_loss, reduce_last_loss = self.check_network_convergence(
+            model,
+            feed_dict={"image": img,
+                       "label": label},
+            use_cuda=use_cuda,
+            use_reduce=True)
+
+        for loss in zip(all_reduce_first_loss, reduce_first_loss):
+            self.assertAlmostEquals(loss[0], loss[1], delta=1e-6)
+        for loss in zip(all_reduce_last_loss, reduce_last_loss):
+            self.assertAlmostEquals(loss[0], loss[1], delta=1e-4)
+
+    def _compare_op_fuse(self, model, use_cuda, random_data=True):
+        if use_cuda and not core.is_compiled_with_cuda():
+            return
+        img, label = self._init_data(random_data)
+
+        not_fuse_op_first_loss, not_fuse_op_last_loss = self.check_network_convergence(
+            model,
+            feed_dict={"image": img,
+                       "label": label},
+            use_cuda=use_cuda,
+            fuse_op=False)
+        fuse_op_first_loss, fuse_op_last_loss = self.check_network_convergence(
+            model,
+            feed_dict={"image": img,
+                       "label": label},
+            use_cuda=use_cuda,
+            fuse_op=True)
+
+        for loss in zip(not_fuse_op_first_loss, fuse_op_first_loss):
+            self.assertAlmostEquals(loss[0], loss[1], delta=1e-6)
+        for loss in zip(not_fuse_op_last_loss, fuse_op_last_loss):
+            self.assertAlmostEquals(loss[0], loss[1], delta=1e-4)
+
     # simple_fc
     def check_simple_fc_convergence(self, use_cuda, use_reduce=False):
         if use_cuda and not core.is_compiled_with_cuda():
             return
-        # self.check_network_convergence(simple_fc_net, use_cuda=use_cuda)
-        # self.check_network_convergence(
-        #     simple_fc_net, use_cuda=use_cuda, allow_op_delay=True)
-        #
-
-        def _optimizer(learning_rate=0.01):
-            optimizer = fluid.optimizer.SGD(learning_rate=learning_rate)
-            return optimizer
+        self.check_network_convergence(simple_fc_net, use_cuda=use_cuda)
+        self.check_network_convergence(
+            simple_fc_net, use_cuda=use_cuda, allow_op_delay=True)
 
         img, label = self._init_data()
 
@@ -127,11 +173,77 @@ class TestMNIST(TestParallelExecutorBase):
             feed_dict={"image": img,
                        "label": label},
             use_cuda=use_cuda,
-            use_reduce=use_reduce,
-            optimizer=_optimizer)
+            use_reduce=use_reduce)
 
-    def test_simple_fc(self):
-        self.check_simple_fc_convergence(True)
+        # def test_simple_fc(self):
+        use_cuda
+        # self.check_simple_fc_convergence(True)
+        # self.check_simple_fc_convergence(False)
+        #
+        # def test_simple_fc_with_new_strategy(self):
+        use_cuda, use_reduce
+        # self._compare_reduce_and_allreduce(simple_fc_net, True)
+        # self._compare_reduce_and_allreduce(simple_fc_net, False)
+
+    def test_simple_fc_with_fuse_op(self):
+        self._compare_op_fuse(simple_fc_net, True)
+        self._compare_op_fuse(simple_fc_net, False)
+
+    def check_simple_fc_parallel_accuracy(self, use_cuda):
+        if use_cuda and not core.is_compiled_with_cuda():
+            return
+
+        img, label = self._init_data(random=False)
+
+        single_first_loss, single_last_loss = self.check_network_convergence(
+            method=simple_fc_net,
+            seed=1000,
+            feed_dict={"image": img,
+                       "label": label},
+            use_cuda=use_cuda,
+            use_parallel_executor=False)
+        parallel_first_loss, parallel_last_loss = self.check_network_convergence(
+            method=simple_fc_net,
+            seed=1000,
+            feed_dict={"image": img,
+                       "label": label},
+            use_cuda=use_cuda,
+            use_parallel_executor=True)
+
+        for p_f in parallel_first_loss:
+            self.assertAlmostEquals(p_f, single_first_loss[0], delta=1e-6)
+        for p_l in parallel_last_loss:
+            self.assertAlmostEquals(p_l, single_last_loss[0], delta=1e-6)
+
+    # def test_simple_fc_parallel_accuracy(self):
+    #     self.check_simple_fc_parallel_accuracy(True)
+    #     self.check_simple_fc_parallel_accuracy(False)
+
+    def check_batchnorm_fc_convergence(self, use_cuda):
+        if use_cuda and not core.is_compiled_with_cuda():
+            return
+
+        self.check_network_convergence(fc_with_batchnorm, use_cuda=use_cuda)
+
+        img, label = self._init_data()
+
+        self.check_network_convergence(
+            fc_with_batchnorm,
+            feed_dict={"image": img,
+                       "label": label},
+            use_cuda=use_cuda)
+
+    # def test_batchnorm_fc(self):
+    #     self.check_batchnorm_fc_convergence(True)
+    #     self.check_batchnorm_fc_convergence(False)
+    #
+    # def test_batchnorm_fc_with_new_strategy(self):
+    #     self._compare_reduce_and_allreduce(fc_with_batchnorm, True)
+    #     self._compare_reduce_and_allreduce(fc_with_batchnorm, False)
+
+    def test_batchnorm_fc_with_fuse_op(self):
+        self._compare_op_fuse(fc_with_batchnorm, True)
+        self._compare_op_fuse(fc_with_batchnorm, False)
 
 
 if __name__ == '__main__':
