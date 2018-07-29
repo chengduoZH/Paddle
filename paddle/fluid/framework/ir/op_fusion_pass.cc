@@ -63,9 +63,6 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
       }
       PADDLE_ENFORCE_EQ(internal_nodes.count(cur_node), 0);
       internal_nodes.emplace(cur_node, new_node);
-
-      PADDLE_ENFORCE(new_node->inputs.size() == 0 &&
-                     new_node->outputs.size() == 0);
     }
   }
 
@@ -89,17 +86,27 @@ bool OpFusionPass::SetupFusion(
     cur_node = internal_nodes.at(node);
   }
 
-  std::vector<NodePtr> &inputs = cur_node->inputs;
+  auto no_control_vars = ir::NoControlDepVar(cur_node->inputs);
 
-  for (auto it = inputs.begin(); it != inputs.end(); ++it) {
+  if (no_control_vars.empty()) return false;
+
+  VLOG(10) << "Current op:" << cur_node->Op()->Type();
+
+  for (auto it = no_control_vars.begin(); it != no_control_vars.end(); ++it) {
     auto in_var = *it;
+
     PADDLE_ENFORCE(in_var->IsVariable(), "in_var should be a variable.");
-    PADDLE_ENFORCE(in_var->inputs.size() == 1,
-                   "in_var's generation op should be one.");
+    PADDLE_ENFORCE_LE(in_var->inputs.size(), 1,
+                      "in_var's generation op should be null or one.");
+
+    if (in_var->inputs.empty()) continue;
 
     auto in_var_gen_op = in_var->inputs[0];
+
     if (IsFusible(cur_node, in_var_gen_op)) {
       need_fusion = true;
+      VLOG(10) << "fuse:" << in_var_gen_op->Op()->Type() << ", "
+               << cur_node->Op()->Type();
       tobe_fused->insert(in_var_gen_op);
     }
   }
@@ -127,10 +134,8 @@ bool OpFusionPass::IsFusible(const NodePtr n1, const NodePtr n2) const {
   //  bool case4 =
   //    (n2->Op()->Type() == "scale_grad" || n2->Op()->Type() == "relu_grad") &&
   //    (n1->Op()->Type() == "elementwise_add_grad");
-  if (case1 || case2) {
-    return true;
-  }
-  return false;
+
+  return case1 || case2;
 }
 
 Node *OpFusionPass::FuseOperators(
@@ -155,33 +160,50 @@ Node *OpFusionPass::FuseOperators(
   }
 
   // Create Node
+  fused_op_desc->Flush();
   auto fused_node = graph->CreateOpNode(fused_op_desc);
+
+  auto replace_node = [](const Node *cur_node, Node *new_node,
+                         std::vector<Node *> *vars) {
+    bool flag = false;
+    for (auto &o : *vars) {
+      if (o == cur_node) {
+        o = new_node;
+        flag = true;
+      }
+    }
+    PADDLE_ENFORCE(flag);
+  };
 
   // new_node input
   for (auto &var : cur_node->inputs) {
-    auto &in_var_gen_node = var->inputs[0];
-    if (tobe_fused.count(in_var_gen_node)) {
-      // var should be removed.
+    // the input degree of Variable Node is less than one.
+    PADDLE_ENFORCE_LE(var->inputs.size(), 1);
+    bool no_need_merge =
+        var->inputs.empty() || !tobe_fused.count(var->inputs[0]);
+    if (no_need_merge) {
+      fused_node->inputs.emplace_back(var);
+      replace_node(cur_node, fused_node, &(var->outputs));
+    } else {
+      auto &in_var_gen_node = var->inputs[0];
       need_removed_nodes->emplace(var);
+
       for (auto &in_var : in_var_gen_node->inputs) {
         PADDLE_ENFORCE(in_var->IsVariable());
         fused_node->inputs.emplace_back(in_var);
-
-        PADDLE_ENFORCE(in_var->outputs.size() == 1);
-        in_var->outputs.clear();
-        in_var->outputs.emplace_back(fused_node);
+        replace_node(in_var_gen_node, fused_node, &(in_var->outputs));
       }
-      //  var should be removed.
+
       for (auto &out_var : in_var_gen_node->outputs) {
         PADDLE_ENFORCE(out_var->IsVariable());
-        need_removed_nodes->emplace(out_var);
+        if (ir::IsControlDepVar(*out_var)) {
+          fused_node->outputs.emplace_back(out_var);
+          out_var->inputs.clear();
+          out_var->inputs.emplace_back(fused_node);
+        } else {
+          need_removed_nodes->emplace(out_var);
+        }
       }
-    } else {
-      fused_node->inputs.emplace_back(var);
-
-      PADDLE_ENFORCE(var->outputs.size() == 1);
-      var->outputs.clear();
-      var->outputs.emplace_back(fused_node);
     }
   }
 
@@ -202,14 +224,12 @@ bool OpFusionPass::IsForward(
   auto op_role = boost::get<int>(
       node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleAttrName()));
 
-  for (auto &node : tobe_fused) {
-    PADDLE_ENFORCE_EQ(op_role, boost::get<int>(node->Op()->GetAttr(
+  for (auto &tebe_node : tobe_fused) {
+    PADDLE_ENFORCE_EQ(op_role, boost::get<int>(tebe_node->Op()->GetAttr(
                                    OpProtoAndCheckerMaker::OpRoleAttrName())),
                       "Currently, only support fusing the same role operators");
   }
-  return static_cast<bool>(boost::get<int>(node->Op()->GetAttr(
-                               OpProtoAndCheckerMaker::OpRoleAttrName())) &
-                           static_cast<int>(OpRole::kForward));
+  return op_role == static_cast<int>(OpRole::kForward);
 }
 
 // temporally
@@ -286,29 +306,28 @@ void OpFusionPass::FuseElemwiseAndActivation(
                        boost::get<int>(intra_node->Op()->GetAttr("axis")));
     }
   } else {  // is backward
-            //    op_desc->SetType("fused_elemwise_activation_grad");
-            //
-            //    std::unordered_map<std::string, Attribute> attr;
-            //    attr["functor_list"] = fused_operator;
-            //
-            //    if (IsElemwise(outside_op_type)) {
-            //      op_desc->SetInput("X", {});
-            //      attr["axis"] = fused_operator;
-            //
-            //      op_desc->SetAttrMap({});
-            //    } else {
-            //      op_desc->SetInput("X", {});
-            //      attr["axis"] = fused_operator;
-            //      op_desc->SetAttrMap({});
-            //    }
+    PADDLE_THROW("Backward has not implement.");
+    //    op_desc->SetType("fused_elemwise_activation_grad");
+    //
+    //    std::unordered_map<std::string, Attribute> attr;
+    //    attr["functor_list"] = fused_operator;
+    //
+    //    if (IsElemwise(outside_op_type)) {
+    //      op_desc->SetInput("X", {});
+    //      attr["axis"] = fused_operator;
+    //
+    //      op_desc->SetAttrMap({});
+    //    } else {
+    //      op_desc->SetInput("X", {});
+    //      attr["axis"] = fused_operator;
+    //      op_desc->SetAttrMap({});
+    //    }
     //    op_desc->SetOutput("Out", InputGrad("X"));
   }
 }
 
 bool OpFusionPass::GetTopoOrder(const std::unordered_set<ir::Node *> &nodes,
                                 std::vector<ir::Node *> *topo_order) const {
-  auto topo = *topo_order;
-
   std::unordered_map<Node *, size_t> pending_ops;
   std::unordered_set<Node *> pending_vars;
   std::unordered_set<Node *> ready_vars;
@@ -344,7 +363,7 @@ bool OpFusionPass::GetTopoOrder(const std::unordered_set<ir::Node *> &nodes,
         ready_vars.emplace(out);
       }
     }
-    topo.insert(topo.begin(), set.begin(), set.end());
+    topo_order->insert(topo_order->end(), set.begin(), set.end());
     set.clear();
   };
 
