@@ -373,4 +373,4 @@ bool OpFusionPass::GetTopoOrder(const std::unordered_set<ir::Node *> &nodes,
 }  // namespace framework
 }  // namespace paddle
 
-REGISTER_PASS(op_fuse_pass, paddle::framework::ir::OpFusionPass);
+REGISTER_PASS(op_fusion_pass, paddle::framework::ir::OpFusionPass);
