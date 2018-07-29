@@ -47,6 +47,12 @@ std::unique_ptr<ir::Graph> ApplyParallelExecutorPass(
   // Convert the program to graph.
   std::unique_ptr<ir::Graph> graph(new ir::Graph(main_program));
 
+  // Apply op fusion.
+  if (strategy.op_fuse_) {
+    auto op_fuse_pass = ir::PassRegistry::Instance().Get("op_fuse_pass");
+    graph = op_fuse_pass->Apply(std::move(graph));
+  }
+
   // Apply a graph viz pass to record a graph.
   if (!strategy.debug_graphviz_path_.empty()) {
     auto viz_pass = ir::PassRegistry::Instance().Get("graph_viz_pass");
