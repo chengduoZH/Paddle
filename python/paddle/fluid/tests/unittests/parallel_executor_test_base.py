@@ -73,6 +73,8 @@ class TestParallelExecutorBase(unittest.TestCase):
             build_strategy = fluid.BuildStrategy()
             build_strategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce \
                 if use_reduce else fluid.BuildStrategy.ReduceStrategy.AllReduce
+            build_strategy.op_fuse = True
+            build_strategy.debug_graphviz_path = "graph.dot"
 
             if use_parallel_executor:
                 exe = fluid.ParallelExecutor(
