@@ -79,7 +79,6 @@ bool OpFusionPass::SetupFusion(
   bool need_fusion = false;
 
   VLOG(10) << "Current op:" << cur_node->Name();
-
   for (auto it = no_control_vars.begin(); it != no_control_vars.end(); ++it) {
     auto in_var = *it;
     PADDLE_ENFORCE(in_var->IsVariable(), "in_var should be a variable.");
@@ -194,7 +193,6 @@ Node *OpFusionPass::FuseOperators(
   for (auto &cur_output : cur_node->outputs) {
     PADDLE_ENFORCE(cur_output->IsVariable());
     fused_node->outputs.emplace_back(cur_output);
-
     cur_output->inputs.clear();
     cur_output->inputs.emplace_back(fused_node);
   }
@@ -245,17 +243,16 @@ void OpFusionPass::FuseElemwiseAndActivation(
   auto outside_op_type = node->Op()->Type();
   auto fused_operator = outside_op_type + "," + intra_op_type;
 
+  // Set Input
   if (IsForward(node, tobe_fused)) {
     op_desc->SetType("fused_elemwise_activation");
-    op_desc->SetAttr("functor_list", fused_operator);
-
     if (IsElemwise(outside_op_type)) {
       auto in_args = intra_node->Op()->InputArgumentNames();
       auto out_args = intra_node->Op()->OutputArgumentNames();
+      auto cur_in_args = node->Op()->InputArgumentNames();
+
       PADDLE_ENFORCE_EQ(in_args.size(), 1);
       PADDLE_ENFORCE_EQ(out_args.size(), 1);
-
-      auto cur_in_args = node->Op()->InputArgumentNames();
       PADDLE_ENFORCE_EQ(cur_in_args.size(), 2);
 
       op_desc->SetInput("Y", in_args);
@@ -267,11 +264,9 @@ void OpFusionPass::FuseElemwiseAndActivation(
       } else {
         PADDLE_THROW("exception");
       }
-      op_desc->SetOutput("Out", node->Op()->OutputArgumentNames());
     } else {
       op_desc->SetInput("Y", intra_node->Op()->Input("Y"));
       op_desc->SetInput("X", intra_node->Op()->Input("X"));
-      op_desc->SetOutput("Out", node->Op()->OutputArgumentNames());
     }
   } else {  // is backward
     PADDLE_THROW("Backward has not implement.");
@@ -293,12 +288,16 @@ void OpFusionPass::FuseElemwiseAndActivation(
     //    op_desc->SetOutput("Out", InputGrad("X"));
   }
 
+  // Set output
+  op_desc->SetOutput("Out", node->Op()->OutputArgumentNames());
+
   // Set attrs
   for (auto &n : {intra_node, node}) {
     for (auto &m_ele : n->Op()->GetAttrMap()) {
       op_desc->SetAttr(m_ele.first, m_ele.second);
     }
   }
+  op_desc->SetAttr("functor_list", fused_operator);
 }
 
 bool OpFusionPass::GetTopoOrder(const std::unordered_set<ir::Node *> &nodes,

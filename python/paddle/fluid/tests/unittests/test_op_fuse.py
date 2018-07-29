@@ -41,7 +41,7 @@ def simple_fc_net(use_feed):
         hidden = fluid.layers.fc(
             hidden,
             size=200,
-            act='tanh',
+            act='relu',
             bias_attr=fluid.ParamAttr(
                 initializer=fluid.initializer.Constant(value=1.0)))
     prediction = fluid.layers.fc(hidden, size=10, act='softmax')
@@ -68,7 +68,7 @@ def fc_with_batchnorm(use_feed):
         hidden = fluid.layers.fc(
             hidden,
             size=200,
-            act='tanh',
+            act='relu',
             bias_attr=fluid.ParamAttr(
                 initializer=fluid.initializer.Constant(value=1.0)))
 
