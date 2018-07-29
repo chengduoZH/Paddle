@@ -37,7 +37,7 @@ def simple_fc_net(use_feed):
         reader = fluid.layers.io.double_buffer(reader)
         img, label = fluid.layers.read_file(reader)
     hidden = img
-    for _ in xrange(4):
+    for _ in xrange(2):
         hidden = fluid.layers.fc(
             hidden,
             size=200,
@@ -115,6 +115,11 @@ class TestMNIST(TestParallelExecutorBase):
         # self.check_network_convergence(
         #     simple_fc_net, use_cuda=use_cuda, allow_op_delay=True)
         #
+
+        def _optimizer(learning_rate=0.01):
+            optimizer = fluid.optimizer.SGD(learning_rate=learning_rate)
+            return optimizer
+
         img, label = self._init_data()
 
         self.check_network_convergence(
@@ -122,7 +127,8 @@ class TestMNIST(TestParallelExecutorBase):
             feed_dict={"image": img,
                        "label": label},
             use_cuda=use_cuda,
-            use_reduce=use_reduce)
+            use_reduce=use_reduce,
+            optimizer=_optimizer)
 
     def test_simple_fc(self):
         self.check_simple_fc_convergence(True)

@@ -205,7 +205,7 @@ using Tensor = framework::Tensor;
 
 static bool ValidCheck(const std::string &functors) {
   std::unordered_set<std::string> unary_fun = {"scale", "relu"};
-  std::unordered_set<std::string> binary_fun = {"add"};
+  std::unordered_set<std::string> binary_fun = {"elementwise_add"};
 
   size_t pos = functors.find(",");
   auto func_1 = functors.substr(0, pos);

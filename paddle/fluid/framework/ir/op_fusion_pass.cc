@@ -33,6 +33,14 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
   std::vector<ir::Node *> topo_order;
   PADDLE_ENFORCE(GetTopoOrder(nodes, &topo_order), "");
 
+  if (VLOG_IS_ON(10)) {
+    std::stringstream out;
+    for (auto &node : topo_order) {
+      out << node->Op()->Type() << ", ";
+    }
+    VLOG(10) << out.str();
+  }
+
   std::unordered_map<const Node *, Node *> internal_nodes;
   std::unordered_set<ir::Node *> need_removed_nodes;
 
@@ -102,6 +110,8 @@ bool OpFusionPass::IsFusible(const NodePtr n1, const NodePtr n2) const {
   PADDLE_ENFORCE(!n1->IsVariable(), "n1 should not be Variable.");
   PADDLE_ENFORCE(!n2->IsVariable(), "n2 should not be Variable.");
 
+  VLOG(10) << n1->Op()->Type() << ", " << n2->Op()->Type();
+
   //  if (n2->outputs.size() == 1 &&
   //      n2->outputs[0]->outputs.size() == 1 && ...) {
   //    return true;
@@ -111,13 +121,13 @@ bool OpFusionPass::IsFusible(const NodePtr n1, const NodePtr n2) const {
                (n2->Op()->Type() == "elementwise_add");
   bool case2 = (n2->Op()->Type() == "scale" || n2->Op()->Type() == "relu") &&
                (n1->Op()->Type() == "elementwise_add");
-  bool case3 =
-      (n1->Op()->Type() == "scale_grad" || n1->Op()->Type() == "relu_grad") &&
-      (n2->Op()->Type() == "elementwise_add_grad");
-  bool case4 =
-      (n2->Op()->Type() == "scale_grad" || n2->Op()->Type() == "relu_grad") &&
-      (n1->Op()->Type() == "elementwise_add_grad");
-  if (case1 || case2 || case3 || case4) {
+  //  bool case3 =
+  //    (n1->Op()->Type() == "scale_grad" || n1->Op()->Type() == "relu_grad") &&
+  //    (n2->Op()->Type() == "elementwise_add_grad");
+  //  bool case4 =
+  //    (n2->Op()->Type() == "scale_grad" || n2->Op()->Type() == "relu_grad") &&
+  //    (n1->Op()->Type() == "elementwise_add_grad");
+  if (case1 || case2) {
     return true;
   }
   return false;
@@ -210,8 +220,7 @@ static bool IsActivation(std::string op_type) {
 
 // temporally
 static bool IsElemwise(std::string op_type) {
-  static std::unordered_set<std::string> elementwise = {"elementwise_add",
-                                                        "elementwise_add_grad"};
+  static std::unordered_set<std::string> elementwise = {"elementwise_add"};
   return elementwise.count(op_type) == 1;
 }
 
@@ -239,38 +248,59 @@ void OpFusionPass::FuseElemwiseAndActivation(
 
   if (IsForward(node, tobe_fused)) {
     op_desc->SetType("fused_elemwise_activation");
-
-    std::unordered_map<std::string, Attribute> attr;
-    attr["functor_list"] = fused_operator;
+    op_desc->SetAttr("functor_list", fused_operator);
 
     if (IsElemwise(outside_op_type)) {
-      op_desc->SetInput("X", {});
-      attr["axis"] = fused_operator;
+      auto in_args = intra_node->Op()->InputArgumentNames();
+      auto out_args = intra_node->Op()->OutputArgumentNames();
+      PADDLE_ENFORCE_EQ(in_args.size(), 1);
+      PADDLE_ENFORCE_EQ(out_args.size(), 1);
 
-      op_desc->SetAttrMap({});
+      auto cur_in_args = node->Op()->InputArgumentNames();
+      PADDLE_ENFORCE_EQ(cur_in_args.size(), 2);
+
+      op_desc->SetInput("Y", in_args);
+
+      if (cur_in_args[0] == out_args[0]) {
+        op_desc->SetInput("X", {cur_in_args[1]});
+      } else if (cur_in_args[1] == out_args[0]) {
+        op_desc->SetInput("X", {cur_in_args[0]});
+      } else {
+        PADDLE_THROW("exception");
+      }
+      for (auto &m_ele : intra_node->Op()->GetAttrMap()) {
+        op_desc->SetAttr(m_ele.first, m_ele.second);
+      }
+      op_desc->SetAttr("axis", boost::get<int>(node->Op()->GetAttr("axis")));
+      op_desc->SetOutput("Out", node->Op()->OutputArgumentNames());
     } else {
-      op_desc->SetInput("X", {});
-      attr["axis"] = fused_operator;
-      op_desc->SetAttrMap({});
-    }
-    //    op_desc->SetOutput("Out", InputGrad("X"));
+      op_desc->SetInput("Y", intra_node->Op()->Input("Y"));
+      op_desc->SetInput("X", intra_node->Op()->Input("X"));
+      op_desc->SetOutput("Out", node->Op()->OutputArgumentNames());
 
+      for (auto &m_ele : intra_node->Op()->GetAttrMap()) {
+        op_desc->SetAttr(m_ele.first, m_ele.second);
+      }
+
+      op_desc->SetAttr("axis",
+                       boost::get<int>(intra_node->Op()->GetAttr("axis")));
+    }
   } else {  // is backward
-    op_desc->SetType("fused_elemwise_activation_grad");
-
-    std::unordered_map<std::string, Attribute> attr;
-    attr["functor_list"] = fused_operator;
-
-    if (IsElemwise(outside_op_type)) {
-      op_desc->SetInput("X", {});
-      attr["axis"] = fused_operator;
-
-      op_desc->SetAttrMap({});
-    } else {
-      op_desc->SetInput("X", {});
-      attr["axis"] = fused_operator;
-      op_desc->SetAttrMap({});
-    }
+            //    op_desc->SetType("fused_elemwise_activation_grad");
+            //
+            //    std::unordered_map<std::string, Attribute> attr;
+            //    attr["functor_list"] = fused_operator;
+            //
+            //    if (IsElemwise(outside_op_type)) {
+            //      op_desc->SetInput("X", {});
+            //      attr["axis"] = fused_operator;
+            //
+            //      op_desc->SetAttrMap({});
+            //    } else {
+            //      op_desc->SetInput("X", {});
+            //      attr["axis"] = fused_operator;
+            //      op_desc->SetAttrMap({});
+            //    }
     //    op_desc->SetOutput("Out", InputGrad("X"));
   }
 }
