@@ -37,7 +37,7 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
   std::unordered_set<ir::Node *> need_removed_nodes;
 
   for (auto iter_node = topo_order.rbegin(); iter_node != topo_order.rend();
-       iter_node++) {
+       ++iter_node) {
     auto cur_node = *iter_node;
 
     std::unordered_set<Node *> tobe_fused;
@@ -46,15 +46,12 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
       Node *new_node =
           FuseOperators(cur_node, tobe_fused, &need_removed_nodes, graph.get());
 
+      tobe_fused.emplace(cur_node);
       need_removed_nodes.insert(tobe_fused.begin(), tobe_fused.end());
-      need_removed_nodes.emplace(cur_node);
-
       for (auto &sub_node : tobe_fused) {
         PADDLE_ENFORCE_EQ(internal_nodes.count(sub_node), 0);
         internal_nodes.emplace(sub_node, new_node);
       }
-      PADDLE_ENFORCE_EQ(internal_nodes.count(cur_node), 0);
-      internal_nodes.emplace(cur_node, new_node);
     }
   }
 
@@ -71,34 +68,29 @@ bool OpFusionPass::SetupFusion(
     std::unordered_set<Node *> *tobe_fused) const {
   PADDLE_ENFORCE(!node->IsVariable(), "Node should not be variable.");
 
-  bool need_fusion = false;
-
   NodePtr cur_node = node;
   if (internal_nodes.count(node)) {
     cur_node = internal_nodes.at(node);
   }
 
   auto no_control_vars = ir::NoControlDepVar(cur_node->inputs);
-
   if (no_control_vars.empty()) return false;
 
-  VLOG(10) << "Current op:" << cur_node->Op()->Type();
+  bool need_fusion = false;
+
+  VLOG(10) << "Current op:" << cur_node->Name();
 
   for (auto it = no_control_vars.begin(); it != no_control_vars.end(); ++it) {
     auto in_var = *it;
-
     PADDLE_ENFORCE(in_var->IsVariable(), "in_var should be a variable.");
-    PADDLE_ENFORCE_LE(in_var->inputs.size(), 1,
-                      "in_var's generation op should be null or one.");
-
     if (in_var->inputs.empty()) continue;
+    PADDLE_ENFORCE_EQ(in_var->inputs.size(), 1,
+                      "in_var's generation op should be only one.");
 
     auto in_var_gen_op = in_var->inputs[0];
-
     if (IsFusible(cur_node, in_var_gen_op)) {
       need_fusion = true;
-      VLOG(10) << "fuse:" << in_var_gen_op->Op()->Type() << ", "
-               << cur_node->Op()->Type();
+      VLOG(10) << "Fuse: " << cur_node->Name() << ", " << in_var_gen_op->Name();
       tobe_fused->insert(in_var_gen_op);
     }
   }
@@ -118,8 +110,8 @@ bool OpFusionPass::IsFusible(const NodePtr n1, const NodePtr n2) const {
   // TODO(zcd): hard code
   bool case1 = (n1->Op()->Type() == "scale" || n1->Op()->Type() == "relu") &&
                (n2->Op()->Type() == "elementwise_add");
-  bool case2 = (n2->Op()->Type() == "scale" || n2->Op()->Type() == "relu") &&
-               (n1->Op()->Type() == "elementwise_add");
+  bool case2 = (n1->Op()->Type() == "elementwise_add") &&
+               (n2->Op()->Type() == "scale" || n2->Op()->Type() == "relu");
   //  bool case3 =
   //    (n1->Op()->Type() == "scale_grad" || n1->Op()->Type() == "relu_grad") &&
   //    (n2->Op()->Type() == "elementwise_add_grad");
@@ -238,9 +230,8 @@ static bool IsElemwise(std::string op_type) {
 bool OpFusionPass::IsElemwiseAndActivation(
     const NodePtr node, const std::unordered_set<Node *> &tobe_fused) const {
   PADDLE_ENFORCE_EQ(tobe_fused.size(), 1);
-  auto inside_op = *tobe_fused.begin();
   auto outside_op_name = node->Op()->Type();
-  auto inside_op_name = inside_op->Op()->Type();
+  auto inside_op_name = (*tobe_fused.begin())->Op()->Type();
 
   return (IsActivation(outside_op_name) && IsElemwise(inside_op_name)) ||
          (IsActivation(inside_op_name) && IsElemwise(outside_op_name));
@@ -249,12 +240,9 @@ bool OpFusionPass::IsElemwiseAndActivation(
 void OpFusionPass::FuseElemwiseAndActivation(
     const NodePtr node, const std::unordered_set<Node *> &tobe_fused,
     OpDesc *op_desc) const {
-  auto outside_op_type = node->Op()->Type();
-  auto out_argument_names = node->Op()->OutputArgumentNames();
-
   auto intra_node = *tobe_fused.begin();
   auto intra_op_type = intra_node->Op()->Type();
-
+  auto outside_op_type = node->Op()->Type();
   auto fused_operator = outside_op_type + "," + intra_op_type;
 
   if (IsForward(node, tobe_fused)) {
@@ -279,22 +267,11 @@ void OpFusionPass::FuseElemwiseAndActivation(
       } else {
         PADDLE_THROW("exception");
       }
-      for (auto &m_ele : intra_node->Op()->GetAttrMap()) {
-        op_desc->SetAttr(m_ele.first, m_ele.second);
-      }
-      op_desc->SetAttr("axis", boost::get<int>(node->Op()->GetAttr("axis")));
       op_desc->SetOutput("Out", node->Op()->OutputArgumentNames());
     } else {
       op_desc->SetInput("Y", intra_node->Op()->Input("Y"));
       op_desc->SetInput("X", intra_node->Op()->Input("X"));
       op_desc->SetOutput("Out", node->Op()->OutputArgumentNames());
-
-      for (auto &m_ele : intra_node->Op()->GetAttrMap()) {
-        op_desc->SetAttr(m_ele.first, m_ele.second);
-      }
-
-      op_desc->SetAttr("axis",
-                       boost::get<int>(intra_node->Op()->GetAttr("axis")));
     }
   } else {  // is backward
     PADDLE_THROW("Backward has not implement.");
@@ -314,6 +291,13 @@ void OpFusionPass::FuseElemwiseAndActivation(
     //      op_desc->SetAttrMap({});
     //    }
     //    op_desc->SetOutput("Out", InputGrad("X"));
+  }
+
+  // Set attrs
+  for (auto &n : {intra_node, node}) {
+    for (auto &m_ele : n->Op()->GetAttrMap()) {
+      op_desc->SetAttr(m_ele.first, m_ele.second);
+    }
   }
 }
 
