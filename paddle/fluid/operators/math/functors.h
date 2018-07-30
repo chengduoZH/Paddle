@@ -345,7 +345,7 @@ static void RunGradFunctors(const framework::ExecutionContext &ctx,
                             const Tensor *in_out_grad, Tensor *x_grad,
                             Tensor *y_grad) {
   // TODO(zcd): The following code can be refined.
-  if (functors == "add,scale") {
+  if (functors == "elementwise_add_grad,scale_grad") {
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
     RunBinaryCompoundGradFunctors<DeviceContext, T, math::AddGradFunctor<T>,
                                   math::ScaleFunctor<T>,
@@ -353,21 +353,21 @@ static void RunGradFunctors(const framework::ExecutionContext &ctx,
         ctx, math::AddGradFunctor<T>(), math::ScaleFunctor<T>(scale),
         math::ScaleGradFunctor<T>(scale), in_x, in_y, in_out, in_out_grad,
         x_grad, y_grad);
-  } else if (functors == "scale,add") {
+  } else if (functors == "scale_grad,elementwise_add_grad") {
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
     RunUnaryCompoundGradFunctors<DeviceContext, T, math::ScaleGradFunctor<T>,
                                  math::AddFunctor<T>, math::AddGradFunctor<T>>(
         ctx, math::ScaleGradFunctor<T>(scale), math::AddFunctor<T>(),
         math::AddGradFunctor<T>(), in_x, in_y, in_out, in_out_grad, x_grad,
         y_grad);
-  } else if (functors == "add,relu") {
+  } else if (functors == "elementwise_add_grad,relu_grad") {
     RunBinaryCompoundGradFunctors<DeviceContext, T, math::AddGradFunctor<T>,
                                   math::ReluFunctor<T>,
                                   math::ReluGradFunctor<T>>(
         ctx, math::AddGradFunctor<T>(), math::ReluFunctor<T>(),
         math::ReluGradFunctor<T>(), in_x, in_y, in_out, in_out_grad, x_grad,
         y_grad);
-  } else if (functors == "relu,add") {
+  } else if (functors == "relu_grad,elementwise_add_grad") {
     RunUnaryCompoundGradFunctors<DeviceContext, T, math::ReluGradFunctor<T>,
                                  math::AddFunctor<T>, math::AddGradFunctor<T>>(
         ctx, math::ReluGradFunctor<T>(), math::AddFunctor<T>(),
