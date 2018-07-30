@@ -157,149 +157,67 @@ Node *OpFusionPass::FuseOperators(
     PADDLE_ENFORCE(flag);
   };
 
-  if (IsForward(cur_node, tobe_fused)) {
-    // new_node input
-    for (auto &var : cur_node->inputs) {
-      // the input degree of Variable Node is less than one.
-      PADDLE_ENFORCE_LE(var->inputs.size(), 1);
-      bool no_need_merge =
-          var->inputs.empty() || !tobe_fused.count(var->inputs[0]);
-      if (no_need_merge) {
+  auto in_args = fused_node->Op()->InputArgumentNames();
+  std::unordered_set<std::string> in_args_set;
+  for (auto &in : in_args) {
+    in_args_set.emplace(in);
+  }
+
+  // new_node input
+  for (auto &var : cur_node->inputs) {
+    // the input degree of Variable Node is less than one.
+    PADDLE_ENFORCE_LE(var->inputs.size(), 1);
+    bool no_need_merge =
+        var->inputs.empty() || !tobe_fused.count(var->inputs[0]);
+    if (no_need_merge) {
+      if (in_args_set.count(var->Name())) {
         fused_node->inputs.emplace_back(var);
         replace_node(cur_node, fused_node, &(var->outputs));
       } else {
-        auto &in_var_gen_node = var->inputs[0];
-        need_removed_nodes->emplace(var);
-        for (auto &in_var : in_var_gen_node->inputs) {
-          PADDLE_ENFORCE(in_var->IsVariable());
-          fused_node->inputs.emplace_back(in_var);
-          replace_node(in_var_gen_node, fused_node, &(in_var->outputs));
-        }
-
-        for (auto &out_var : in_var_gen_node->outputs) {
-          PADDLE_ENFORCE(out_var->IsVariable());
-          if (ir::IsControlDepVar(*out_var)) {
-            fused_node->outputs.emplace_back(out_var);
-            out_var->inputs.clear();
-            out_var->inputs.emplace_back(fused_node);
-          } else {
-            need_removed_nodes->emplace(out_var);
+        if (var->outputs.size() == 1) {
+          PADDLE_THROW("how to deal with this situation.");
+          //          need_removed_nodes->emplace(var);
+          //          if(!var->inputs.empty()){
+          //          }
+        } else {
+          std::vector<Node *> new_out;
+          for (auto &o : var->outputs) {
+            if (o != cur_node) {
+              new_out.emplace_back(o);
+            }
           }
+          var->outputs = new_out;
         }
       }
-    }
-
-    // new_node output
-    for (auto &cur_output : cur_node->outputs) {
-      PADDLE_ENFORCE(cur_output->IsVariable());
-      fused_node->outputs.emplace_back(cur_output);
-      cur_output->inputs.clear();
-      cur_output->inputs.emplace_back(fused_node);
-    }
-  } else {
-    auto in_argus = fused_op_desc->InputArgumentNames();
-    auto out_argus = fused_op_desc->OutputArgumentNames();
-    std::unordered_set<std::string> in_argus_name_set;
-    std::unordered_set<std::string> out_argus_name_set;
-
-    VLOG(10) << "Reset input and output: " << fused_op_desc->Type();
-
-    auto has_not_in = [](const Node *n,
-                         const std::vector<Node *> &nodes) -> bool {
-      return std::find(nodes.begin(), nodes.end(), n) == nodes.end();
-    };
-
-    for (auto &n : tobe_fused) {
-      PADDLE_ENFORCE(!n->IsVariable());
-      for (auto &n_in : n->inputs) {
-        PADDLE_ENFORCE(n_in->IsVariable());
-        if ((in_argus_name_set.count(n_in->Name()) ||
-             ir::IsControlDepVar(*n_in)) &&
-            has_not_in(n_in, fused_node->inputs)) {
-          fused_node->inputs.emplace_back(n_in);
-
-          replace_node(n, fused_node, &n_in->outputs);
-        } else {
-          if (n_in->outputs.size() == 1) {
-            need_removed_nodes->emplace(n_in);
-            if (!n_in->inputs.empty()) {
-              PADDLE_ENFORCE_EQ(n_in->inputs.size(), 1);
-              auto &gen_node = n_in->inputs[0];
-              PADDLE_ENFORCE(tobe_fused.count(gen_node));
-            }
-          } else {
-            std::vector<Node *> new_out;
-            for (auto &o : n_in->outputs) {
-              if (o != n) {
-                new_out.emplace_back(o);
-              }
-            }
-            n_in->outputs = new_out;
-          }
-        }
+    } else {
+      auto &in_var_gen_node = var->inputs[0];
+      need_removed_nodes->emplace(var);
+      for (auto &in_var : in_var_gen_node->inputs) {
+        PADDLE_ENFORCE(in_var->IsVariable());
+        fused_node->inputs.emplace_back(in_var);
+        replace_node(in_var_gen_node, fused_node, &(in_var->outputs));
       }
-      for (auto &n_out : n->outputs) {
-        PADDLE_ENFORCE(n_out->IsVariable());
-        VLOG(10) << "output: " << n_out->Name();
 
-        if (out_argus_name_set.count(n_out->Name()) ||
-            ir::IsControlDepVar(*n_out)) {
-          VLOG(10) << n_out->Name() << "insert into fused_node.output";
-          fused_node->outputs.emplace_back(n_out);
-          n_out->inputs[0] = fused_node;
+      for (auto &out_var : in_var_gen_node->outputs) {
+        PADDLE_ENFORCE(out_var->IsVariable());
+        if (ir::IsControlDepVar(*out_var)) {
+          fused_node->outputs.emplace_back(out_var);
+          out_var->inputs.clear();
+          out_var->inputs.emplace_back(fused_node);
         } else {
-          VLOG(10) << n_out->Name() << "removed";
-          need_removed_nodes->emplace(n_out);
-        }
-      }
-    }
-    {
-      auto n = cur_node;
-      PADDLE_ENFORCE(!n->IsVariable());
-      for (auto &n_in : n->inputs) {
-        PADDLE_ENFORCE(n_in->IsVariable());
-
-        if ((in_argus_name_set.count(n_in->Name()) ||
-             ir::IsControlDepVar(*n_in)) &&
-            has_not_in(n_in, fused_node->inputs)) {
-          fused_node->inputs.emplace_back(n_in);
-
-          replace_node(n, fused_node, &n_in->outputs);
-        } else {
-          if (n_in->outputs.size() == 1) {
-            need_removed_nodes->emplace(n_in);
-            if (!n_in->inputs.empty()) {
-              PADDLE_ENFORCE_EQ(n_in->inputs.size(), 1);
-              auto &gen_node = n_in->inputs[0];
-              PADDLE_ENFORCE(tobe_fused.count(gen_node));
-            }
-          } else {
-            std::vector<Node *> new_out;
-            for (auto &o : n_in->outputs) {
-              if (o != n) {
-                new_out.emplace_back(o);
-              }
-            }
-            n_in->outputs = new_out;
-          }
-        }
-      }
-      for (auto &n_out : n->outputs) {
-        PADDLE_ENFORCE(n_out->IsVariable());
-        VLOG(10) << "output: " << n_out->Name();
-
-        if (out_argus_name_set.count(n_out->Name()) ||
-            ir::IsControlDepVar(*n_out)) {
-          VLOG(10) << n_out->Name() << "insert into fused_node.output";
-          fused_node->outputs.emplace_back(n_out);
-          n_out->inputs[0] = fused_node;
-        } else {
-          VLOG(10) << n_out->Name() << "removed";
-          need_removed_nodes->emplace(n_out);
+          need_removed_nodes->emplace(out_var);
         }
       }
     }
   }
+  // new_node output
+  for (auto &cur_output : cur_node->outputs) {
+    PADDLE_ENFORCE(cur_output->IsVariable());
+    fused_node->outputs.emplace_back(cur_output);
+    cur_output->inputs.clear();
+    cur_output->inputs.emplace_back(fused_node);
+  }
+
   return fused_node;
 }
 
