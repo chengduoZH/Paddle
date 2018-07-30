@@ -170,12 +170,13 @@ Node *OpFusionPass::FuseOperators(
     bool no_need_merge =
         var->inputs.empty() || !tobe_fused.count(var->inputs[0]);
     if (no_need_merge) {
-      if (in_args_set.count(var->Name())) {
+      if (in_args_set.count(var->Name()) || ir::IsControlDepVar(*var)) {
         fused_node->inputs.emplace_back(var);
         replace_node(cur_node, fused_node, &(var->outputs));
       } else {
         if (var->outputs.size() == 1) {
-          PADDLE_THROW("how to deal with this situation.");
+          PADDLE_THROW("how to deal with this situation(%s).",
+                       var->outputs[0]->Name());
           //          need_removed_nodes->emplace(var);
           //          if(!var->inputs.empty()){
           //          }
