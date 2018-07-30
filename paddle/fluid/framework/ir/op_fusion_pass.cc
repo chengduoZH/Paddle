@@ -198,15 +198,11 @@ Node *OpFusionPass::FuseOperators(
     }
   } else {
     auto in_argus = fused_op_desc->InputArgumentNames();
-    auto out_argus = fused_op_desc->InputArgumentNames();
+    auto out_argus = fused_op_desc->OutputArgumentNames();
     std::unordered_set<std::string> in_argus_name_set;
     std::unordered_set<std::string> out_argus_name_set;
-    for (auto &in_arg : in_argus) {
-      in_argus_name_set.emplace(in_arg);
-    }
-    for (auto &out_arg : out_argus) {
-      out_argus_name_set.emplace(out_arg);
-    }
+
+    VLOG(10) << "Reset input and output: " << fused_op_desc->Type();
 
     auto has_not_in = [](const Node *n,
                          const std::vector<Node *> &nodes) -> bool {
@@ -244,11 +240,61 @@ Node *OpFusionPass::FuseOperators(
       }
       for (auto &n_out : n->outputs) {
         PADDLE_ENFORCE(n_out->IsVariable());
+        VLOG(10) << "output: " << n_out->Name();
+
         if (out_argus_name_set.count(n_out->Name()) ||
             ir::IsControlDepVar(*n_out)) {
+          VLOG(10) << n_out->Name() << "insert into fused_node.output";
           fused_node->outputs.emplace_back(n_out);
           n_out->inputs[0] = fused_node;
         } else {
+          VLOG(10) << n_out->Name() << "removed";
+          need_removed_nodes->emplace(n_out);
+        }
+      }
+    }
+    {
+      auto n = cur_node;
+      PADDLE_ENFORCE(!n->IsVariable());
+      for (auto &n_in : n->inputs) {
+        PADDLE_ENFORCE(n_in->IsVariable());
+
+        if ((in_argus_name_set.count(n_in->Name()) ||
+             ir::IsControlDepVar(*n_in)) &&
+            has_not_in(n_in, fused_node->inputs)) {
+          fused_node->inputs.emplace_back(n_in);
+
+          replace_node(n, fused_node, &n_in->outputs);
+        } else {
+          if (n_in->outputs.size() == 1) {
+            need_removed_nodes->emplace(n_in);
+            if (!n_in->inputs.empty()) {
+              PADDLE_ENFORCE_EQ(n_in->inputs.size(), 1);
+              auto &gen_node = n_in->inputs[0];
+              PADDLE_ENFORCE(tobe_fused.count(gen_node));
+            }
+          } else {
+            std::vector<Node *> new_out;
+            for (auto &o : n_in->outputs) {
+              if (o != n) {
+                new_out.emplace_back(o);
+              }
+            }
+            n_in->outputs = new_out;
+          }
+        }
+      }
+      for (auto &n_out : n->outputs) {
+        PADDLE_ENFORCE(n_out->IsVariable());
+        VLOG(10) << "output: " << n_out->Name();
+
+        if (out_argus_name_set.count(n_out->Name()) ||
+            ir::IsControlDepVar(*n_out)) {
+          VLOG(10) << n_out->Name() << "insert into fused_node.output";
+          fused_node->outputs.emplace_back(n_out);
+          n_out->inputs[0] = fused_node;
+        } else {
+          VLOG(10) << n_out->Name() << "removed";
           need_removed_nodes->emplace(n_out);
         }
       }
@@ -272,13 +318,15 @@ bool OpFusionPass::IsForward(
 
 // temporally
 static bool IsActivation(std::string op_type) {
-  static std::unordered_set<std::string> activations = {"relu", "scale"};
+  static std::unordered_set<std::string> activations = {
+      "relu", "scale", "relu_grad", "scale_grad"};
   return activations.count(op_type) == 1;
 }
 
 // temporally
 static bool IsElemwise(std::string op_type) {
-  static std::unordered_set<std::string> elementwise = {"elementwise_add"};
+  static std::unordered_set<std::string> elementwise = {"elementwise_add",
+                                                        "elementwise_add_grad"};
   return elementwise.count(op_type) == 1;
 }
 
@@ -358,8 +406,20 @@ void OpFusionPass::FuseElemwiseAndActivation(
       op_desc->SetInput("Out", intra_node_in1);
       op_desc->SetInput(::paddle::framework::GradVarName("Out"),
                         intra_node_in2);
+
       op_desc->SetOutput(::paddle::framework::GradVarName("X"), out1);
-      op_desc->SetInput(::paddle::framework::GradVarName("Y"), out2);
+      op_desc->SetOutput(::paddle::framework::GradVarName("Y"), out2);
+
+      std::stringstream out;
+      out << "X_grad:";
+      for (auto o : out1) {
+        out << o << ",";
+      }
+      out << "   Y_grad:";
+      for (auto o : out2) {
+        out << o << ",";
+      }
+      VLOG(10) << out.str();
     } else {
       PADDLE_THROW("Not implement.");
       //      // add_grad->Relu_grad
