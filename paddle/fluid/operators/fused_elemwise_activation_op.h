@@ -16,6 +16,7 @@ limitations under the License. */
 
 #include <string>
 #include <vector>
+#include "paddle/fluid/framework/op_desc.h"
 #include "paddle/fluid/framework/op_registry.h"
 #include "paddle/fluid/operators/math/functors.h"
 
@@ -38,6 +39,15 @@ class FusedElemwiseActivationOp : public framework::OperatorWithKernel {
 class FusedElemwiseActivationMaker : public framework::OpProtoAndCheckerMaker {
  public:
   void Make() override;
+};
+
+class FusedElemwiseActivationGradMaker
+    : public framework::SingleGradOpDescMaker {
+ public:
+  using framework::SingleGradOpDescMaker::SingleGradOpDescMaker;
+
+ protected:
+  std::unique_ptr<framework::OpDesc> Apply() const override;
 };
 
 class FusedElemwiseActivationOpGrad : public framework::OperatorWithKernel {

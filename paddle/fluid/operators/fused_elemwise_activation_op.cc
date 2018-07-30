@@ -82,6 +82,36 @@ for example:
 )DOC");
 }
 
+std::unique_ptr<framework::OpDesc> FusedElemwiseActivationGradMaker::Apply()
+    const override {
+  auto *op_desc_ptr = new framework::OpDesc();
+  op_desc_ptr->SetType(this->ForwardOpType() + "_grad");
+
+  for (auto &input_param : this->InputNames()) {
+    op_desc_ptr->SetInput(input_param, this->Input(input_param));
+    op_desc_ptr->SetOutput(framework::GradVarName(input_param),
+                           this->InputGrad(input_param, true));
+  }
+
+  for (auto &output_param : this->OutputNames()) {
+    op_desc_ptr->SetInput(output_param, this->Output(output_param));
+    op_desc_ptr->SetInput(framework::GradVarName(output_param),
+                          this->OutputGrad(output_param));
+  }
+  op_desc_ptr->SetAttrMap(this->Attrs());
+
+  std::string functor_names =
+      boost::get<std::string>(op_desc_ptr->GetAttr("functor_list"));
+  size_t pos = functor_names.find(",");
+  PADDLE_ENFORCE(pos != functor_names.end());
+  auto func_1 = functor_names.substr(0, pos);
+  auto func_2 = functor_names.substr(pos + 1, functor_names.size());
+
+  op_desc_ptr->SetAttr("functor_list", func_1 + "_grad," + func_2 + "_grad");
+
+  return std::unique_ptr<framework::OpDesc>(op_desc_ptr);
+}
+
 void FusedElemwiseActivationOpGrad::InferShape(
     framework::InferShapeContext *ctx) const {
   PADDLE_ENFORCE(ctx->HasInput("X"), "Input(X) should not be null");
@@ -125,7 +155,7 @@ framework::OpKernelType FusedElemwiseActivationOpGrad::GetExpectedKernelType(
 namespace ops = paddle::operators;
 REGISTER_OPERATOR(fused_elemwise_activation, ops::FusedElemwiseActivationOp,
                   ops::FusedElemwiseActivationMaker,
-                  paddle::framework::DefaultGradOpDescMaker<true>);
+                  ops::FusedElemwiseActivationGradMaker);
 REGISTER_OPERATOR(fused_elemwise_activation_grad,
                   ops::FusedElemwiseActivationOpGrad);
 
