@@ -17,6 +17,7 @@ limitations under the License. */
 
 #include "paddle/fluid/framework/ir/op_fusion_pass.h"
 #include "paddle/fluid/framework/op_proto_maker.h"
+#include "paddle/fluid/framework/operator.h"
 
 namespace paddle {
 namespace framework {
@@ -114,11 +115,11 @@ bool OpFusionPass::IsFusible(const NodePtr n1, const NodePtr n2) const {
   //  bool case3 =
   //    (n1->Op()->Type() == "scale_grad" || n1->Op()->Type() == "relu_grad") &&
   //    (n2->Op()->Type() == "elementwise_add_grad");
-  //  bool case4 =
-  //    (n2->Op()->Type() == "scale_grad" || n2->Op()->Type() == "relu_grad") &&
-  //    (n1->Op()->Type() == "elementwise_add_grad");
+  bool case4 =
+      (n2->Op()->Type() == "scale_grad" || n2->Op()->Type() == "relu_grad") &&
+      (n1->Op()->Type() == "elementwise_add_grad");
 
-  return case1 || case2;
+  return case1 || case2 || case4;
 }
 
 Node *OpFusionPass::FuseOperators(
@@ -141,11 +142,9 @@ Node *OpFusionPass::FuseOperators(
   } else {
     PADDLE_ENFORCE("Currently only support fusing two operators.");
   }
-
   // Create Node
   fused_op_desc->Flush();
   auto fused_node = graph->CreateOpNode(fused_op_desc);
-
   auto replace_node = [](const Node *cur_node, Node *new_node,
                          std::vector<Node *> *vars) {
     bool flag = false;
@@ -158,45 +157,103 @@ Node *OpFusionPass::FuseOperators(
     PADDLE_ENFORCE(flag);
   };
 
-  // new_node input
-  for (auto &var : cur_node->inputs) {
-    // the input degree of Variable Node is less than one.
-    PADDLE_ENFORCE_LE(var->inputs.size(), 1);
-    bool no_need_merge =
-        var->inputs.empty() || !tobe_fused.count(var->inputs[0]);
-    if (no_need_merge) {
-      fused_node->inputs.emplace_back(var);
-      replace_node(cur_node, fused_node, &(var->outputs));
-    } else {
-      auto &in_var_gen_node = var->inputs[0];
-      need_removed_nodes->emplace(var);
-      for (auto &in_var : in_var_gen_node->inputs) {
-        PADDLE_ENFORCE(in_var->IsVariable());
-        fused_node->inputs.emplace_back(in_var);
-        replace_node(in_var_gen_node, fused_node, &(in_var->outputs));
-      }
+  if (IsForward(cur_node, tobe_fused)) {
+    // new_node input
+    for (auto &var : cur_node->inputs) {
+      // the input degree of Variable Node is less than one.
+      PADDLE_ENFORCE_LE(var->inputs.size(), 1);
+      bool no_need_merge =
+          var->inputs.empty() || !tobe_fused.count(var->inputs[0]);
+      if (no_need_merge) {
+        fused_node->inputs.emplace_back(var);
+        replace_node(cur_node, fused_node, &(var->outputs));
+      } else {
+        auto &in_var_gen_node = var->inputs[0];
+        need_removed_nodes->emplace(var);
+        for (auto &in_var : in_var_gen_node->inputs) {
+          PADDLE_ENFORCE(in_var->IsVariable());
+          fused_node->inputs.emplace_back(in_var);
+          replace_node(in_var_gen_node, fused_node, &(in_var->outputs));
+        }
 
-      for (auto &out_var : in_var_gen_node->outputs) {
-        PADDLE_ENFORCE(out_var->IsVariable());
-        if (ir::IsControlDepVar(*out_var)) {
-          fused_node->outputs.emplace_back(out_var);
-          out_var->inputs.clear();
-          out_var->inputs.emplace_back(fused_node);
+        for (auto &out_var : in_var_gen_node->outputs) {
+          PADDLE_ENFORCE(out_var->IsVariable());
+          if (ir::IsControlDepVar(*out_var)) {
+            fused_node->outputs.emplace_back(out_var);
+            out_var->inputs.clear();
+            out_var->inputs.emplace_back(fused_node);
+          } else {
+            need_removed_nodes->emplace(out_var);
+          }
+        }
+      }
+    }
+
+    // new_node output
+    for (auto &cur_output : cur_node->outputs) {
+      PADDLE_ENFORCE(cur_output->IsVariable());
+      fused_node->outputs.emplace_back(cur_output);
+      cur_output->inputs.clear();
+      cur_output->inputs.emplace_back(fused_node);
+    }
+  } else {
+    auto in_argus = fused_op_desc->InputArgumentNames();
+    auto out_argus = fused_op_desc->InputArgumentNames();
+    std::unordered_set<std::string> in_argus_name_set;
+    std::unordered_set<std::string> out_argus_name_set;
+    for (auto &in_arg : in_argus) {
+      in_argus_name_set.emplace(in_arg);
+    }
+    for (auto &out_arg : out_argus) {
+      out_argus_name_set.emplace(out_arg);
+    }
+
+    auto has_not_in = [](const Node *n,
+                         const std::vector<Node *> &nodes) -> bool {
+      return std::find(nodes.begin(), nodes.end(), n) == nodes.end();
+    };
+
+    for (auto &n : tobe_fused) {
+      PADDLE_ENFORCE(!n->IsVariable());
+      for (auto &n_in : n->inputs) {
+        PADDLE_ENFORCE(n_in->IsVariable());
+        if ((in_argus_name_set.count(n_in->Name()) ||
+             ir::IsControlDepVar(*n_in)) &&
+            has_not_in(n_in, fused_node->inputs)) {
+          fused_node->inputs.emplace_back(n_in);
+
+          replace_node(n, fused_node, &n_in->outputs);
         } else {
-          need_removed_nodes->emplace(out_var);
+          if (n_in->outputs.size() == 1) {
+            need_removed_nodes->emplace(n_in);
+            if (!n_in->inputs.empty()) {
+              PADDLE_ENFORCE_EQ(n_in->inputs.size(), 1);
+              auto &gen_node = n_in->inputs[0];
+              PADDLE_ENFORCE(tobe_fused.count(gen_node));
+            }
+          } else {
+            std::vector<Node *> new_out;
+            for (auto &o : n_in->outputs) {
+              if (o != n) {
+                new_out.emplace_back(o);
+              }
+            }
+            n_in->outputs = new_out;
+          }
+        }
+      }
+      for (auto &n_out : n->outputs) {
+        PADDLE_ENFORCE(n_out->IsVariable());
+        if (out_argus_name_set.count(n_out->Name()) ||
+            ir::IsControlDepVar(*n_out)) {
+          fused_node->outputs.emplace_back(n_out);
+          n_out->inputs[0] = fused_node;
+        } else {
+          need_removed_nodes->emplace(n_out);
         }
       }
     }
   }
-
-  // new_node output
-  for (auto &cur_output : cur_node->outputs) {
-    PADDLE_ENFORCE(cur_output->IsVariable());
-    fused_node->outputs.emplace_back(cur_output);
-    cur_output->inputs.clear();
-    cur_output->inputs.emplace_back(fused_node);
-  }
-
   return fused_node;
 }
 
@@ -236,20 +293,20 @@ bool OpFusionPass::IsElemwiseAndActivation(
 }
 
 void OpFusionPass::FuseElemwiseAndActivation(
-    const NodePtr node, const std::unordered_set<Node *> &tobe_fused,
+    const NodePtr outside_node, const std::unordered_set<Node *> &tobe_fused,
     OpDesc *op_desc) const {
   auto intra_node = *tobe_fused.begin();
   auto intra_op_type = intra_node->Op()->Type();
-  auto outside_op_type = node->Op()->Type();
+  auto outside_op_type = outside_node->Op()->Type();
   auto fused_operator = outside_op_type + "," + intra_op_type;
 
   // Set Input
-  if (IsForward(node, tobe_fused)) {
+  if (IsForward(outside_node, tobe_fused)) {
     op_desc->SetType("fused_elemwise_activation");
     if (IsElemwise(outside_op_type)) {
       auto in_args = intra_node->Op()->InputArgumentNames();
       auto out_args = intra_node->Op()->OutputArgumentNames();
-      auto cur_in_args = node->Op()->InputArgumentNames();
+      auto cur_in_args = outside_node->Op()->InputArgumentNames();
 
       PADDLE_ENFORCE_EQ(in_args.size(), 1);
       PADDLE_ENFORCE_EQ(out_args.size(), 1);
@@ -268,31 +325,88 @@ void OpFusionPass::FuseElemwiseAndActivation(
       op_desc->SetInput("Y", intra_node->Op()->Input("Y"));
       op_desc->SetInput("X", intra_node->Op()->Input("X"));
     }
+    // Set output
+    op_desc->SetOutput("Out", outside_node->Op()->OutputArgumentNames());
   } else {  // is backward
-    PADDLE_THROW("Backward has not implement.");
-    //    op_desc->SetType("fused_elemwise_activation_grad");
-    //
-    //    std::unordered_map<std::string, Attribute> attr;
-    //    attr["functor_list"] = fused_operator;
-    //
-    //    if (IsElemwise(outside_op_type)) {
-    //      op_desc->SetInput("X", {});
-    //      attr["axis"] = fused_operator;
-    //
-    //      op_desc->SetAttrMap({});
-    //    } else {
-    //      op_desc->SetInput("X", {});
-    //      attr["axis"] = fused_operator;
-    //      op_desc->SetAttrMap({});
-    //    }
-    //    op_desc->SetOutput("Out", InputGrad("X"));
+    op_desc->SetType("fused_elemwise_activation_grad");
+
+    auto intra_node_in_args = intra_node->Op()->InputArgumentNames();
+    auto intra_node_out_args = intra_node->Op()->OutputArgumentNames();
+    auto outside_node_in_args = outside_node->Op()->InputArgumentNames();
+
+    if (IsElemwise(outside_op_type)) {
+      // Relu_grad->add_grad
+      // intra_node: Relu_grad
+      // outside_node: add_grad
+      PADDLE_ENFORCE_LE(intra_node_in_args.size(), 3);
+      PADDLE_ENFORCE_GE(intra_node_in_args.size(), 2);
+      PADDLE_ENFORCE_EQ(outside_node_in_args.size(), 4);
+
+      auto intra_node_in1 = intra_node->Op()->Input("Out");
+      auto intra_node_in2 =
+          intra_node->Op()->Input(::paddle::framework::GradVarName("Out"));
+
+      auto outside_node_in1 = outside_node->Op()->Input("X");
+      auto outside_node_in2 = outside_node->Op()->Input("Y");
+      auto out1 =
+          outside_node->Op()->Output(::paddle::framework::GradVarName("X"));
+      auto out2 =
+          outside_node->Op()->Output(::paddle::framework::GradVarName("Y"));
+
+      op_desc->SetInput("X", outside_node_in1);
+      op_desc->SetInput("Y", outside_node_in2);
+      op_desc->SetInput("Out", intra_node_in1);
+      op_desc->SetInput(::paddle::framework::GradVarName("Out"),
+                        intra_node_in2);
+      op_desc->SetOutput(::paddle::framework::GradVarName("X"), out1);
+      op_desc->SetInput(::paddle::framework::GradVarName("Y"), out2);
+    } else {
+      PADDLE_THROW("Not implement.");
+      //      // add_grad->Relu_grad
+      //      // intra_node: add_grad
+      //      // outside_node: Relu_grad
+      //      PADDLE_ENFORCE_LE(outside_node_in_args.size(), 3);
+      //      PADDLE_ENFORCE_GE(outside_node_in_args.size(), 2);
+      //      PADDLE_ENFORCE_EQ(intra_node_in_args.size(), 4);
+      //
+      //      auto intra_node_in1 = intra_node->Op()->Input("X");
+      //      auto intra_node_in2 = intra_node->Op()->Input("Y");
+      //      auto intra_node_in3 = intra_node->Op()->Input("Out");
+      //      auto intra_node_in4 =
+      //      intra_node->Op()->Input(::paddle::framework::GradVarName("Out"));
+      //      auto out1 =
+      //      intra_node->Op()->Output(::paddle::framework::GradVarName("X"));
+      //      auto out2 =
+      //      intra_node->Op()->Output(::paddle::framework::GradVarName("Y"));
+      //
+      //      auto outside_node_in3 = outside_node->Op()->Input("X"); //
+      //      Relu_grad doesn't have X
+      //      // auto outside_node_in1 = outside_node->Op()->Input("Out");
+      //      auto outside_node_in2 =
+      //      outside_node->Op()->Input(::paddle::framework::GradVarName("Out"));
+      //      auto outside_node_out1 =
+      //      outside_node->Op()->Output(::paddle::framework::GradVarName("X"));
+      //
+      //      if (out1[0] == outside_node_in2[0]) {
+      //        op_desc->SetOutput(::paddle::framework::GradVarName("X"), out2);
+      //        op_desc->SetInput("X", intra_node_in2);
+      //      } else if (out2[0] == outside_node_in2[0]) {
+      //        op_desc->SetOutput(::paddle::framework::GradVarName("X"), out1);
+      //        op_desc->SetInput("X", intra_node_in1);
+      //      } else {
+      //        PADDLE_THROW("Error");
+      //      }
+      //      op_desc->SetInput("Y", outside_node_in3);
+      //      op_desc->SetInput("Out", intra_node_in3);
+      //      op_desc->SetOutput(::paddle::framework::GradVarName("Y"),
+      //      outside_node_out1);
+      //      op_desc->SetInput(::paddle::framework::GradVarName("Out"),
+      //      intra_node_in4);
+    }
   }
 
-  // Set output
-  op_desc->SetOutput("Out", node->Op()->OutputArgumentNames());
-
   // Set attrs
-  for (auto &n : {intra_node, node}) {
+  for (auto &n : {intra_node, outside_node}) {
     for (auto &m_ele : n->Op()->GetAttrMap()) {
       op_desc->SetAttr(m_ele.first, m_ele.second);
     }
