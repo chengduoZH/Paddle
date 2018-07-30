@@ -302,9 +302,6 @@ void OpFusionPass::FuseElemwiseAndActivation(
     auto outside_node_in_args = outside_node->Op()->InputArgumentNames();
 
     if (IsElemwise(outside_op_type)) {
-      // Relu_grad->add_grad
-      // intra_node: Relu_grad
-      // outside_node: add_grad
       PADDLE_ENFORCE_LE(intra_node_in_args.size(), 3);
       PADDLE_ENFORCE_GE(intra_node_in_args.size(), 2);
       PADDLE_ENFORCE_EQ(outside_node_in_args.size(), 4);
@@ -325,20 +322,8 @@ void OpFusionPass::FuseElemwiseAndActivation(
       op_desc->SetInput("Out", intra_node_in1);
       op_desc->SetInput(::paddle::framework::GradVarName("Out"),
                         intra_node_in2);
-
       op_desc->SetOutput(::paddle::framework::GradVarName("X"), out1);
       op_desc->SetOutput(::paddle::framework::GradVarName("Y"), out2);
-
-      std::stringstream out;
-      out << "X_grad:";
-      for (auto o : out1) {
-        out << o << ",";
-      }
-      out << "   Y_grad:";
-      for (auto o : out2) {
-        out << o << ",";
-      }
-      VLOG(10) << out.str();
     } else {
       PADDLE_THROW("Not implement.");
       //      // add_grad->Relu_grad
