@@ -26,90 +26,7 @@ namespace math = paddle::operators::math;
 namespace paddle {
 namespace operators {
 
-class FusedElemwiseActivationOp : public framework::OperatorWithKernel {
- public:
-  using framework::OperatorWithKernel::OperatorWithKernel;
-
-  void InferShape(framework::InferShapeContext *ctx) const override;
-
- protected:
-  framework::OpKernelType GetExpectedKernelType(
-      const framework::ExecutionContext &ctx) const override;
-};
-
-class FusedElemwiseActivationMaker : public framework::OpProtoAndCheckerMaker {
- public:
-  void Make() override;
-
- private:
-  bool ValidCheck(const std::string &functors) {
-    std::unordered_set<std::string> unary_fun = {"scale", "relu"};
-    std::unordered_set<std::string> binary_fun = {"elementwise_add"};
-
-    size_t pos = functors.find(",");
-    auto func_1 = functors.substr(0, pos);
-    auto func_2 = functors.substr(pos + 1, functors.size());
-    std::string unary_fun_str;
-    if (binary_fun.count(func_1)) {
-      unary_fun_str = func_2;
-    } else if (binary_fun.count(func_2)) {
-      unary_fun_str = func_1;
-    } else {
-      PADDLE_THROW("%s and %s are not included in fused_list.", func_1, func_2);
-    }
-    PADDLE_ENFORCE_EQ(unary_fun.count(unary_fun_str), 1,
-                      "%s is not included in fused_list.", unary_fun_str);
-    return true;
-  }
-};
-
-class FusedElemwiseActivationGradMaker
-    : public framework::SingleGradOpDescMaker {
- public:
-  using framework::SingleGradOpDescMaker::SingleGradOpDescMaker;
-
- protected:
-  std::unique_ptr<framework::OpDesc> Apply() const override {
-    auto *op_desc_ptr = new framework::OpDesc();
-    op_desc_ptr->SetType(this->ForwardOpType() + "_grad");
-
-    for (auto &input_param : this->InputNames()) {
-      op_desc_ptr->SetInput(input_param, this->Input(input_param));
-      op_desc_ptr->SetOutput(framework::GradVarName(input_param),
-                             this->InputGrad(input_param, true));
-    }
-
-    for (auto &output_param : this->OutputNames()) {
-      op_desc_ptr->SetInput(output_param, this->Output(output_param));
-      op_desc_ptr->SetInput(framework::GradVarName(output_param),
-                            this->OutputGrad(output_param));
-    }
-    op_desc_ptr->SetAttrMap(this->Attrs());
-
-    std::string functor_names =
-        boost::get<std::string>(op_desc_ptr->GetAttr("functor_list"));
-    size_t pos = functor_names.find(",");
-    auto func_1 = functor_names.substr(0, pos);
-    auto func_2 = functor_names.substr(pos + 1, functor_names.size());
-
-    op_desc_ptr->SetAttr("functor_list", func_1 + "_grad," + func_2 + "_grad");
-
-    return std::unique_ptr<framework::OpDesc>(op_desc_ptr);
-  }
-};
-
-class FusedElemwiseActivationOpGrad : public framework::OperatorWithKernel {
- public:
-  using framework::OperatorWithKernel::OperatorWithKernel;
-
-  void InferShape(framework::InferShapeContext *ctx) const override;
-
- protected:
-  framework::OpKernelType GetExpectedKernelType(
-      const framework::ExecutionContext &ctx) const override;
-};
-
-using Tensor = framework::Tensor;
+using framework::Tensor = framework::Tensor;
 
 // CompoundFunctors
 // For example: z = Binary(X, Unary(Y))
@@ -452,9 +369,9 @@ template <typename DeviceContext, typename T>
 class FusedElemwiseActivationKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext &ctx) const override {
-    const Tensor *in_x = ctx.Input<Tensor>("X");
-    const Tensor *in_y = ctx.Input<Tensor>("Y");
-    Tensor *output = ctx.Output<Tensor>("Out");
+    const framework::Tensor *in_x = ctx.Input<framework::Tensor>("X");
+    const framework::Tensor *in_y = ctx.Input<framework::Tensor>("Y");
+    framework::Tensor *output = ctx.Output<framework::Tensor>("Out");
 
     std::string functors = ctx.Attr<std::string>("functor_list");
 
@@ -466,14 +383,16 @@ template <typename DeviceContext, typename T>
 class FusedElemwiseActivationGradKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext &ctx) const override {
-    const Tensor *in_x = ctx.Input<Tensor>("X");
-    const Tensor *in_y = ctx.Input<Tensor>("Y");
-    const Tensor *in_out = ctx.Input<Tensor>("Out");
-    const Tensor *in_out_grad =
-        ctx.Input<Tensor>(framework::GradVarName("Out"));
+    const framework::Tensor *in_x = ctx.Input<framework::Tensor>("X");
+    const framework::Tensor *in_y = ctx.Input<framework::Tensor>("Y");
+    const framework::Tensor *in_out = ctx.Input<framework::Tensor>("Out");
+    const framework::Tensor *in_out_grad =
+        ctx.Input<framework::Tensor>(framework::GradVarName("Out"));
 
-    Tensor *x_grad = ctx.Output<Tensor>(framework::GradVarName("X"));
-    Tensor *y_grad = ctx.Output<Tensor>(framework::GradVarName("Y"));
+    framework::Tensor *x_grad =
+        ctx.Output<framework::Tensor>(framework::GradVarName("X"));
+    framework::Tensor *y_grad =
+        ctx.Output<framework::Tensor>(framework::GradVarName("Y"));
 
     std::string functors = ctx.Attr<std::string>("functor_list");
 
