@@ -206,8 +206,6 @@ struct UnaryCompoundGradDyFunctor {
   DBinaryFun d_binary_fun_;
 };
 
-using Tensor = framework::Tensor;
-
 static bool ValidCheck(const std::string &functors) {
   std::unordered_set<std::string> unary_fun = {"scale", "relu"};
   std::unordered_set<std::string> binary_fun = {"elementwise_add"};
@@ -231,10 +229,11 @@ static bool ValidCheck(const std::string &functors) {
 template <typename DeviceContext, typename T, typename BinaryFunctor,
           typename UnaryFunctor>
 static void RunBinaryCompoundFunctor(const framework::ExecutionContext &ctx,
-                                     const BinaryFunctor binary_functor,
-                                     const UnaryFunctor unary_functor,
-                                     const Tensor *in_x, const Tensor *in_y,
-                                     Tensor *output) {
+                                     const BinaryFunctor &binary_functor,
+                                     const UnaryFunctor &unary_functor,
+                                     const framework::Tensor *in_x,
+                                     const framework::Tensor *in_y,
+                                     framework::Tensor *output) {
   int axis = ctx.Attr<int>("axis");
 
   using BinaryCompoundFunctor =
@@ -248,10 +247,11 @@ static void RunBinaryCompoundFunctor(const framework::ExecutionContext &ctx,
 template <typename DeviceContext, typename T, typename UnaryFunctor,
           typename BinaryFunctor>
 static void RunUnaryCompoundFunctors(const framework::ExecutionContext &ctx,
-                                     const UnaryFunctor unary_functor,
-                                     const BinaryFunctor binary_functor,
-                                     const Tensor *in_x, const Tensor *in_y,
-                                     Tensor *output) {
+                                     const UnaryFunctor &unary_functor,
+                                     const BinaryFunctor &binary_functor,
+                                     const framework::Tensor *in_x,
+                                     const framework::Tensor *in_y,
+                                     framework::Tensor *output) {
   int axis = ctx.Attr<int>("axis");
 
   using UnaryCompoundFunctor =
@@ -263,14 +263,16 @@ static void RunUnaryCompoundFunctors(const framework::ExecutionContext &ctx,
 }
 
 template <typename DeviceContext, typename T, typename BinaryGradFunctor,
-          typename UnaryFunctor, typename UnaryGradFuncto,
+          typename UnaryFunctor, typename UnaryGradFunctor,
           bool Recomputation = true>
 static void RunBinaryCompoundGradFunctors(
     const framework::ExecutionContext &ctx,
-    const BinaryGradFunctor binary_grad_functor,
-    const UnaryFunctor unary_functor, const UnaryGradFunctor unary_grad_functor,
-    const Tensor *in_x, const Tensor *in_y, const Tensor *in_out,
-    const Tensor *in_out_grad, Tensor *x_grad, Tensor *y_grad) {
+    const BinaryGradFunctor &binary_grad_functor,
+    const UnaryFunctor &unary_functor,
+    const UnaryGradFunctor &unary_grad_functor, const framework::Tensor *in_x,
+    const framework::Tensor *in_y, const framework::Tensor *in_out,
+    const framework::Tensor *in_out_grad, framework::Tensor *x_grad,
+    framework::Tensor *y_grad) {
   int axis = ctx.Attr<int>("axis");
 
   using BinaryCompoundDxFunctor =
@@ -293,11 +295,12 @@ template <typename DeviceContext, typename T, typename UnaryGradFunctor,
           bool Recomputation = true>
 static void RunUnaryCompoundGradFunctors(
     const framework::ExecutionContext &ctx,
-    const UnaryGradFunctor unary_grad_functor,
-    const BinaryFunctor binary_functor,
-    const BinaryGradFunctor binary_grad_functor, const Tensor *in_x,
-    const Tensor *in_y, const Tensor *in_out, const Tensor *in_out_grad,
-    Tensor *x_grad, Tensor *y_grad) {
+    const UnaryGradFunctor &unary_grad_functor,
+    const BinaryFunctor &binary_functor,
+    const BinaryGradFunctor &binary_grad_functor, const framework::Tensor *in_x,
+    const framework::Tensor *in_y, const framework::Tensor *in_out,
+    const framework::Tensor *in_out_grad, framework::Tensor *x_grad,
+    framework::Tensor *y_grad) {
   int axis = ctx.Attr<int>("axis");
 
   using UnaryCompoundDxFunctor =
@@ -318,8 +321,10 @@ static void RunUnaryCompoundGradFunctors(
 
 template <typename DeviceContext, typename T>
 static void RunFunctors(const framework::ExecutionContext &ctx,
-                        const std::string &functors, const Tensor *in_x,
-                        const Tensor *in_y, Tensor *output) {
+                        const std::string &functors,
+                        const framework::Tensor *in_x,
+                        const framework::Tensor *in_y,
+                        framework::Tensor *output) {
   // TODO(zcd): The following code can be refined.
   if (functors == "elementwise_add,scale") {
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
@@ -347,11 +352,11 @@ static void RunFunctors(const framework::ExecutionContext &ctx,
 }
 
 template <typename DeviceContext, typename T>
-static void RunGradFunctors(const framework::ExecutionContext &ctx,
-                            const std::string &functors, const Tensor *in_x,
-                            const Tensor *in_y, const Tensor *in_out,
-                            const Tensor *in_out_grad, Tensor *x_grad,
-                            Tensor *y_grad) {
+static void RunGradFunctors(
+    const framework::ExecutionContext &ctx, const std::string &functors,
+    const framework::Tensor *in_x, const framework::Tensor *in_y,
+    const framework::Tensor *in_out, const framework::Tensor *in_out_grad,
+    framework::Tensor *x_grad, framework::Tensor *y_grad) {
   bool recomputation = ctx.Attr<bool>("recomputation");
   // TODO(zcd): The following code can be refined.
   if (functors == "elementwise_add_grad,scale_grad") {
