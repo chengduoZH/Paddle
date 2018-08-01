@@ -30,24 +30,21 @@ namespace math {
 template <typename T>
 struct AddFunctor {
   // out = x + y;
-  inline HOSTDEVICE T operator()(const T x, const T y) const { return x + y; }
+  inline HOSTDEVICE T operator()(T x, T y) { return x + y; }
 };
 
 template <typename T>
 struct AddGradFunctor {
-  inline HOSTDEVICE T operator()(const T x, const T y) const { return 1; }
+  inline HOSTDEVICE T operator()(T x, T y) { return 1; }
 
-  inline HOSTDEVICE T operator()(const T x, const T y, const T out) const {
-    return 1;
-  }
+  inline HOSTDEVICE T operator()(T x, T y, T out) const { return 1; }
 };
 
-// ScaleFunctor
 template <typename T>
 struct ScaleFunctor {
   explicit ScaleFunctor(const T coeff) : coeff_(coeff) {}
 
-  inline HOSTDEVICE T operator()(const T ele) const { return ele * coeff_; }
+  inline HOSTDEVICE T operator()(T ele) { return ele * coeff_; }
 
  private:
   T coeff_;
@@ -57,11 +54,9 @@ template <typename T>
 struct ScaleGradFunctor {
   explicit ScaleGradFunctor(T coeff) : coeff_(coeff) {}
 
-  inline HOSTDEVICE T operator()(const T x) const { return coeff_; }
+  inline HOSTDEVICE T operator()(T x) { return coeff_; }
 
-  inline HOSTDEVICE T operator()(const T x, const T out) const {
-    return coeff_;
-  }
+  inline HOSTDEVICE T operator()(T x, T out) { return coeff_; }
 
  private:
   T coeff_;
@@ -70,16 +65,14 @@ struct ScaleGradFunctor {
 // ReluFunctor
 template <typename T>
 struct ReluFunctor {
-  inline HOSTDEVICE T operator()(const T x) const { return x * (x > 0); }
+  inline HOSTDEVICE T operator()(T x) { return x * (x > 0); }
 };
 
 template <typename T>
 struct ReluGradFunctor {
-  inline HOSTDEVICE T operator()(const T x) const { return x > 0 ? 1 : 0; }
+  inline HOSTDEVICE T operator()(T x) { return x > 0 ? 1 : 0; }
 
-  inline HOSTDEVICE T operator()(const T x, const T out) const {
-    return x > 0 ? 1 : 0;
-  }
+  inline HOSTDEVICE T operator()(T x, T out) { return x > 0 ? 1 : 0; }
 };
 
 // for example: z = x + scale * y
@@ -88,7 +81,7 @@ struct BinaryCompoundFunctor {
   BinaryCompoundFunctor(const BinaryFun &binary_fun, const UnaryFun &unary_fun)
       : binary_fun_(binary_fun), unary_fun_(unary_fun) {}
 
-  inline HOSTDEVICE T operator()(const T x, const T y) const {
+  inline HOSTDEVICE T operator()(T x, T y) {
     return binary_fun_(x, unary_fun_(y));
   }
 
@@ -104,8 +97,7 @@ struct BinaryCompoundGradDxFunctor {
                               const UnaryFun &unary_fun)
       : d_binary_fun_(d_binary_fun), unary_fun_(unary_fun) {}
 
-  inline HOSTDEVICE T operator()(const T x, const T y, const T out,
-                                 const T dout) const {
+  inline HOSTDEVICE T operator()(T x, T y, T out, T dout) {
     //    return dout * d_binary_fun_(x, unary_fun_(y), out);
     return dout * d_binary_fun_(x, unary_fun_(y));
   }
@@ -126,8 +118,7 @@ struct BinaryCompoundGradDyFunctor {
         unary_fun_(unary_fun),
         d_unary_fun_(d_unary_fun) {}
 
-  inline HOSTDEVICE T operator()(const T x, const T y, const T out,
-                                 const T dout) const {
+  inline HOSTDEVICE T operator()(T x, T y, T out, T dout) {
     // return dout * d_binary_fun_(unary_fun_(y), x, out) * d_unary_fun_(y);
     return dout * d_binary_fun_(unary_fun_(y), x) * d_unary_fun_(y);
   }
@@ -144,7 +135,7 @@ struct UnaryCompoundFunctor {
   UnaryCompoundFunctor(const UnaryFun &unary_fun, const BinaryFun &binary_fun)
       : unary_fun_(unary_fun), binary_fun_(binary_fun) {}
 
-  inline HOSTDEVICE T operator()(const T x, const T y) const {
+  inline HOSTDEVICE T operator()(T x, T y) {
     return unary_fun_(binary_fun_(x, y));
   }
 
@@ -164,8 +155,7 @@ struct UnaryCompoundGradDxFunctor {
         binary_fun_(binary_fun),
         d_binary_fun_(d_binary_fun) {}
 
-  inline HOSTDEVICE T operator()(const T x, const T y, const T out,
-                                 const T dout) const {
+  inline HOSTDEVICE T operator()(T x, T y, T out, T dout) {
     // auto base = dout * d_unary_fun_(binary_fun_(x, y), out);
     auto base = dout * d_unary_fun_(binary_fun_(x, y));
     return base * d_binary_fun_(x, y);
@@ -188,8 +178,7 @@ struct UnaryCompoundGradDyFunctor {
         binary_fun_(binary_fun),
         d_binary_fun_(d_binary_fun) {}
 
-  inline HOSTDEVICE T operator()(const T x, const T y, const T out,
-                                 const T dout) const {
+  inline HOSTDEVICE T operator()(T x, T y, T out, T dout) {
     // auto base = dout * d_unary_fun_(binary_fun_(x, y), out);
     auto base = dout * d_unary_fun_(binary_fun_(x, y));
     return base * d_binary_fun_(y, x);
