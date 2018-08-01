@@ -62,7 +62,6 @@ struct ScaleGradFunctor {
   T coeff_;
 };
 
-// ReluFunctor
 template <typename T>
 struct ReluFunctor {
   inline HOSTDEVICE T operator()(T x) { return x * (x > 0); }
@@ -75,7 +74,7 @@ struct ReluGradFunctor {
   inline HOSTDEVICE T operator()(T x, T out) { return x > 0 ? 1 : 0; }
 };
 
-// for example: z = x + scale * y
+// For example: z = Binary(X, Unary(Y))
 template <typename T, typename BinaryFun, typename UnaryFun>
 struct BinaryCompoundFunctor {
   BinaryCompoundFunctor(const BinaryFun &binary_fun, const UnaryFun &unary_fun)
@@ -90,16 +89,26 @@ struct BinaryCompoundFunctor {
   UnaryFun unary_fun_;
 };
 
-// for example: z = x + scale * y
-template <typename T, typename DBinaryFun, typename UnaryFun>
+template <typename T, typename DBinaryFun, typename UnaryFun,
+          bool Recomputation = true>
 struct BinaryCompoundGradDxFunctor {
   BinaryCompoundGradDxFunctor(const DBinaryFun &d_binary_fun,
                               const UnaryFun &unary_fun)
       : d_binary_fun_(d_binary_fun), unary_fun_(unary_fun) {}
 
   inline HOSTDEVICE T operator()(T x, T y, T out, T dout) {
-    //    return dout * d_binary_fun_(x, unary_fun_(y), out);
-    return dout * d_binary_fun_(x, unary_fun_(y));
+    // FIXME(zcd): DBinaryFun have to method to get the dx,
+    // one is to use the 'out', and the other is not to use it.
+    // the former method will save the time of recomputation the
+    // 'out', but it must occupy the memory to store the 'out'.
+    // While the later method can avoid occupying this memory,
+    // but it must recompute the 'out'.
+
+    if (Recomputation) {
+      return dout * d_binary_fun_(x, unary_fun_(y));
+    } else {
+      return dout * d_binary_fun_(x, unary_fun_(y), out);
+    }
   }
 
  private:
@@ -107,9 +116,8 @@ struct BinaryCompoundGradDxFunctor {
   UnaryFun unary_fun_;
 };
 
-// for example: z = x + scale * y
 template <typename T, typename DBinaryFun, typename UnaryFun,
-          typename DUnaryFun>
+          typename DUnaryFun, bool Recomputation = true>
 struct BinaryCompoundGradDyFunctor {
   BinaryCompoundGradDyFunctor(const DBinaryFun &d_binary_fun,
                               const UnaryFun &unary_fun,
@@ -119,8 +127,11 @@ struct BinaryCompoundGradDyFunctor {
         d_unary_fun_(d_unary_fun) {}
 
   inline HOSTDEVICE T operator()(T x, T y, T out, T dout) {
-    // return dout * d_binary_fun_(unary_fun_(y), x, out) * d_unary_fun_(y);
-    return dout * d_binary_fun_(unary_fun_(y), x) * d_unary_fun_(y);
+    if (Recomputation) {
+      return dout * d_binary_fun_(unary_fun_(y), x) * d_unary_fun_(y);
+    } else {
+      return dout * d_binary_fun_(unary_fun_(y), x, out) * d_unary_fun_(y);
+    }
   }
 
  private:
@@ -129,7 +140,6 @@ struct BinaryCompoundGradDyFunctor {
   DUnaryFun d_unary_fun_;
 };
 
-// for example: z = scale * (x + y)
 template <typename T, typename UnaryFun, typename BinaryFun>
 struct UnaryCompoundFunctor {
   UnaryCompoundFunctor(const UnaryFun &unary_fun, const BinaryFun &binary_fun)
@@ -144,9 +154,8 @@ struct UnaryCompoundFunctor {
   BinaryFun binary_fun_;
 };
 
-// for example: z = scale * (x + y)
 template <typename T, typename DUnaryFun, typename BinaryFun,
-          typename DBinaryFun>
+          typename DBinaryFun, bool Recomputation = true>
 struct UnaryCompoundGradDxFunctor {
   UnaryCompoundGradDxFunctor(const DUnaryFun &d_unary_fun,
                              const BinaryFun &binary_fun,
@@ -156,8 +165,12 @@ struct UnaryCompoundGradDxFunctor {
         d_binary_fun_(d_binary_fun) {}
 
   inline HOSTDEVICE T operator()(T x, T y, T out, T dout) {
-    // auto base = dout * d_unary_fun_(binary_fun_(x, y), out);
-    auto base = dout * d_unary_fun_(binary_fun_(x, y));
+    T base;
+    if (Recomputation) {
+      base = dout * d_unary_fun_(binary_fun_(x, y));
+    } else {
+      base = dout * d_unary_fun_(binary_fun_(x, y), out);
+    }
     return base * d_binary_fun_(x, y);
   }
 
@@ -167,9 +180,8 @@ struct UnaryCompoundGradDxFunctor {
   DBinaryFun d_binary_fun_;
 };
 
-// for example: z = scale * (x + y)
 template <typename T, typename DUnaryFun, typename BinaryFun,
-          typename DBinaryFun>
+          typename DBinaryFun, bool Recomputation = true>
 struct UnaryCompoundGradDyFunctor {
   UnaryCompoundGradDyFunctor(const DUnaryFun &d_unary_fun,
                              const BinaryFun &binary_fun,
@@ -179,8 +191,12 @@ struct UnaryCompoundGradDyFunctor {
         d_binary_fun_(d_binary_fun) {}
 
   inline HOSTDEVICE T operator()(T x, T y, T out, T dout) {
-    // auto base = dout * d_unary_fun_(binary_fun_(x, y), out);
-    auto base = dout * d_unary_fun_(binary_fun_(x, y));
+    T base;
+    if (Recomputation) {
+      base = dout * d_unary_fun_(binary_fun_(x, y));
+    } else {
+      base = dout * d_unary_fun_(binary_fun_(x, y), out);
+    }
     return base * d_binary_fun_(y, x);
   }
 
@@ -247,7 +263,8 @@ static void RunUnaryCompoundFunctors(const framework::ExecutionContext &ctx,
 }
 
 template <typename DeviceContext, typename T, typename BinaryGradFunctor,
-          typename UnaryFunctor, typename UnaryGradFunctor>
+          typename UnaryFunctor, typename UnaryGradFuncto,
+          bool Recomputation = true>
 static void RunBinaryCompoundGradFunctors(
     const framework::ExecutionContext &ctx,
     const BinaryGradFunctor binary_grad_functor,
@@ -257,10 +274,11 @@ static void RunBinaryCompoundGradFunctors(
   int axis = ctx.Attr<int>("axis");
 
   using BinaryCompoundDxFunctor =
-      math::BinaryCompoundGradDxFunctor<T, BinaryGradFunctor, UnaryFunctor>;
+      math::BinaryCompoundGradDxFunctor<T, BinaryGradFunctor, UnaryFunctor,
+                                        Recomputation>;
   using BinaryCompoundDyFunctor =
       math::BinaryCompoundGradDyFunctor<T, BinaryGradFunctor, UnaryFunctor,
-                                        UnaryGradFunctor>;
+                                        UnaryGradFunctor, Recomputation>;
 
   ElemwiseGradCompute<DeviceContext, T, BinaryCompoundDxFunctor,
                       BinaryCompoundDyFunctor>(
@@ -271,7 +289,8 @@ static void RunBinaryCompoundGradFunctors(
 }
 
 template <typename DeviceContext, typename T, typename UnaryGradFunctor,
-          typename BinaryFunctor, typename BinaryGradFunctor>
+          typename BinaryFunctor, typename BinaryGradFunctor,
+          bool Recomputation = true>
 static void RunUnaryCompoundGradFunctors(
     const framework::ExecutionContext &ctx,
     const UnaryGradFunctor unary_grad_functor,
@@ -283,10 +302,10 @@ static void RunUnaryCompoundGradFunctors(
 
   using UnaryCompoundDxFunctor =
       math::UnaryCompoundGradDxFunctor<T, UnaryGradFunctor, BinaryFunctor,
-                                       BinaryGradFunctor>;
+                                       BinaryGradFunctor, Recomputation>;
   using UnaryCompoundDyFunctor =
       math::UnaryCompoundGradDyFunctor<T, UnaryGradFunctor, BinaryFunctor,
-                                       BinaryGradFunctor>;
+                                       BinaryGradFunctor, Recomputation>;
 
   ElemwiseGradCompute<DeviceContext, T, UnaryCompoundDxFunctor,
                       UnaryCompoundDyFunctor>(
@@ -333,35 +352,74 @@ static void RunGradFunctors(const framework::ExecutionContext &ctx,
                             const Tensor *in_y, const Tensor *in_out,
                             const Tensor *in_out_grad, Tensor *x_grad,
                             Tensor *y_grad) {
+  bool recomputation = ctx.Attr<bool>("recomputation");
   // TODO(zcd): The following code can be refined.
   if (functors == "elementwise_add_grad,scale_grad") {
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
-    RunBinaryCompoundGradFunctors<DeviceContext, T, math::AddGradFunctor<T>,
-                                  math::ScaleFunctor<T>,
-                                  math::ScaleGradFunctor<T>>(
-        ctx, math::AddGradFunctor<T>(), math::ScaleFunctor<T>(scale),
-        math::ScaleGradFunctor<T>(scale), in_x, in_y, in_out, in_out_grad,
-        x_grad, y_grad);
+    if (recomputation) {
+      RunBinaryCompoundGradFunctors<DeviceContext, T, math::AddGradFunctor<T>,
+                                    math::ScaleFunctor<T>,
+                                    math::ScaleGradFunctor<T>, true>(
+          ctx, math::AddGradFunctor<T>(), math::ScaleFunctor<T>(scale),
+          math::ScaleGradFunctor<T>(scale), in_x, in_y, in_out, in_out_grad,
+          x_grad, y_grad);
+    } else {
+      RunBinaryCompoundGradFunctors<DeviceContext, T, math::AddGradFunctor<T>,
+                                    math::ScaleFunctor<T>,
+                                    math::ScaleGradFunctor<T>, false>(
+          ctx, math::AddGradFunctor<T>(), math::ScaleFunctor<T>(scale),
+          math::ScaleGradFunctor<T>(scale), in_x, in_y, in_out, in_out_grad,
+          x_grad, y_grad);
+    }
   } else if (functors == "scale_grad,elementwise_add_grad") {
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
-    RunUnaryCompoundGradFunctors<DeviceContext, T, math::ScaleGradFunctor<T>,
-                                 math::AddFunctor<T>, math::AddGradFunctor<T>>(
-        ctx, math::ScaleGradFunctor<T>(scale), math::AddFunctor<T>(),
-        math::AddGradFunctor<T>(), in_x, in_y, in_out, in_out_grad, x_grad,
-        y_grad);
+    if (recomputation) {
+      RunUnaryCompoundGradFunctors<DeviceContext, T, math::ScaleGradFunctor<T>,
+                                   math::AddFunctor<T>, math::AddGradFunctor<T>,
+                                   true>(ctx, math::ScaleGradFunctor<T>(scale),
+                                         math::AddFunctor<T>(),
+                                         math::AddGradFunctor<T>(), in_x, in_y,
+                                         in_out, in_out_grad, x_grad, y_grad);
+    } else {
+      RunUnaryCompoundGradFunctors<DeviceContext, T, math::ScaleGradFunctor<T>,
+                                   math::AddFunctor<T>, math::AddGradFunctor<T>,
+                                   false>(ctx, math::ScaleGradFunctor<T>(scale),
+                                          math::AddFunctor<T>(),
+                                          math::AddGradFunctor<T>(), in_x, in_y,
+                                          in_out, in_out_grad, x_grad, y_grad);
+    }
   } else if (functors == "elementwise_add_grad,relu_grad") {
-    RunBinaryCompoundGradFunctors<DeviceContext, T, math::AddGradFunctor<T>,
-                                  math::ReluFunctor<T>,
-                                  math::ReluGradFunctor<T>>(
-        ctx, math::AddGradFunctor<T>(), math::ReluFunctor<T>(),
-        math::ReluGradFunctor<T>(), in_x, in_y, in_out, in_out_grad, x_grad,
-        y_grad);
+    if (recomputation) {
+      RunBinaryCompoundGradFunctors<DeviceContext, T, math::AddGradFunctor<T>,
+                                    math::ReluFunctor<T>,
+                                    math::ReluGradFunctor<T>, true>(
+          ctx, math::AddGradFunctor<T>(), math::ReluFunctor<T>(),
+          math::ReluGradFunctor<T>(), in_x, in_y, in_out, in_out_grad, x_grad,
+          y_grad);
+    } else {
+      RunBinaryCompoundGradFunctors<DeviceContext, T, math::AddGradFunctor<T>,
+                                    math::ReluFunctor<T>,
+                                    math::ReluGradFunctor<T>, false>(
+          ctx, math::AddGradFunctor<T>(), math::ReluFunctor<T>(),
+          math::ReluGradFunctor<T>(), in_x, in_y, in_out, in_out_grad, x_grad,
+          y_grad);
+    }
   } else if (functors == "relu_grad,elementwise_add_grad") {
-    RunUnaryCompoundGradFunctors<DeviceContext, T, math::ReluGradFunctor<T>,
-                                 math::AddFunctor<T>, math::AddGradFunctor<T>>(
-        ctx, math::ReluGradFunctor<T>(), math::AddFunctor<T>(),
-        math::AddGradFunctor<T>(), in_x, in_y, in_out, in_out_grad, x_grad,
-        y_grad);
+    if (recomputation) {
+      RunUnaryCompoundGradFunctors<DeviceContext, T, math::ReluGradFunctor<T>,
+                                   math::AddFunctor<T>, math::AddGradFunctor<T>,
+                                   true>(ctx, math::ReluGradFunctor<T>(),
+                                         math::AddFunctor<T>(),
+                                         math::AddGradFunctor<T>(), in_x, in_y,
+                                         in_out, in_out_grad, x_grad, y_grad);
+    } else {
+      RunUnaryCompoundGradFunctors<DeviceContext, T, math::ReluGradFunctor<T>,
+                                   math::AddFunctor<T>, math::AddGradFunctor<T>,
+                                   false>(ctx, math::ReluGradFunctor<T>(),
+                                          math::AddFunctor<T>(),
+                                          math::AddGradFunctor<T>(), in_x, in_y,
+                                          in_out, in_out_grad, x_grad, y_grad);
+    }
   } else {
     PADDLE_THROW("%s has not been implemented.", functors);
   }

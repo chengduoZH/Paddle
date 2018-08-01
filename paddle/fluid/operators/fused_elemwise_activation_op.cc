@@ -60,7 +60,8 @@ void FusedElemwiseActivationMaker::Make() {
   AddAttr<float>("scale",
                  "scale is used by scale_op, the default value is 0.0.")
       .SetDefault(0.0);
-
+  AddAttr<bool>("recomputation", "Whether to recompute the Out.")
+      .SetDefault(false);
   AddAttr<std::string>("functor_list", "The functors that should be fused.")
       .AddCustomChecker([](const std::string &functor_list) {
         PADDLE_ENFORCE(math::ValidCheck(functor_list));
