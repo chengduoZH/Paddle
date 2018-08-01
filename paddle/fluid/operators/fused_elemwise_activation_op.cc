@@ -64,7 +64,7 @@ void FusedElemwiseActivationMaker::Make() {
       .SetDefault(false);
   AddAttr<std::string>("functor_list", "The functors that should be fused.")
       .AddCustomChecker([](const std::string &functor_list) {
-        PADDLE_ENFORCE(math::ValidCheck(functor_list));
+        PADDLE_ENFORCE(ValidCheck(functor_list));
       });
 
   AddComment(R"DOC(
