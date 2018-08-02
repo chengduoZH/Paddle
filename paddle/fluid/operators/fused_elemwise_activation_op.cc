@@ -71,7 +71,7 @@ class FusedElemwiseActivationMaker : public framework::OpProtoAndCheckerMaker {
     AddAttr<bool>("recomputation", "Whether to recompute the Out.")
         .SetDefault(false);
     AddAttr<std::string>("functor_list", "The functors that should be fused.")
-        .AddCustomChecker([](const std::string &functor_list) {
+        .AddCustomChecker([&](const std::string &functor_list) {
           PADDLE_ENFORCE(ValidCheck(functor_list));
         });
 

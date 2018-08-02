@@ -402,12 +402,13 @@ class FusedElemwiseActivationGradKernel : public framework::OpKernel<T> {
                     "Cannot get input tensor %s, variable name = %s",
                     framework::GradVarName("Out"),
                     ctx.op().Input(framework::GradVarName("Out")));
-    //    auto& x_grad =
-    //    detail::Ref(ctx.Output<framework::Tensor>(framework::GradVarName("X")),
-    //                                    "Cannot get input tensor %s, variable
-    //                                    name = %s",
-    //                                    framework::GradVarName("X"),
-    //                                    ctx.op().Output(framework::GradVarName("X")));
+    //        auto& x_grad =
+    //        detail::Ref(ctx.Output<framework::Tensor>(framework::GradVarName("X")),
+    //                                        "Cannot get input tensor %s,
+    //                                        variable"
+    //                                        "name = %s",
+    //                                        framework::GradVarName("X"),
+    //                                        ctx.op().Output(framework::GradVarName("X")));
     //    auto& y_grad =
     //    detail::Ref(ctx.Output<framework::Tensor>(framework::GradVarName("X")),
     //                               "Cannot get input tensor %s, variable name
@@ -425,43 +426,5 @@ class FusedElemwiseActivationGradKernel : public framework::OpKernel<T> {
                                       &in_out_grad, x_grad, y_grad);
   }
 };
-
-// template <typename DeviceContext, typename T>
-// class FusedElemwiseActivationGradKernel : public framework::OpKernel<T> {
-// public:
-//  void Compute(const framework::ExecutionContext &ctx) const override {
-//    auto in_x = detail::Ref(ctx.Input<framework::Tensor>("X"),
-//                            "Cannot get input tensor %s, variable name = %s",
-//                            "X", ctx.op().Input("X"));
-//    auto in_y = detail::Ref(ctx.Input<framework::Tensor>("Y"),
-//                            "Cannot get input tensor %s, variable name = %s",
-//                            "Y", ctx.op().Input("Y"));
-//    auto in_out = detail::Ref(ctx.Input<framework::Tensor>("Out"),
-//                              "Cannot get input tensor %s, variable name =
-//                              %s",
-//                              "Out", ctx.op().Input("Out"));
-//    auto in_out_grad =
-//        detail::Ref(ctx.Input<framework::Tensor>(framework::GradVarName("Out")),
-//                    "Cannot get input tensor %s, variable name = %s",
-//                    framework::GradVarName("Out"),
-//                    ctx.op().Input(framework::GradVarName("Out")));
-//    auto x_grad =
-//        detail::Ref(ctx.Output<framework::Tensor>(framework::GradVarName("X")),
-//                    "Cannot get input tensor %s, variable name = %s",
-//                    framework::GradVarName("X"),
-//                    ctx.op().Output(framework::GradVarName("X")));
-//    auto y_grad =
-//        detail::Ref(ctx.Output<framework::Tensor>(framework::GradVarName("Y")),
-//                    "Cannot get input tensor %s, variable name = %s",
-//                    framework::GradVarName("Y"),
-//                    ctx.op().Output(framework::GradVarName("Y")));
-//
-//    std::string functors = ctx.Attr<std::string>("functor_list");
-//
-//    RunGradFunctors<DeviceContext, T>(ctx, functors, &in_x, &in_y, &in_out,
-//                                      &in_out_grad, &x_grad, &y_grad);
-//  }
-//};
-
 }  // namespace operators
 }  // namespace paddle
