@@ -255,10 +255,10 @@ static void RunUnaryCompoundGradFunctors(
 
 template <typename DeviceContext, typename T>
 static void RunFunctors(const framework::ExecutionContext &ctx,
-                        const std::string &functors,
                         const framework::Tensor *in_x,
                         const framework::Tensor *in_y,
                         framework::Tensor *output) {
+  auto &functors = ctx.Attr<std::string>("functor_list");
   // TODO(zcd): The following code can be refined.
   if (functors == "elementwise_add,scale") {
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
@@ -286,11 +286,14 @@ static void RunFunctors(const framework::ExecutionContext &ctx,
 }
 
 template <typename DeviceContext, typename T>
-static void RunGradFunctors(
-    const framework::ExecutionContext &ctx, const std::string &functors,
-    const framework::Tensor *in_x, const framework::Tensor *in_y,
-    const framework::Tensor *in_out, const framework::Tensor *in_out_grad,
-    framework::Tensor *x_grad, framework::Tensor *y_grad) {
+static void RunGradFunctors(const framework::ExecutionContext &ctx,
+                            const framework::Tensor *in_x,
+                            const framework::Tensor *in_y,
+                            const framework::Tensor *in_out,
+                            const framework::Tensor *in_out_grad,
+                            framework::Tensor *x_grad,
+                            framework::Tensor *y_grad) {
+  auto &functors = ctx.Attr<std::string>("functor_list");
   bool recomputation = ctx.Attr<bool>("recomputation");
   // TODO(zcd): The following code can be refined.
   if (functors == "elementwise_add_grad,scale_grad") {
@@ -378,9 +381,7 @@ class FusedElemwiseActivationKernel : public framework::OpKernel<T> {
                                "Cannot get input tensor %s, variable name = %s",
                                "Out", ctx.op().Output("Out"));
 
-    std::string functors = ctx.Attr<std::string>("functor_list");
-
-    RunFunctors<DeviceContext, T>(ctx, functors, &in_x, &in_y, &output);
+    RunFunctors<DeviceContext, T>(ctx, &in_x, &in_y, &output);
   }
 };
 
@@ -402,28 +403,14 @@ class FusedElemwiseActivationGradKernel : public framework::OpKernel<T> {
                     "Cannot get input tensor %s, variable name = %s",
                     framework::GradVarName("Out"),
                     ctx.op().Input(framework::GradVarName("Out")));
-    //        auto& x_grad =
-    //        detail::Ref(ctx.Output<framework::Tensor>(framework::GradVarName("X")),
-    //                                        "Cannot get input tensor %s,
-    //                                        variable"
-    //                                        "name = %s",
-    //                                        framework::GradVarName("X"),
-    //                                        ctx.op().Output(framework::GradVarName("X")));
-    //    auto& y_grad =
-    //    detail::Ref(ctx.Output<framework::Tensor>(framework::GradVarName("X")),
-    //                               "Cannot get input tensor %s, variable name
-    //                               = %s",
-    //                               framework::GradVarName("X"),
-    //                               ctx.op().Output(framework::GradVarName("X")));
+
     framework::Tensor *x_grad =
         ctx.Output<framework::Tensor>(framework::GradVarName("X"));
     framework::Tensor *y_grad =
         ctx.Output<framework::Tensor>(framework::GradVarName("Y"));
 
-    std::string functors = ctx.Attr<std::string>("functor_list");
-
-    RunGradFunctors<DeviceContext, T>(ctx, functors, &in_x, &in_y, &in_out,
-                                      &in_out_grad, x_grad, y_grad);
+    RunGradFunctors<DeviceContext, T>(ctx, &in_x, &in_y, &in_out, &in_out_grad,
+                                      x_grad, y_grad);
   }
 };
 }  // namespace operators
