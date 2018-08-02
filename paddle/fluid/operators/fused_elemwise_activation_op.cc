@@ -47,11 +47,11 @@ class FusedElemwiseActivationOp : public framework::OperatorWithKernel {
  protected:
   framework::OpKernelType GetExpectedKernelType(
       const framework::ExecutionContext &ctx) const override {
-    PADDLE_ENFORCE_EQ(ctx.Input<Tensor>("X")->type(),
-                      ctx.Input<Tensor>("Y")->type(),
+    PADDLE_ENFORCE_EQ(ctx.Input<framework::Tensor>("X")->type(),
+                      ctx.Input<framework::Tensor>("Y")->type(),
                       "The element's type of input should be the same.");
     auto input_data_type =
-        framework::ToDataType(ctx.Input<Tensor>("X")->type());
+        framework::ToDataType(ctx.Input<framework::Tensor>("X")->type());
     return framework::OpKernelType(input_data_type, ctx.GetPlace());
   }
 };
@@ -178,12 +178,14 @@ class FusedElemwiseActivationOpGrad : public framework::OperatorWithKernel {
  protected:
   framework::OpKernelType GetExpectedKernelType(
       const framework::ExecutionContext &ctx) const override {
-    auto input_data_type_index = ctx.Input<Tensor>("X")->type();
-    PADDLE_ENFORCE_EQ(input_data_type_index, ctx.Input<Tensor>("Y")->type(),
-                      "The element's type of input should be the same.");
+    auto input_data_type_index = ctx.Input<framework::Tensor>("X")->type();
     PADDLE_ENFORCE_EQ(input_data_type_index,
-                      ctx.Input<Tensor>(framework::GradVarName("Out"))->type(),
+                      ctx.Input<framework::Tensor>("Y")->type(),
                       "The element's type of input should be the same.");
+    PADDLE_ENFORCE_EQ(
+        input_data_type_index,
+        ctx.Input<framework::Tensor>(framework::GradVarName("Out"))->type(),
+        "The element's type of input should be the same.");
 
     auto input_data_type = framework::ToDataType(input_data_type_index);
     return framework::OpKernelType(input_data_type, ctx.GetPlace());
