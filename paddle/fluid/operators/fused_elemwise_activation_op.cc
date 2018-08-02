@@ -139,6 +139,7 @@ class FusedElemwiseActivationGradMaker
     std::string functor_names =
         boost::get<std::string>(op_desc_ptr->GetAttr("functor_list"));
     size_t pos = functor_names.find(",");
+    PADDLE_ENFORCE_NE(pos, std::string::npos);
     auto func_1 = functor_names.substr(0, pos);
     auto func_2 = functor_names.substr(pos + 1, functor_names.size());
 

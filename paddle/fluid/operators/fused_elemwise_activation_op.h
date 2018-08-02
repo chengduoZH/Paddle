@@ -169,7 +169,6 @@ static void RunBinaryCompoundFunctor(const framework::ExecutionContext &ctx,
                                      const framework::Tensor *in_y,
                                      framework::Tensor *output) {
   int axis = ctx.Attr<int>("axis");
-
   using BinaryCompoundFunctor =
       BinaryCompoundFunctor<T, BinaryFunctor, UnaryFunctor>;
 
@@ -259,6 +258,7 @@ static void RunFunctors(const framework::ExecutionContext &ctx,
                         const framework::Tensor *in_y,
                         framework::Tensor *output) {
   auto &functors = ctx.Attr<std::string>("functor_list");
+
   // TODO(zcd): The following code can be refined.
   if (functors == "elementwise_add,scale") {
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
@@ -295,6 +295,7 @@ static void RunGradFunctors(const framework::ExecutionContext &ctx,
                             framework::Tensor *y_grad) {
   auto &functors = ctx.Attr<std::string>("functor_list");
   bool recomputation = ctx.Attr<bool>("recomputation");
+
   // TODO(zcd): The following code can be refined.
   if (functors == "elementwise_add_grad,scale_grad") {
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
