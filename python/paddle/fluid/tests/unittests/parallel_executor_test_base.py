@@ -69,6 +69,7 @@ class TestParallelExecutorBase(unittest.TestCase):
             startup_exe.run(startup)
             exec_strategy = fluid.ExecutionStrategy()
             exec_strategy.allow_op_delay = allow_op_delay
+            exec_strategy.num_threads = 1
 
             build_strategy = fluid.BuildStrategy()
             build_strategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce \
