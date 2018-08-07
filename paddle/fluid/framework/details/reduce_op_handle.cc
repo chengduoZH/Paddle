@@ -94,9 +94,38 @@ void ReduceOpHandle::RunImpl() {
 
     if (paddle::platform::is_cpu_place(lod_tensors[0]->place())) {
       this->RunAndRecordEvent([&] {
-        ReduceLoDTensor func(lod_tensors,
-                             out_var->GetMutable<framework::LoDTensor>());
+        auto &trg = *this->local_scopes_[0]
+                         ->FindVar(kLocalExecScopeName)
+                         ->Get<Scope *>()
+                         ->FindVar(out_var_handle->name_)
+                         ->GetMutable<framework::LoDTensor>();
+
+        // Reduce All Tensor to trg in CPU
+        ReduceLoDTensor func(lod_tensors, &trg);
         VisitDataType(ToDataType(lod_tensors[0]->type()), func);
+
+        {
+          std::vector<float> xv;
+          framework::TensorToVector(trg, *dev_ctxes_[in_var_handles[0]->place_],
+                                    &xv);
+          double total = 0.0;
+          for (float v : xv) {
+            float v1 = v;
+            if (v1 < 0) {
+              v1 = -v1;
+            }
+            total += static_cast<double>(v1);
+          }
+          VLOG(10) << "Reduce---," << in_var_handles[0]->name_ << " : "
+                   << total;
+        }
+
+        auto out_t = out_var->GetMutable<framework::LoDTensor>();
+        TensorCopy(trg, platform::CPUPlace(), out_t);
+
+        //        ReduceLoDTensor func(lod_tensors,
+        //                             out_var->GetMutable<framework::LoDTensor>());
+        //        VisitDataType(ToDataType(lod_tensors[0]->type()), func);
       });
       {
         std::vector<float> xv;
