@@ -80,6 +80,11 @@ def fc_with_batchnorm(use_feed):
     return loss
 
 
+def optimizer(learning_rate=0.01):
+    optimizer = fluid.optimizer.SGD(learning_rate=learning_rate)
+    return optimizer
+
+
 class TestMNIST(TestParallelExecutorBase):
     @classmethod
     def setUpClass(cls):
@@ -107,6 +112,7 @@ class TestMNIST(TestParallelExecutorBase):
     def _compare_reduce_and_allreduce(self, model, use_cuda):
         if use_cuda and not core.is_compiled_with_cuda():
             return
+
         img, label = self._init_data()
 
         all_reduce_first_loss, all_reduce_last_loss = self.check_network_convergence(
@@ -114,13 +120,17 @@ class TestMNIST(TestParallelExecutorBase):
             feed_dict={"image": img,
                        "label": label},
             use_cuda=use_cuda,
-            use_reduce=False)
+            use_reduce=False,
+            iter=5,
+            optimizer=optimizer)
         reduce_first_loss, reduce_last_loss = self.check_network_convergence(
             model,
             feed_dict={"image": img,
                        "label": label},
             use_cuda=use_cuda,
-            use_reduce=True)
+            use_reduce=True,
+            iter=5,
+            optimizer=optimizer)
 
         for loss in zip(all_reduce_first_loss, reduce_first_loss):
             self.assertAlmostEquals(loss[0], loss[1], delta=1e-6)

@@ -74,6 +74,7 @@ class TestParallelExecutorBase(unittest.TestCase):
             build_strategy = fluid.BuildStrategy()
             build_strategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce \
                 if use_reduce else fluid.BuildStrategy.ReduceStrategy.AllReduce
+            build_strategy.debug_graphviz_path = "./graph.dot"
 
             if use_parallel_executor:
                 exe = fluid.ParallelExecutor(
@@ -93,7 +94,9 @@ class TestParallelExecutorBase(unittest.TestCase):
                 exe=exe, feed=feed_dict, fetch_list=[loss.name])
 
             for i in xrange(iter):
-                run_executor(exe=exe, feed=feed_dict, fetch_list=[])
+                first_loss1, = run_executor(
+                    exe=exe, feed=feed_dict, fetch_list=[loss.name])
+                print first_loss1
 
             last_loss, = run_executor(
                 exe=exe, feed=feed_dict, fetch_list=[loss.name])
