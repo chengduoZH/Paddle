@@ -262,12 +262,14 @@ static void RunFunctors(const framework::ExecutionContext &ctx,
   auto funcs_str = functors[0] + "," + functors[1];
   // TODO(zcd): The following code can be refined.
   if (funcs_str == "elementwise_add,scale") {
+    // Z = Binary(X, Unary(Y))
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
     RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
                              math::ScaleFunctor<T>>(
         ctx, math::AddFunctor<T>(), math::ScaleFunctor<T>(scale), in_x, in_y,
         output);
   } else if (funcs_str == "scale,elementwise_add") {
+    // Z = Unary(Binary(X, Y))
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
     RunUnaryCompoundFunctors<DeviceContext, T, math::ScaleFunctor<T>,
                              math::AddFunctor<T>>(
@@ -301,6 +303,7 @@ static void RunGradFunctors(const framework::ExecutionContext &ctx,
 
   // TODO(zcd): The following code can be refined. for example, use registion
   if (funcs_str == "elementwise_add_grad,scale_grad") {
+    // The backward of Z = Binary(X, Unary(Y))
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
     if (recomputation) {
       RunBinaryCompoundGradFunctors<DeviceContext, T, math::AddGradFunctor<T>,
@@ -318,6 +321,7 @@ static void RunGradFunctors(const framework::ExecutionContext &ctx,
           x_grad, y_grad);
     }
   } else if (funcs_str == "scale_grad,elementwise_add_grad") {
+    // The backward of Z = Unary(Binary(X, Y))
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
     if (recomputation) {
       RunUnaryCompoundGradFunctors<DeviceContext, T, math::ScaleGradFunctor<T>,
