@@ -121,6 +121,21 @@ void AllReduceOpHandle::RunImpl() {
       ReduceLoDTensor func(lod_tensors, &trg);
       VisitDataType(ToDataType(lod_tensors[0]->type()), func);
 
+      {
+        std::vector<float> xv;
+        framework::TensorToVector(trg, *dev_ctxes_[in_var_handles[0]->place_],
+                                  &xv);
+        double total = 0.0;
+        for (float v : xv) {
+          float v1 = v;
+          if (v1 < 0) {
+            v1 = -v1;
+          }
+          total += static_cast<double>(v1);
+        }
+        VLOG(10) << "AllReduce, out: " << total;
+      }
+
       for (size_t i = 1; i < local_scopes_.size(); ++i) {
         auto &scope =
             *local_scopes_[i]->FindVar(kLocalExecScopeName)->Get<Scope *>();
