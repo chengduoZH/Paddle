@@ -110,7 +110,7 @@ void ReduceOpHandle::RunImpl() {
           }
           total += static_cast<double>(v1);
         }
-        VLOG(10) << "Reduce, out: " << total;
+        VLOG(10) << "Reduce," << out_var_handle->name_ << " : " << total;
       }
     } else if (paddle::platform::is_gpu_place(lod_tensors[0]->place())) {
 #ifdef PADDLE_WITH_CUDA

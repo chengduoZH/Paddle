@@ -133,7 +133,8 @@ void AllReduceOpHandle::RunImpl() {
           }
           total += static_cast<double>(v1);
         }
-        VLOG(10) << "AllReduce, out: " << total;
+
+        VLOG(10) << "AllReduce," << in_var_handles[0]->name_ << " : " << total;
       }
 
       for (size_t i = 1; i < local_scopes_.size(); ++i) {
