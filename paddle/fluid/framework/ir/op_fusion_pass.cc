@@ -393,6 +393,7 @@ void OpFusionPass::FuseElemwiseAndActivation(
       op_desc->SetAttr(m_ele.first, m_ele.second);
     }
   }
+  op_desc->SetAttr("recomputation", true);
 }
 
 }  // namespace ir
