@@ -30,7 +30,8 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
   // The created OpDesc will be stored in graph.
   graph->Set<OpDescs>(kOpDescs, new OpDescs());
 
-  std::vector<NodePtr> operations = ir::GetOperations(*graph.get());
+  std::vector<NodePtr> operations = ir::TopologySortOperations(*graph.get());
+  // std::vector<NodePtr> operations = ir::GetOperations(*graph.get());
 
   // internal_nodes is used to record the origin node
   // and fused node which has this origin node.
@@ -307,14 +308,14 @@ void OpFusionPass::FuseElemwiseAndActivation(
   if (IsBackward(outside_node, tobe_fused)) {
     op_desc->SetType("fused_elemwise_activation_grad");
     op_desc->SetAttr("functor_list", intra_op_type + "," + outside_op_type);
-
     if (IsElemwise(outside_op_type)) {
       PADDLE_ENFORCE_LE(intra_node_in_args.size(), 3);
       PADDLE_ENFORCE_GE(intra_node_in_args.size(), 2);
       PADDLE_ENFORCE(
-          outside_node_in_args.size() == 2 || outside_node_in_args.size() == 4,
+          outside_node_in_args.size() == 3 || outside_node_in_args.size() == 4,
           "The number of inputs of %s should be 2 or 4, "
-          "if the number is 2, the input variable is `Out` and `Out@Grad`, "
+          "if the number is 2, the input variable is `Y`, `Out` and "
+          "`Out@Grad`, "
           "if the number is 4, the input variable is `X`, `Y`, `Out`, "
           "`Out@Grad`",
           outside_node->Op()->Type());
@@ -324,21 +325,29 @@ void OpFusionPass::FuseElemwiseAndActivation(
         op_desc->SetInput("Y", outside_node->Op()->Input("Y"));
       } else {
         bool insert_input = false;
-        auto out_name = intra_node->Op()->Input("Out")[0];
-        std::vector<Node *> &outside_node_inputs = outside_node->inputs;
+        auto out_name = outside_node->Op()->Input("Out")[0];
         for (auto in : outside_node->inputs) {
+          VLOG(10) << "Backward " << outside_node->Name() << " "
+                   << in->Var()->Name() << " " << out_name;
+
           if (in->Var()->Name() == out_name) {
             auto forward_node = in->inputs[0];
-            PADDLE_ENFORCE_EQ(
-                forward_node->Name() + "_grad", outside_node->Name(),
-                "%s and %s should be a pair of forward and backward.");
+            PADDLE_ENFORCE(
+                forward_node->Name() + "_grad" ==
+                    "fused_elemwise_activation_grad",
+                "%s and %s should be a pair of forward and backward.",
+                "fused_elemwise_activation_grad", forward_node->Name());
             op_desc->SetInput("X", forward_node->Op()->Input("X"));
             op_desc->SetInput("Y", forward_node->Op()->Input("Y"));
+            insert_input = true;
+            break;
           }
         }
         PADDLE_ENFORCE(insert_input, "Doesn't find `X` and `Y` of %s.",
                        outside_node->Name());
       }
+
+      VLOG(10) << "Backward " << outside_node->Name();
 
       auto intra_node_in1 = intra_node->Op()->Input("Out");
       auto intra_node_in2 =
@@ -360,6 +369,8 @@ void OpFusionPass::FuseElemwiseAndActivation(
   } else {
     op_desc->SetType("fused_elemwise_activation");
     op_desc->SetAttr("functor_list", outside_op_type + "," + intra_op_type);
+
+    VLOG(10) << "Forward " << outside_node->Name();
 
     if (IsElemwise(outside_op_type)) {
       PADDLE_ENFORCE_EQ(intra_node_in_args.size(), 1);
