@@ -305,8 +305,8 @@ void OpFusionPass::FuseElemwiseAndActivation(
   if (IsBackward(outside_node, tobe_fused)) {
     const std::string op_type = "fused_elemwise_activation_grad";
     op_desc->SetType(op_type);
-    op_desc->SetAttr("functor_list",
-                     std::vector({intra_op_type, outside_op_type}));
+    op_desc->SetAttr("functor_list", std::vector<std::string>(
+                                         {intra_op_type, outside_op_type}));
     if (IsElemwise(outside_op_type)) {
       PADDLE_ENFORCE(
           intra_node_in_args.size() == 2 || intra_node_in_args.size() == 3,
@@ -362,8 +362,8 @@ void OpFusionPass::FuseElemwiseAndActivation(
     }
   } else {
     op_desc->SetType("fused_elemwise_activation");
-    op_desc->SetAttr("functor_list",
-                     std::vector({outside_op_type, intra_op_type}));
+    op_desc->SetAttr("functor_list", std::vector<std::string>(
+                                         {outside_op_type, intra_op_type}));
 
     if (IsElemwise(outside_op_type)) {
       PADDLE_ENFORCE_EQ(intra_node_in_args.size(), 1);
