@@ -311,21 +311,44 @@ void OpFusionPass::FuseElemwiseAndActivation(
     if (IsElemwise(outside_op_type)) {
       PADDLE_ENFORCE_LE(intra_node_in_args.size(), 3);
       PADDLE_ENFORCE_GE(intra_node_in_args.size(), 2);
-      PADDLE_ENFORCE_EQ(outside_node_in_args.size(), 4);
+      PADDLE_ENFORCE(
+          outside_node_in_args.size() == 2 || outside_node_in_args.size() == 4,
+          "The number of inputs of %s should be 2 or 4, "
+          "if the number is 2, the input variable is `Out` and `Out@Grad`, "
+          "if the number is 4, the input variable is `X`, `Y`, `Out`, "
+          "`Out@Grad`",
+          outside_node->Op()->Type());
+
+      if (outside_node_in_args.size() == 4) {
+        op_desc->SetInput("X", outside_node->Op()->Input("X"));
+        op_desc->SetInput("Y", outside_node->Op()->Input("Y"));
+      } else {
+        bool insert_input = false;
+        auto out_name = intra_node->Op()->Input("Out")[0];
+        std::vector<Node *> &outside_node_inputs = outside_node->inputs;
+        for (auto in : outside_node->inputs) {
+          if (in->Var()->Name() == out_name) {
+            auto forward_node = in->inputs[0];
+            PADDLE_ENFORCE_EQ(
+                forward_node->Name() + "_grad", outside_node->Name(),
+                "%s and %s should be a pair of forward and backward.");
+            op_desc->SetInput("X", forward_node->Op()->Input("X"));
+            op_desc->SetInput("Y", forward_node->Op()->Input("Y"));
+          }
+        }
+        PADDLE_ENFORCE(insert_input, "Doesn't find `X` and `Y` of %s.",
+                       outside_node->Name());
+      }
 
       auto intra_node_in1 = intra_node->Op()->Input("Out");
       auto intra_node_in2 =
           intra_node->Op()->Input(::paddle::framework::GradVarName("Out"));
 
-      auto outside_node_in1 = outside_node->Op()->Input("X");
-      auto outside_node_in2 = outside_node->Op()->Input("Y");
       auto out1 =
           outside_node->Op()->Output(::paddle::framework::GradVarName("X"));
       auto out2 =
           outside_node->Op()->Output(::paddle::framework::GradVarName("Y"));
 
-      op_desc->SetInput("X", outside_node_in1);
-      op_desc->SetInput("Y", outside_node_in2);
       op_desc->SetInput("Out", intra_node_in1);
       op_desc->SetInput(::paddle::framework::GradVarName("Out"),
                         intra_node_in2);
