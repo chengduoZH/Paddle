@@ -25,10 +25,15 @@ limitations under the License. */
 #include "paddle/fluid/platform/nccl_helper.h"
 #endif
 
+#include "paddle/fluid/framework/details/fast_threaded_ssa_graph_executor.h"
 #include "paddle/fluid/framework/details/scope_buffered_ssa_graph_executor.h"
+//<<<<<<< HEAD
 #include "paddle/fluid/framework/details/ssa_graph_checker.h"
 #include "paddle/fluid/framework/details/ssa_graph_printer.h"
 #include "paddle/fluid/framework/details/threaded_ssa_graph_executor.h"
+//=======
+// #include "paddle/fluid/framework/details/ssa_graph_builder_factory.h"
+//>>>>>>> 1a8c0bcbffb259479351bfab90f663a4034311a4
 #include "paddle/fluid/platform/profiler.h"
 
 namespace paddle {

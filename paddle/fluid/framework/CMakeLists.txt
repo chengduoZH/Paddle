@@ -100,7 +100,11 @@ else()
 endif()
 
 
-cc_library(parallel_executor SRCS parallel_executor.cc DEPS threaded_ssa_graph_executor scope_buffered_ssa_graph_executor graph graph_viz_pass multi_devices_graph_builder ssa_graph_printer ssa_graph_checker)
+#<<<<<<< HEAD
+#cc_library(parallel_executor SRCS parallel_executor.cc DEPS threaded_ssa_graph_executor scope_buffered_ssa_graph_executor graph graph_viz_pass multi_devices_graph_builder ssa_graph_printer ssa_graph_checker)
+#=======
+cc_library(parallel_executor SRCS parallel_executor.cc DEPS ssa_graph_builder_factory fast_threaded_ssa_graph_executor scope_buffered_ssa_graph_executor graph)
+#>>>>>>> 1a8c0bcbffb259479351bfab90f663a4034311a4
 
 cc_library(prune SRCS prune.cc DEPS framework_proto)
 cc_test(prune_test SRCS prune_test.cc DEPS op_info prune recurrent_op device_context)
