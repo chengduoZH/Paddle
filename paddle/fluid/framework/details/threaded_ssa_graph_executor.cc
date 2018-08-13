@@ -89,11 +89,11 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   exception_holder_.Clear();
   event.reset(nullptr);
 
-  std::cerr << "Prepare time "
-            << std::chrono::duration_cast<std::chrono::microseconds>(
-                   std::chrono::high_resolution_clock::now() - beg)
-                   .count()
-            << " micro secs";
+  //  std::cerr << "Prepare time "
+  //            << std::chrono::duration_cast<std::chrono::microseconds>(
+  //                   std::chrono::high_resolution_clock::now() - beg)
+  //                   .count()
+  //            << " micro secs";
 
   // Step 3. Execution
   while (!pending_vars.empty()) {
