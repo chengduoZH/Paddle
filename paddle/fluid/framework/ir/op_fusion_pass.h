@@ -31,7 +31,7 @@ namespace ir {
 using NodePtr = Node *;
 using InternalNodePtr = Node *;
 
-class OpFusionPass : public Pass {
+class FuseAdjacentNodesPass : public Pass {
  protected:
   std::unique_ptr<ir::Graph> ApplyImpl(
       std::unique_ptr<ir::Graph> graph) const override;

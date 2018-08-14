@@ -25,15 +25,15 @@ namespace ir {
 const char kOpDescs[] = "op_descs";
 using OpDescs = std::vector<std::unique_ptr<OpDesc>>;
 
-std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
+std::unique_ptr<ir::Graph> FuseAdjacentNodesPass::ApplyImpl(
     std::unique_ptr<ir::Graph> graph) const {
   // The created OpDesc will be stored in graph.
   graph->Set<OpDescs>(kOpDescs, new OpDescs());
 
   std::vector<NodePtr> topo_order = ir::TopologySortOperations(*graph.get());
 
-  // internal_nodes is used to record the origin node
-  // and fused node which has this origin node.
+  // internal_nodes is used to record the origin node and fused node
+  // which has the origin node.
   std::unordered_map<NodePtr, InternalNodePtr> internal_nodes;
   // need_removed_nodes is used to record the unnecessary nodes which should be
   // released.
@@ -43,30 +43,27 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
        ++iter_node) {
     auto cur_node = *iter_node;
 
-    // tobe_fused is used to record the nodes which can be fused with cur_node,
-    // and these nodes are the generation operator of cur_node's input.
-    std::unordered_set<NodePtr> tobe_fused;
+    // tobe_fused_nodes is used to record the nodes which can be fused with
+    // cur_node.
+    std::unordered_set<NodePtr> tobe_fused_nodes;
 
-    // Whether cur_node can fuse with it adjacent nodes(in-degree), if so,
-    // add the adjacent node to tobe_fused.
-    // Node: cur_node maybe has been fused, if so, get the fused
-    // node from internal_nodes, and check whether the fused node
-    // can fuse with cur_node's adjacent nodes(in-degree).
-    if (FindToBeFusedNodes(cur_node, internal_nodes, &tobe_fused)) {
-      // fuse cur_node and tobe_fused.
-      NodePtr fused_node =
-          FuseNodes(cur_node, tobe_fused, &need_removed_nodes, graph.get());
+    // Whether cur_node can fuse with it's adjacent nodes(in-degree)
+    if (FindToBeFusedNodes(cur_node, internal_nodes, &tobe_fused_nodes)) {
+      // fuse cur_node and tobe_fused_nodes.
+      NodePtr fused_node = FuseNodes(cur_node, tobe_fused_nodes,
+                                     &need_removed_nodes, graph.get());
 
-      tobe_fused.emplace(cur_node);
+      tobe_fused_nodes.emplace(cur_node);
 
-      // Add the map between tobe_fused nodes and the fused node.
-      for (auto &sub_node : tobe_fused) {
+      // Add the map between tobe_fused_nodes nodes and the fused node.
+      for (auto &sub_node : tobe_fused_nodes) {
         PADDLE_ENFORCE_EQ(internal_nodes.count(sub_node), 0);
         internal_nodes.emplace(sub_node, fused_node);
       }
 
       // Record these nodes that are no longer useful.
-      need_removed_nodes.insert(tobe_fused.begin(), tobe_fused.end());
+      need_removed_nodes.insert(tobe_fused_nodes.begin(),
+                                tobe_fused_nodes.end());
     }
   }
 
@@ -77,10 +74,10 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
   return graph;
 }
 
-bool OpFusionPass::FindToBeFusedNodes(
+bool FuseAdjacentNodesPass::FindToBeFusedNodes(
     const NodePtr node,
     const std::unordered_map<NodePtr, InternalNodePtr> &internal_nodes,
-    std::unordered_set<NodePtr> *tobe_fused) const {
+    std::unordered_set<NodePtr> *tobe_fused_nodes) const {
   PADDLE_ENFORCE(node->IsOperation(), "Node should be an operation.");
   NodePtr cur_node = node;
 
@@ -105,26 +102,25 @@ bool OpFusionPass::FindToBeFusedNodes(
     auto in_var_gen_op = in_var->inputs[0];
     if (IsFusible(cur_node, in_var_gen_op)) {
       need_fusion = true;
-      tobe_fused->insert(in_var_gen_op);
+      tobe_fused_nodes->insert(in_var_gen_op);
       VLOG(10) << "Fuse: " << in_var_gen_op->Name() << ", " << cur_node->Name();
     }
   }
   return need_fusion;
 }
 
-// Fuse cur_node and tobe_fused nodes
-NodePtr OpFusionPass::FuseNodes(const NodePtr cur_node,
-                                const std::unordered_set<NodePtr> &tobe_fused,
-                                std::unordered_set<NodePtr> *need_removed_nodes,
-                                ir::Graph *graph) const {
+// Fuse cur_node and tobe_fused_nodes nodes
+NodePtr FuseAdjacentNodesPass::FuseNodes(
+    const NodePtr cur_node, const std::unordered_set<NodePtr> &tobe_fused_nodes,
+    std::unordered_set<NodePtr> *need_removed_nodes, ir::Graph *graph) const {
   //  Create OpDesc,
   graph->Get<OpDescs>(kOpDescs).emplace_back(new framework::OpDesc());
   auto *fused_op_desc = graph->Get<OpDescs>(kOpDescs).back().get();
 
-  if (tobe_fused.size() == 1) {
+  if (tobe_fused_nodes.size() == 1) {
     // Init OpDesc
-    if (IsElemwiseAndActivation(cur_node, tobe_fused)) {
-      FuseElemwiseAndActivation(cur_node, tobe_fused, fused_op_desc);
+    if (IsElemwiseAndActivation(cur_node, tobe_fused_nodes)) {
+      FuseElemwiseAndActivation(cur_node, tobe_fused_nodes, fused_op_desc);
     } else {
       PADDLE_THROW(
           "Currently, only support fusing elementwise and activation "
@@ -164,7 +160,7 @@ NodePtr OpFusionPass::FuseNodes(const NodePtr cur_node,
   for (auto &var : cur_node->inputs) {
     PADDLE_ENFORCE_LE(var->inputs.size(), 1);
     bool no_need_merge =
-        var->inputs.empty() || !tobe_fused.count(var->inputs[0]);
+        var->inputs.empty() || !tobe_fused_nodes.count(var->inputs[0]);
     if (no_need_merge) {
       if (in_args_set.count(var->Name()) || ir::IsControlDepVar(*var)) {
         fused_node->inputs.emplace_back(var);
@@ -217,12 +213,13 @@ NodePtr OpFusionPass::FuseNodes(const NodePtr cur_node,
   return fused_node;
 }
 
-bool OpFusionPass::IsBackward(
-    const NodePtr node, const std::unordered_set<NodePtr> &tobe_fused) const {
+bool FuseAdjacentNodesPass::IsBackward(
+    const NodePtr node,
+    const std::unordered_set<NodePtr> &tobe_fused_nodes) const {
   auto op_role = boost::get<int>(
       node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleAttrName()));
 
-  for (auto &tebe_node : tobe_fused) {
+  for (auto &tebe_node : tobe_fused_nodes) {
     PADDLE_ENFORCE_EQ(op_role, boost::get<int>(tebe_node->Op()->GetAttr(
                                    OpProtoAndCheckerMaker::OpRoleAttrName())),
                       "Currently, only support fusing the same role operators");
@@ -230,7 +227,8 @@ bool OpFusionPass::IsBackward(
   return op_role == static_cast<int>(OpRole::kBackward);
 }
 
-bool OpFusionPass::IsFusible(const NodePtr n1, const NodePtr n2) const {
+bool FuseAdjacentNodesPass::IsFusible(const NodePtr n1,
+                                      const NodePtr n2) const {
   PADDLE_ENFORCE(n1->IsOperation(), "n1 should be an operation.");
   PADDLE_ENFORCE(n2->IsOperation(), "n2 should be an operation.");
 
@@ -281,20 +279,22 @@ static bool IsElemwise(std::string op_type) {
   return elementwise.count(op_type) == 1;
 }
 
-bool OpFusionPass::IsElemwiseAndActivation(
-    const NodePtr node, const std::unordered_set<NodePtr> &tobe_fused) const {
-  PADDLE_ENFORCE_EQ(tobe_fused.size(), 1);
+bool FuseAdjacentNodesPass::IsElemwiseAndActivation(
+    const NodePtr node,
+    const std::unordered_set<NodePtr> &tobe_fused_nodes) const {
+  PADDLE_ENFORCE_EQ(tobe_fused_nodes.size(), 1);
   auto outside_op_name = node->Op()->Type();
-  auto inside_op_name = (*tobe_fused.begin())->Op()->Type();
+  auto inside_op_name = (*tobe_fused_nodes.begin())->Op()->Type();
 
   return (IsActivation(outside_op_name) && IsElemwise(inside_op_name)) ||
          (IsActivation(inside_op_name) && IsElemwise(outside_op_name));
 }
 
-void OpFusionPass::FuseElemwiseAndActivation(
-    const NodePtr outside_node, const std::unordered_set<NodePtr> &tobe_fused,
+void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
+    const NodePtr outside_node,
+    const std::unordered_set<NodePtr> &tobe_fused_nodes,
     OpDesc *op_desc) const {
-  auto intra_node = *tobe_fused.begin();
+  auto intra_node = *tobe_fused_nodes.begin();
   auto intra_op_type = intra_node->Op()->Type();
   auto outside_op_type = outside_node->Op()->Type();
 
@@ -303,7 +303,7 @@ void OpFusionPass::FuseElemwiseAndActivation(
   auto outside_node_in_args = outside_node->Op()->InputArgumentNames();
 
   // Set Input
-  if (IsBackward(outside_node, tobe_fused)) {
+  if (IsBackward(outside_node, tobe_fused_nodes)) {
     const std::string op_type = "fused_elemwise_activation_grad";
     op_desc->SetType(op_type);
     op_desc->SetAttr("functor_list", std::vector<std::string>(
