@@ -41,19 +41,19 @@ std::unique_ptr<ir::Graph> FuseAdjacentNodesPass::ApplyImpl(
 
   for (auto iter_node = topo_order.begin(); iter_node != topo_order.end();
        ++iter_node) {
-    auto cur_node = *iter_node;
+    auto cur_op_node = *iter_node;
 
     // tobe_fused_nodes is used to record the nodes which can be fused with
-    // cur_node.
+    // cur_op_node.
     std::unordered_set<NodePtr> tobe_fused_nodes;
 
-    // Whether cur_node can fuse with it's adjacent nodes(in-degree)
-    if (FindToBeFusedNodes(cur_node, internal_nodes, &tobe_fused_nodes)) {
-      // fuse cur_node and tobe_fused_nodes.
-      NodePtr fused_node = FuseNodes(cur_node, tobe_fused_nodes,
+    // Whether cur_op_node can fuse with it's adjacent nodes(in-degree)
+    if (FindToBeFusedNodes(cur_op_node, internal_nodes, &tobe_fused_nodes)) {
+      // fuse cur_op_node and tobe_fused_nodes.
+      NodePtr fused_node = FuseNodes(cur_op_node, tobe_fused_nodes,
                                      &need_removed_nodes, graph.get());
 
-      tobe_fused_nodes.emplace(cur_node);
+      tobe_fused_nodes.emplace(cur_op_node);
 
       // Add the map between tobe_fused_nodes nodes and the fused node.
       for (auto &sub_node : tobe_fused_nodes) {
@@ -79,39 +79,43 @@ bool FuseAdjacentNodesPass::FindToBeFusedNodes(
     const std::unordered_map<NodePtr, InternalNodePtr> &internal_nodes,
     std::unordered_set<NodePtr> *tobe_fused_nodes) const {
   PADDLE_ENFORCE(node->IsOperation(), "Node should be an operation.");
-  NodePtr cur_node = node;
 
+  NodePtr cur_op_node = node;
   // If the input node has be fused, get the fused_node from
-  // internal_nodes, and the fused_node become the cur_node.
+  // internal_nodes, and the fused_node become the cur_op_node.
   if (internal_nodes.count(node)) {
-    cur_node = internal_nodes.at(node);
+    cur_op_node = internal_nodes.at(node);
   }
 
-  auto no_control_vars = ir::NoControlDepVar(cur_node->inputs);
+  auto no_control_vars = ir::NoControlDepVar(cur_op_node->inputs);
   if (no_control_vars.empty()) return false;
 
-  VLOG(10) << "Current op:" << cur_node->Name();
+  VLOG(10) << "Current op:" << cur_op_node->Name();
 
   bool need_fusion = false;
   for (auto &in_var : no_control_vars) {
     if (in_var->inputs.empty()) continue;
+
     PADDLE_ENFORCE(in_var->IsVariable(), "in_var should be a variable.");
     PADDLE_ENFORCE_EQ(in_var->inputs.size(), 1,
                       "in_var's generation op should be only one.");
 
     auto in_var_gen_op = in_var->inputs[0];
-    if (IsFusible(cur_node, in_var_gen_op)) {
+
+    if (IsFusible(cur_op_node, in_var_gen_op)) {
       need_fusion = true;
       tobe_fused_nodes->insert(in_var_gen_op);
-      VLOG(10) << "Fuse: " << in_var_gen_op->Name() << ", " << cur_node->Name();
+      VLOG(10) << "Fuse: " << in_var_gen_op->Name() << ", "
+               << cur_op_node->Name();
     }
   }
   return need_fusion;
 }
 
-// Fuse cur_node and tobe_fused_nodes nodes
+// Fuse cur_op_node and tobe_fused_nodes nodes
 NodePtr FuseAdjacentNodesPass::FuseNodes(
-    const NodePtr cur_node, const std::unordered_set<NodePtr> &tobe_fused_nodes,
+    const NodePtr cur_op_node,
+    const std::unordered_set<NodePtr> &tobe_fused_nodes,
     std::unordered_set<NodePtr> *need_removed_nodes, ir::Graph *graph) const {
   //  Create OpDesc,
   graph->Get<OpDescs>(kOpDescs).emplace_back(new framework::OpDesc());
@@ -119,8 +123,8 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
 
   if (tobe_fused_nodes.size() == 1) {
     // Init OpDesc
-    if (IsElemwiseAndActivation(cur_node, tobe_fused_nodes)) {
-      FuseElemwiseAndActivation(cur_node, tobe_fused_nodes, fused_op_desc);
+    if (IsElemwiseAndActivation(cur_op_node, tobe_fused_nodes)) {
+      FuseElemwiseAndActivation(cur_op_node, tobe_fused_nodes, fused_op_desc);
     } else {
       PADDLE_THROW(
           "Currently, only support fusing elementwise and activation "
@@ -144,11 +148,11 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
     in_args_set.emplace(in);
   }
 
-  auto replace_node = [](NodePtr cur_node, NodePtr new_node,
+  auto replace_node = [](NodePtr cur_op_node, NodePtr new_node,
                          std::vector<NodePtr> *vars) {
     bool flag = false;
     for (auto &o : *vars) {
-      if (o == cur_node) {
+      if (o == cur_op_node) {
         o = new_node;
         flag = true;
       }
@@ -157,14 +161,14 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
   };
 
   // link fused_node's input.
-  for (auto &var : cur_node->inputs) {
+  for (auto &var : cur_op_node->inputs) {
     PADDLE_ENFORCE_LE(var->inputs.size(), 1);
     bool no_need_merge =
         var->inputs.empty() || !tobe_fused_nodes.count(var->inputs[0]);
     if (no_need_merge) {
       if (in_args_set.count(var->Name()) || ir::IsControlDepVar(*var)) {
         fused_node->inputs.emplace_back(var);
-        replace_node(cur_node, fused_node, &(var->outputs));
+        replace_node(cur_op_node, fused_node, &(var->outputs));
       } else {
         if (var->outputs.size() == 1) {
           // TODO(zcd): how to deal with this situation
@@ -173,7 +177,7 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
         } else {
           std::vector<NodePtr> new_out;
           for (auto &o : var->outputs) {
-            if (o != cur_node) {
+            if (o != cur_op_node) {
               new_out.emplace_back(o);
             }
           }
@@ -203,7 +207,7 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
   }
 
   // link fused_node's output.
-  for (auto &cur_output : cur_node->outputs) {
+  for (auto &cur_output : cur_op_node->outputs) {
     PADDLE_ENFORCE(cur_output->IsVariable());
     fused_node->outputs.emplace_back(cur_output);
     cur_output->inputs.clear();
@@ -227,35 +231,45 @@ bool FuseAdjacentNodesPass::IsBackward(
   return op_role == static_cast<int>(OpRole::kBackward);
 }
 
-bool FuseAdjacentNodesPass::IsFusible(const NodePtr n1,
-                                      const NodePtr n2) const {
-  PADDLE_ENFORCE(n1->IsOperation(), "n1 should be an operation.");
-  PADDLE_ENFORCE(n2->IsOperation(), "n2 should be an operation.");
+bool FuseAdjacentNodesPass::IsFusible(const NodePtr cur_op_node,
+                                      const NodePtr upstream_op_node) const {
+  PADDLE_ENFORCE(cur_op_node->IsOperation(),
+                 "cur_op_node should be an operation.");
+  PADDLE_ENFORCE(upstream_op_node->IsOperation(), "n2 should be an operation.");
 
   // TODO(zcd): hard code
-  bool case1 = (n1->Op()->Type() == "scale" || n1->Op()->Type() == "relu") &&
-               (n2->Op()->Type() == "elementwise_add");
-  bool case2 = (n1->Op()->Type() == "elementwise_add") &&
-               (n2->Op()->Type() == "scale" || n2->Op()->Type() == "relu");
-  bool case3 =
-      (n1->Op()->Type() == "elementwise_add_grad") &&
-      (n2->Op()->Type() == "scale_grad" || n2->Op()->Type() == "relu_grad");
+  bool case1 = (cur_op_node->Op()->Type() == "scale" ||
+                cur_op_node->Op()->Type() == "relu") &&
+               (upstream_op_node->Op()->Type() == "elementwise_add");
+  bool case2 = (cur_op_node->Op()->Type() == "elementwise_add") &&
+               (upstream_op_node->Op()->Type() == "scale" ||
+                upstream_op_node->Op()->Type() == "relu");
+  bool case3 = (cur_op_node->Op()->Type() == "elementwise_add_grad") &&
+               (upstream_op_node->Op()->Type() == "scale_grad" ||
+                upstream_op_node->Op()->Type() == "relu_grad");
   //  bool case4 =
-  //    (n1->Op()->Type() == "scale_grad" || n1->Op()->Type() == "relu_grad") &&
+  //    (cur_op_node->Op()->Type() == "scale_grad" || cur_op_node->Op()->Type()
+  //    == "relu_grad") &&
   //    (n2->Op()->Type() == "elementwise_add_grad");
 
-  auto n2_no_cntrl_node = ir::NoControlDepVar(n2->outputs);
-  bool fusable = (case1 || case2 || case3) && (n2_no_cntrl_node.size() == 1);
+  auto n2_no_cntrl_nodes = ir::NoControlDepVar(upstream_op_node->outputs);
+  if (n2_no_cntrl_nodes.empty()) {
+    return false;
+  }
 
-  auto &o_var = n2_no_cntrl_node[0];
+  bool fusable = (case1 || case2 || case3) && (n2_no_cntrl_nodes.size() == 1);
+
+  auto &o_var = n2_no_cntrl_nodes[0];
   if (o_var->outputs.size() == 1) {
     return fusable;
-  } else if (o_var->outputs.size() == 3) {
+  } else if (o_var->outputs.size() <= 3) {
+    // upstream_op_node's output is only used by cur_op_node or
+    // cur_op_grad_node or upstream_op_grad_node.
     // TODO(zcd): hard code
     for (auto &o_node : o_var->outputs) {
-      if (!(o_node->Op()->Type() == n1->Op()->Type() ||
-            o_node->Op()->Type() == n1->Op()->Type() + "_grad" ||
-            o_node->Op()->Type() == n2->Op()->Type() + "_grad")) {
+      if (!(o_node->Op()->Type() == cur_op_node->Op()->Type() ||
+            o_node->Op()->Type() == cur_op_node->Op()->Type() + "_grad" ||
+            o_node->Op()->Type() == upstream_op_node->Op()->Type() + "_grad")) {
         return false;
       }
     }
