@@ -415,4 +415,4 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
 }  // namespace framework
 }  // namespace paddle
 
-REGISTER_PASS(op_fusion_pass, paddle::framework::ir::OpFusionPass);
+REGISTER_PASS(op_fusion_pass, paddle::framework::ir::FuseAdjacentNodesPass);
