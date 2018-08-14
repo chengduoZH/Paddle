@@ -44,10 +44,9 @@ class OpFusionPass : public Pass {
    *
    * The condition of fusing cur_op_node and upstream_op_node is:
    *   - the number of upstream_op_node's outputs(not include ControlDepVar)
-   * should be one.
+   *     should be one.
    *   - upstream_op_node's output is only used by cur_op_node or
-   * cur_op_grad_node or
-   *     upstream_op_grad_node.
+   *     cur_op_grad_node or upstream_op_grad_node.
    *   - there is a template function to represent the fused of cur_op_node and
    * upstream_op_node.
    */
