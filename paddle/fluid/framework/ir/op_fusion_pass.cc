@@ -52,10 +52,10 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
     // Node: cur_node maybe has been fused, if so, get the fused
     // node from internal_nodes, and check whether the fused node
     // can fuse with cur_node's adjacent nodes(in-degree).
-    if (SetUpFusion(cur_node, internal_nodes, &tobe_fused)) {
+    if (FindToBeFusedNodes(cur_node, internal_nodes, &tobe_fused)) {
       // fuse cur_node and tobe_fused.
       NodePtr fused_node =
-          FuseOperators(cur_node, tobe_fused, &need_removed_nodes, graph.get());
+          FuseNodes(cur_node, tobe_fused, &need_removed_nodes, graph.get());
 
       tobe_fused.emplace(cur_node);
 
@@ -77,7 +77,7 @@ std::unique_ptr<ir::Graph> OpFusionPass::ApplyImpl(
   return graph;
 }
 
-bool OpFusionPass::SetUpFusion(
+bool OpFusionPass::FindToBeFusedNodes(
     const NodePtr node,
     const std::unordered_map<NodePtr, InternalNodePtr> &internal_nodes,
     std::unordered_set<NodePtr> *tobe_fused) const {
@@ -113,9 +113,10 @@ bool OpFusionPass::SetUpFusion(
 }
 
 // Fuse cur_node and tobe_fused nodes
-NodePtr OpFusionPass::FuseOperators(
-    const NodePtr cur_node, const std::unordered_set<NodePtr> &tobe_fused,
-    std::unordered_set<NodePtr> *need_removed_nodes, ir::Graph *graph) const {
+NodePtr OpFusionPass::FuseNodes(const NodePtr cur_node,
+                                const std::unordered_set<NodePtr> &tobe_fused,
+                                std::unordered_set<NodePtr> *need_removed_nodes,
+                                ir::Graph *graph) const {
   //  Create OpDesc,
   graph->Get<OpDescs>(kOpDescs).emplace_back(new framework::OpDesc());
   auto *fused_op_desc = graph->Get<OpDescs>(kOpDescs).back().get();
