@@ -112,7 +112,6 @@ bool FuseAdjacentNodesPass::FindToBeFusedNodes(
   return need_fusion;
 }
 
-// Fuse cur_op_node and tobe_fused_nodes nodes
 NodePtr FuseAdjacentNodesPass::FuseNodes(
     const NodePtr cur_op_node,
     const std::unordered_set<NodePtr> &tobe_fused_nodes,
@@ -131,7 +130,7 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
           "operator.");
     }
   } else {
-    PADDLE_ENFORCE("Currently only support fusing two operators.");
+    PADDLE_THROW("Currently only support fusing two operators.");
   }
 
   // Create Node
