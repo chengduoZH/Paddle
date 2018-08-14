@@ -15,7 +15,7 @@ limitations under the License. */
 #include <algorithm>
 #include <unordered_set>
 
-#include "paddle/fluid/framework/ir/op_fusion_pass.h"
+#include "paddle/fluid/framework/ir/fuse_adjacent_nodes_pass.h"
 #include "paddle/fluid/framework/op_proto_maker.h"
 #include "paddle/fluid/framework/operator.h"
 

@@ -18,9 +18,9 @@ limitations under the License. */
 #include <tuple>
 #include <vector>
 
+#include "paddle/fluid/framework/ir/fuse_adjacent_nodes_pass.h"
 #include "paddle/fluid/framework/ir/graph.h"
 #include "paddle/fluid/framework/ir/graph_viz_pass.h"
-#include "paddle/fluid/framework/ir/op_fusion_pass.h"
 
 #ifdef PADDLE_WITH_CUDA
 #include "paddle/fluid/platform/nccl_helper.h"
