@@ -234,6 +234,7 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
   }
 
   AddAbsentNodes(cur_op_node, tobe_fused_nodes, fused_node);
+  return fused_node;
 }
 
 bool FuseAdjacentNodesPass::IsBackward(
@@ -433,46 +434,22 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
 }
 
 void FuseAdjacentNodesPass::AddAbsentNodes(
-    const NodePtr cur_op_node,
+    const NodePtr outside_node,
     const std::unordered_set<NodePtr> &tobe_fused_nodes,
     Node *fused_node) const {
-  fused_node;
-  tobe_fused_nodes;
-  auto outside_node = cur_op_node;
-
   std::unordered_set<NodePtr> fused_node_ins;
   for (auto in : fused_node->inputs) {
     fused_node_ins.emplace(in);
   }
 
-  auto intra_node = *tobe_fused_nodes.begin();
-  auto intra_op_type = intra_node->Op()->Type();
   auto outside_op_type = outside_node->Op()->Type();
 
-  auto intra_node_in_args = intra_node->Op()->InputArgumentNames();
-  auto intra_node_out_args = intra_node->Op()->OutputArgumentNames();
-  auto outside_node_in_args = outside_node->Op()->InputArgumentNames();
-
-  // Set Input
   if (this->IsBackward(outside_node, tobe_fused_nodes)) {
     if (IsElemwise(outside_op_type)) {
-      PADDLE_ENFORCE(
-          intra_node_in_args.size() == 2 || intra_node_in_args.size() == 3,
-          "The number of inputs of %s should be 2 or 3, because the computation"
-          " of activation operator maybe inplace.",
-          intra_node->Op()->Type());
-      PADDLE_ENFORCE(
-          outside_node_in_args.size() == 3 || outside_node_in_args.size() == 4,
-          "The number of inputs of %s should be 2 or 4, "
-          "if the number is 3, the input variable is `Y`, `Out` and "
-          "`Out@Grad`, if the number is 4, the input variable is `X`, `Y`, "
-          "`Out`, `Out@Grad`",
-          outside_node->Op()->Type());
-
       auto out_name = outside_node->Op()->Input("Out")[0];
-      for (auto in : outside_node->inputs) {
-        if (in->Var()->Name() == out_name) {
-          auto forward_node = in->inputs[0];
+      for (auto in_var : outside_node->inputs) {
+        if (in_var->Var()->Name() == out_name) {
+          auto forward_node = in_var->inputs[0];
           for (auto in : forward_node->inputs) {
             if (!fused_node_ins.count(in)) {
               fused_node->inputs.emplace_back(in);
