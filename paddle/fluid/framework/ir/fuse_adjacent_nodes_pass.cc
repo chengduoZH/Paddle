@@ -177,19 +177,24 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
     if (has_resolved_nodes.count(var)) continue;
     has_resolved_nodes.emplace(var);
 
-    PADDLE_ENFORCE_LE(var->inputs.size(), 1);
+    PADDLE_ENFORCE(var->IsVariable());
+
     bool no_need_merge =
         var->inputs.empty() || !tobe_fused_nodes.count(var->inputs[0]);
+
     if (no_need_merge) {
       if (in_args_set.count(var->Name()) || ir::IsControlDepVar(*var)) {
         fused_node->inputs.emplace_back(var);
         replace_node(cur_op_node, fused_node, &(var->outputs));
       } else {
-        PADDLE_THROW("Error encount");
+        PADDLE_THROW("%s is not the input of %s, and not a cntrl var.",
+                     var->Name(), fused_node->Name());
       }
     } else {
-      auto &in_var_gen_node = var->inputs[0];
       need_removed_nodes->emplace(var);
+
+      auto &in_var_gen_node = var->inputs[0];
+
       for (auto &in_var : in_var_gen_node->inputs) {
         PADDLE_ENFORCE(in_var->IsVariable());
         fused_node->inputs.emplace_back(in_var);
@@ -228,7 +233,7 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
     cur_output->inputs.emplace_back(fused_node);
   }
 
-  return fused_node;
+  AddAbsentNodes(cur_op_node, tobe_fused_nodes, fused_node);
 }
 
 bool FuseAdjacentNodesPass::IsBackward(
@@ -266,14 +271,16 @@ bool FuseAdjacentNodesPass::IsFusible(const NodePtr cur_op_node,
   //    == "relu_grad") &&
   //    (n2->Op()->Type() == "elementwise_add_grad");
 
-  auto n2_no_cntrl_nodes = ir::NoControlDepVar(upstream_op_node->outputs);
-  if (n2_no_cntrl_nodes.empty()) {
+  auto upstream_op_no_cntrl_nodes =
+      ir::NoControlDepVar(upstream_op_node->outputs);
+  if (upstream_op_no_cntrl_nodes.empty()) {
     return false;
   }
 
-  bool fusable = (case1 || case2 || case3) && (n2_no_cntrl_nodes.size() == 1);
+  bool fusable =
+      (case1 || case2 || case3) && (upstream_op_no_cntrl_nodes.size() == 1);
 
-  auto &o_var = n2_no_cntrl_nodes[0];
+  auto &o_var = upstream_op_no_cntrl_nodes[0];
   if (o_var->outputs.size() == 1) {
     return fusable;
   } else if (o_var->outputs.size() <= 3) {
@@ -423,6 +430,61 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
     }
   }
   op_desc->SetAttr("recomputation", true);
+}
+
+void FuseAdjacentNodesPass::AddAbsentNodes(
+    const NodePtr cur_op_node,
+    const std::unordered_set<NodePtr> &tobe_fused_nodes,
+    Node *fused_node) const {
+  fused_node;
+  tobe_fused_nodes;
+  auto outside_node = cur_op_node;
+
+  std::unordered_set<NodePtr> fused_node_ins;
+  for (auto in : fused_node->inputs) {
+    fused_node_ins.emplace(in);
+  }
+
+  auto intra_node = *tobe_fused_nodes.begin();
+  auto intra_op_type = intra_node->Op()->Type();
+  auto outside_op_type = outside_node->Op()->Type();
+
+  auto intra_node_in_args = intra_node->Op()->InputArgumentNames();
+  auto intra_node_out_args = intra_node->Op()->OutputArgumentNames();
+  auto outside_node_in_args = outside_node->Op()->InputArgumentNames();
+
+  // Set Input
+  if (this->IsBackward(outside_node, tobe_fused_nodes)) {
+    if (IsElemwise(outside_op_type)) {
+      PADDLE_ENFORCE(
+          intra_node_in_args.size() == 2 || intra_node_in_args.size() == 3,
+          "The number of inputs of %s should be 2 or 3, because the computation"
+          " of activation operator maybe inplace.",
+          intra_node->Op()->Type());
+      PADDLE_ENFORCE(
+          outside_node_in_args.size() == 3 || outside_node_in_args.size() == 4,
+          "The number of inputs of %s should be 2 or 4, "
+          "if the number is 3, the input variable is `Y`, `Out` and "
+          "`Out@Grad`, if the number is 4, the input variable is `X`, `Y`, "
+          "`Out`, `Out@Grad`",
+          outside_node->Op()->Type());
+
+      auto out_name = outside_node->Op()->Input("Out")[0];
+      for (auto in : outside_node->inputs) {
+        if (in->Var()->Name() == out_name) {
+          auto forward_node = in->inputs[0];
+          for (auto in : forward_node->inputs) {
+            if (!fused_node_ins.count(in)) {
+              fused_node->inputs.emplace_back(in);
+            }
+          }
+          break;
+        }
+      }
+    } else {
+      PADDLE_THROW("Not implement.");
+    }
+  }
 }
 
 }  // namespace ir
