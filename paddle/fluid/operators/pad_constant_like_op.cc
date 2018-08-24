@@ -12,27 +12,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/fluid/operators/pad_constant_batch_size_like_op.h"
+#include "paddle/fluid/operators/pad_constant_like_op.h"
 
 namespace paddle {
 namespace operators {
 
 using framework::Tensor;
 
-class PadConstantBatchSizeLikeOp : public framework::OperatorWithKernel {
+class PadConstantLikeOp : public framework::OperatorWithKernel {
  public:
   using framework::OperatorWithKernel::OperatorWithKernel;
 
   void InferShape(framework::InferShapeContext *ctx) const override {
-    PADDLE_ENFORCE(
-        ctx->HasInput("X"),
-        "Input(X) of PadConstantBatchSizeLikeOp should not be null.");
-    PADDLE_ENFORCE(
-        ctx->HasInput("Y"),
-        "Input(Y) of PadConstantBatchSizeLikeOp should not be null.");
-    PADDLE_ENFORCE(
-        ctx->HasOutput("Out"),
-        "Output(Out) of PadConstantBatchSizeLikeOp should not be null.");
+    PADDLE_ENFORCE(ctx->HasInput("X"),
+                   "Input(X) of PadConstantLikeOp should not be null.");
+    PADDLE_ENFORCE(ctx->HasInput("Y"),
+                   "Input(Y) of PadConstantLikeOp should not be null.");
+    PADDLE_ENFORCE(ctx->HasOutput("Out"),
+                   "Output(Out) of PadConstantLikeOp should not be null.");
 
     auto x_dim = ctx->GetInputDim("X");
     auto y_dim = ctx->GetInputDim("Y");
@@ -41,19 +38,14 @@ class PadConstantBatchSizeLikeOp : public framework::OperatorWithKernel {
                       "The dimention of X and Y should be the same.");
 
     for (int i = 0; i < x_dim.size(); ++i) {
-      if (i == 0) {
-        PADDLE_ENFORCE_GE(x_dim[i], y_dim[i]);
-      } else {
-        PADDLE_ENFORCE_EQ(x_dim[i], y_dim[i], "");
-      }
+      PADDLE_ENFORCE_GE(x_dim[i], y_dim[i]);
     }
     ctx->SetOutputDim("Out", x_dim);
     ctx->ShareLoD("X", /*->*/ "Out");
   }
 };
 
-class PadConstantBatchSizeLikeOpMaker
-    : public framework::OpProtoAndCheckerMaker {
+class PadConstantLikeOpMaker : public framework::OpProtoAndCheckerMaker {
  public:
   void Make() override {
     AddInput("X",
@@ -70,9 +62,9 @@ class PadConstantBatchSizeLikeOpMaker
                    "The value to fill the padded areas.")
         .SetDefault(0.0f);
     AddComment(R"DOC(
-PadConstantBatchSizeLikeOp Operator.
+PadConstantLikeOp Operator.
 
-PadConstantBatchSizeLikeOp input into output, as specified by paddings and pad_value.
+PadConstantLikeOp input into output, as specified by paddings and pad_value.
 The input should be a k-D tensor(k > 0 and k < 7). As an example:
 
 Given:
@@ -100,34 +92,40 @@ Out = [[5, 6],
   }
 };
 
-class PadConstantBatchSizeLikeOpGrad : public framework::OperatorWithKernel {
+class PadConstantLikeOpGrad : public framework::OperatorWithKernel {
  public:
   using framework::OperatorWithKernel::OperatorWithKernel;
 
   void InferShape(framework::InferShapeContext *ctx) const override {
-    PADDLE_ENFORCE(ctx->HasInput("X"), "Input(X) should not be null");
     PADDLE_ENFORCE(ctx->HasInput("Y"), "Input(Y) should not be null");
     PADDLE_ENFORCE(ctx->HasInput(framework::GradVarName("Out")),
                    "Input(Out@GRAD) should not be null");
-    auto y_dims = ctx->GetInputDim("Y");
+    auto y_dim = ctx->GetInputDim("Y");
+    auto dout_dim = ctx->GetInputDim(framework::GradVarName("Out"));
+
+    PADDLE_ENFORCE_EQ(dout_dim.size(), y_dim.size(),
+                      "The dimention of X and Y should be the same.");
+
     auto y_grad_name = framework::GradVarName("Y");
     if (ctx->HasOutput(y_grad_name)) {
-      ctx->SetOutputDim(y_grad_name, y_dims);
+      ctx->SetOutputDim(y_grad_name, y_dim);
       ctx->ShareLoD("Y", /*->*/ y_grad_name);
+
+      for (int i = 0; i < y_dim.size(); ++i) {
+        PADDLE_ENFORCE_GE(dout_dim[i], y_dim[i]);
+      }
     }
   }
 };
 
-class PadConstantBatchSizeLikeOpGradMaker
-    : public framework::SingleGradOpDescMaker {
+class PadConstantLikeOpGradMaker : public framework::SingleGradOpDescMaker {
  public:
   using framework::SingleGradOpDescMaker::SingleGradOpDescMaker;
 
  protected:
   std::unique_ptr<framework::OpDesc> Apply() const override {
     auto *bind = new framework::OpDesc();
-    bind->SetType("pad_constant_batch_size_like_grad");
-    bind->SetInput("X", Input("X"));
+    bind->SetType("pad_constant_like_grad");
     bind->SetInput("Y", Input("Y"));
     bind->SetInput(framework::GradVarName("Out"), OutputGrad("Out"));
     bind->SetOutput(framework::GradVarName("Y"), InputGrad("Y"));
@@ -141,14 +139,12 @@ class PadConstantBatchSizeLikeOpGradMaker
 
 namespace ops = paddle::operators;
 
-REGISTER_OPERATOR(pad_constant_batch_size_like, ops::PadConstantBatchSizeLikeOp,
-                  ops::PadConstantBatchSizeLikeOpMaker,
-                  ops::PadConstantBatchSizeLikeOpGradMaker);
-REGISTER_OPERATOR(pad_constant_batch_size_like_grad,
-                  ops::PadConstantBatchSizeLikeOpGrad);
-REGISTER_OP_CPU_KERNEL(pad_constant_batch_size_like,
-                       ops::PadConstantBatchSizeLikeKernel<
-                           paddle::platform::CPUDeviceContext, float>);
-REGISTER_OP_CPU_KERNEL(pad_constant_batch_size_like_grad,
-                       ops::PadConstantBatchSizeLikeGradKernel<
-                           paddle::platform::CPUDeviceContext, float>);
+REGISTER_OPERATOR(pad_constant_like, ops::PadConstantLikeOp,
+                  ops::PadConstantLikeOpMaker, ops::PadConstantLikeOpGradMaker);
+REGISTER_OPERATOR(pad_constant_like_grad, ops::PadConstantLikeOpGrad);
+REGISTER_OP_CPU_KERNEL(
+    pad_constant_like,
+    ops::PadConstantLikeKernel<paddle::platform::CPUDeviceContext, float>);
+REGISTER_OP_CPU_KERNEL(
+    pad_constant_like_grad,
+    ops::PadConstantLikeGradKernel<paddle::platform::CPUDeviceContext, float>);

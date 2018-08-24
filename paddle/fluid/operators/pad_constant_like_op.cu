@@ -13,12 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #define EIGEN_USE_GPU
-#include "paddle/fluid/operators/pad_constant_batch_size_like_op.h"
+#include "paddle/fluid/operators/pad_constant_like_op.h"
 
 namespace ops = paddle::operators;
-REGISTER_OP_CUDA_KERNEL(pad_constant_batch_size_like,
-                        ops::PadConstantBatchSizeLikeKernel<
-                            paddle::platform::CUDADeviceContext, float>);
-REGISTER_OP_CUDA_KERNEL(pad_constant_batch_size_like_grad,
-                        ops::PadConstantBatchSizeLikeGradKernel<
-                            paddle::platform::CUDADeviceContext, float>);
+REGISTER_OP_CUDA_KERNEL(
+    pad_constant_batch_size_like,
+    ops::PadConstantLikeKernel<paddle::platform::CUDADeviceContext, float>);
+REGISTER_OP_CUDA_KERNEL(
+    pad_constant_batch_size_like_grad,
+    ops::PadConstantLikeGradKernel<paddle::platform::CUDADeviceContext, float>);
