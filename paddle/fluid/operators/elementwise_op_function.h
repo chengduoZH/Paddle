@@ -22,7 +22,7 @@ limitations under the License. */
 #include "paddle/fluid/framework/operator.h"
 #include "paddle/fluid/platform/transform.h"
 
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
 #include <cuda.h>
 #include <thrust/iterator/iterator_adaptor.h>
 #include "paddle/fluid/platform/cuda_device_function.h"
@@ -160,7 +160,7 @@ class MidWiseTransformIterator<T, platform::CPUDeviceContext> {
   int64_t post_;
 };
 
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
 template <typename T>
 class RowwiseTransformIterator<T, platform::CUDADeviceContext>
     : public thrust::iterator_adaptor<
@@ -348,7 +348,7 @@ static void ElemwiseGradBroadcast1CPU(const T *x, const T *y, const T *out,
   }
 }
 
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
 template <typename T, typename DX_OP, typename DY_OP>
 static __global__ void ElemwiseGradBroadcast1CUDAKernel(
     const T *x, const T *y, const T *out, const T *dout, int h, int w,
@@ -416,7 +416,7 @@ static void ElemwiseGradBroadcast2CPU(const T *x, const T *y, const T *out,
   }
 }
 
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
 template <typename T, typename DX_OP, typename DY_OP>
 static __global__ void ElemwiseGradBroadcast2CUDAKernel(
     const T *x, const T *y, const T *out, const T *dout, int pre, int n,
@@ -501,7 +501,7 @@ void ElemwiseGradComputeWithBroadcast(
     int h = pre;
     int w = n;
     if (platform::is_gpu_place(ctx.GetPlace())) {
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
       ElemwiseGradBroadcast1CUDA(
           ctx.template device_context<DeviceContext>().stream(), x.data<T>(),
           y.data<T>(), out.data<T>(), dout.data<T>(), h, w, dx_op, dy_op,
@@ -516,7 +516,7 @@ void ElemwiseGradComputeWithBroadcast(
     }
   } else {
     if (platform::is_gpu_place(ctx.GetPlace())) {
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
       ElemwiseGradBroadcast2CUDA(
           ctx.template device_context<DeviceContext>().stream(), x.data<T>(),
           y.data<T>(), out.data<T>(), dout.data<T>(), pre, n, post, dx_op,
@@ -769,7 +769,7 @@ static void FusedElemwiseAndActBroadcast2CPU(const T *x, const T *y, int pre,
   }
 }
 
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
 template <typename T, typename CompoundFunctor, bool BcastY,
           bool KeepIntermediateOut, bool SameShapeOfIntermediateOutAndOut>
 static __global__ void FusedElemwiseAndActBroadcast1CUDAKernel(
@@ -921,7 +921,7 @@ void FusedElemwiseAndActComputeWithBroadcast(
     int h = pre;
     int w = n;
     if (platform::is_gpu_place(ctx.GetPlace())) {
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
       FusedElemwiseAndActBroadcast1CUDA<T, CompoundFunctor, BcastY,
                                         KeepIntermediateOut,
                                         SameShapeOfIntermediateOutAndOut>(
@@ -944,7 +944,7 @@ void FusedElemwiseAndActComputeWithBroadcast(
     }
   } else {
     if (platform::is_gpu_place(ctx.GetPlace())) {
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
       FusedElemwiseAndActBroadcast2CUDA<T, CompoundFunctor, BcastY,
                                         KeepIntermediateOut,
                                         SameShapeOfIntermediateOutAndOut>(
@@ -1140,7 +1140,7 @@ static void FusedElemwiseAndActGradBroadcast2CPU(const T *x, const T *y,
   }
 }
 
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
 template <typename T, typename DX_OP, typename DY_OP, bool UseIntermediateOut,
           bool BcastY, bool SameShapeOfIntermediateOutAndOut>
 static __global__ void FusedElemwiseAndActGradBroadcast1CUDAKernel(
@@ -1346,7 +1346,7 @@ void FusedElemwiseAndActGradComputeWithBroadcast(
     int h = pre;
     int w = n;
     if (platform::is_gpu_place(ctx.GetPlace())) {
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
       FusedElemwiseAndActGradBroadcast1CUDA<T, DX_OP, DY_OP, UseIntermediateOut,
                                             BcastY,
                                             SameShapeOfIntermediateOutAndOut>(
@@ -1369,7 +1369,7 @@ void FusedElemwiseAndActGradComputeWithBroadcast(
     }
   } else {
     if (platform::is_gpu_place(ctx.GetPlace())) {
-#ifdef __NVCC__
+#ifdef PADDLE_WITH_GPU
       FusedElemwiseAndActGradBroadcast2CUDA<T, DX_OP, DY_OP, UseIntermediateOut,
                                             BcastY,
                                             SameShapeOfIntermediateOutAndOut>(
