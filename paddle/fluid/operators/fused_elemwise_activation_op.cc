@@ -63,18 +63,18 @@ class FusedElemwiseActivationOp : public framework::OperatorWithKernel {
     auto y_dim = ctx->GetInputDim("Y");
 
     // TODO(zcd): whether Y can broadcast to X or X can broadcast to Y
-    //    bool bcast_y = x_dim.size() >= y_dim.size();
-    //    if (x_dim.size() == y_dim.size()) {
-    //      for (int i = 0; i < x_dim.size(); ++i) {
-    //        if (x_dim[i] < y_dim[i]) {
-    //          bcast_y = false;
-    //          break;
-    //        }
-    //      }
-    //    }
-    //    auto &out_dim = bcast_y ? x_dim : y_dim;
+    bool bcast_y = x_dim.size() >= y_dim.size();
+    if (x_dim.size() == y_dim.size()) {
+      for (int i = 0; i < x_dim.size(); ++i) {
+        if (x_dim[i] < y_dim[i]) {
+          bcast_y = false;
+          break;
+        }
+      }
+    }
+    auto &out_dim = bcast_y ? x_dim : y_dim;
 
-    auto &out_dim = x_dim;
+    //    auto &out_dim = x_dim;
 
     if (ctx->Attrs().Get<bool>("keep_intermediate_value")) {
       PADDLE_ENFORCE_EQ(
@@ -220,10 +220,8 @@ class FusedElemwiseActivationOpGrad : public framework::OperatorWithKernel {
     auto x_grad_name = framework::GradVarName("X");
     auto y_grad_name = framework::GradVarName("Y");
     if (ctx->HasOutput(x_grad_name)) {
-      PADDLE_ENFORCE(ctx->HasInputs(framework::GradVarName("Out")),
-                     "Input(Out@GRAD) should not be null");
-      auto out_dims = ctx->GetInputsDim(framework::GradVarName("Out"));
-      ctx->SetOutputDim(x_grad_name, out_dims[0]);
+      PADDLE_ENFORCE(ctx->HasInputs("X"), "Input(X) should not be null");
+      ctx->SetOutputDim(x_grad_name, ctx->GetInputDim("X"));
     }
     if (ctx->HasOutput(y_grad_name)) {
       PADDLE_ENFORCE(ctx->HasInput("Y"), "Input(Y) should not be null");
