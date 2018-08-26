@@ -687,6 +687,10 @@ struct FusedElemwiseAndActNoBroadcast {
   T *intermediate_out_;
 };
 
+// FusedElemwiseAndActBroadcast1:
+// In this case, X and Y can be reshaped to a matrix.
+// For example shape(X) = (2, 3, 4, 5), shape(Y) = (4, 5) and axis = -1 or 2,
+// X can be reshaped to (6, 20) and Y can be reshaped to (1, 20)
 template <typename T, typename CompoundFunctor, bool BcastY,
           bool KeepIntermediateOut, bool SameShapeOfIntermediateOutAndOut>
 static void FusedElemwiseAndActBroadcast1CPU(const T *x, const T *y,
@@ -721,6 +725,11 @@ static void FusedElemwiseAndActBroadcast1CPU(const T *x, const T *y,
   }
 }
 
+// FusedElemwiseAndActBroadcast2
+// In this case, X and Y can be reshaped to a matrix.
+// For example shape(X) = (2, 3, 4, 5), shape(Y) = (3, 4) and axis = 1,
+// X can be reshaped to (2, 12, 5) and Y can be reshaped to (1, 12, 1)
+// pre = 2, n = 12, post = 5
 template <typename T, typename CompoundFunctor, bool BcastY,
           bool KeepIntermediateOut, bool SameShapeOfIntermediateOutAndOut>
 static void FusedElemwiseAndActBroadcast2CPU(const T *x, const T *y, int pre,
@@ -1067,6 +1076,70 @@ static void FusedElemwiseAndActGradBroadcast1CPU(const T *x, const T *y,
   }
 }
 
+template <typename T, typename DX_OP, typename DY_OP, bool UseIntermediateOut,
+          bool BcastY, bool SameShapeOfIntermediateOutAndOut>
+static void FusedElemwiseAndActGradBroadcast2CPU(const T *x, const T *y,
+                                                 const T *intermediate_out,
+                                                 const T *out, const T *dout,
+                                                 int pre, int n, int post,
+                                                 DX_OP dx_op, DY_OP dy_op,
+                                                 T *dx, T *dy) {
+  int64_t tmp_out_idx, x_idx, y_idx;
+  for (int i = 0; i < pre; ++i) {
+    for (int j = 0; j < n; ++j) {
+      for (int k = 0; k < post; ++k) {
+        int offset = i * n * post + j * post + k;
+
+        if (BcastY) {
+          tmp_out_idx = j;
+          y_idx = j;
+          x_idx = offset;
+        } else {
+          tmp_out_idx = offset;
+          y_idx = offset;
+          x_idx = j;
+        }
+
+        if (SameShapeOfIntermediateOutAndOut) {
+          tmp_out_idx = offset;
+        }
+
+        if (dx != nullptr) {
+          T tmp = UseIntermediateOut
+                      ? dx_op(x[x_idx], y[y_idx], intermediate_out[tmp_out_idx],
+                              out[offset], dout[offset])
+                      : dx_op(x[x_idx], y[y_idx], out[offset], dout[offset]);
+
+          if (BcastY) {
+            dx[x_idx] = tmp;
+          } else {
+            if (i == 0 && k == 0) {
+              dx[x_idx] = tmp;
+            } else {
+              dx[x_idx] += tmp;
+            }
+          }
+        }
+        if (dy != nullptr) {
+          T tmp = UseIntermediateOut
+                      ? dy_op(x[x_idx], y[y_idx], intermediate_out[tmp_out_idx],
+                              out[offset], dout[offset])
+                      : dy_op(x[x_idx], y[y_idx], out[offset], dout[offset]);
+          if (BcastY) {
+            if (i == 0 && k == 0) {
+              dy[y_idx] = tmp;
+            } else {
+              dy[y_idx] += tmp;
+            }
+          } else {
+            dy[y_idx] = tmp;
+          }
+        }
+      }
+    }
+  }
+}
+
 #ifdef __NVCC__
 template <typename T, typename DX_OP, typename DY_OP, bool UseIntermediateOut,
           bool BcastY, bool SameShapeOfIntermediateOutAndOut>
@@ -1158,73 +1231,6 @@ static void FusedElemwiseAndActGradBroadcast1CUDA(cudaStream_t stream,
       x, y, intermediate_out, out, dout, h, w, dx_op, dy_op, dx, dy);
 }
 
-#endif
-
-template <typename T, typename DX_OP, typename DY_OP, bool UseIntermediateOut,
-          bool BcastY, bool SameShapeOfIntermediateOutAndOut>
-static void FusedElemwiseAndActGradBroadcast2CPU(const T *x, const T *y,
-                                                 const T *intermediate_out,
-                                                 const T *out, const T *dout,
-                                                 int pre, int n, int post,
-                                                 DX_OP dx_op, DY_OP dy_op,
-                                                 T *dx, T *dy) {
-  int64_t tmp_out_idx, x_idx, y_idx;
-  for (int i = 0; i < pre; ++i) {
-    for (int j = 0; j < n; ++j) {
-      for (int k = 0; k < post; ++k) {
-        int offset = i * n * post + j * post + k;
-
-        if (BcastY) {
-          tmp_out_idx = j;
-          y_idx = j;
-          x_idx = offset;
-        } else {
-          tmp_out_idx = offset;
-          y_idx = offset;
-          x_idx = j;
-        }
-
-        if (SameShapeOfIntermediateOutAndOut) {
-          tmp_out_idx = offset;
-        }
-
-        if (dx != nullptr) {
-          T tmp = UseIntermediateOut
-                      ? dx_op(x[x_idx], y[y_idx], intermediate_out[tmp_out_idx],
-                              out[offset], dout[offset])
-                      : dx_op(x[x_idx], y[y_idx], out[offset], dout[offset]);
-
-          if (BcastY) {
-            dx[x_idx] = tmp;
-          } else {
-            if (i == 0 && k == 0) {
-              dx[x_idx] = tmp;
-            } else {
-              dx[x_idx] += tmp;
-            }
-          }
-        }
-        if (dy != nullptr) {
-          T tmp = UseIntermediateOut
-                      ? dy_op(x[x_idx], y[y_idx], intermediate_out[tmp_out_idx],
-                              out[offset], dout[offset])
-                      : dy_op(x[x_idx], y[y_idx], out[offset], dout[offset]);
-          if (BcastY) {
-            if (i == 0 && k == 0) {
-              dy[y_idx] = tmp;
-            } else {
-              dy[y_idx] += tmp;
-            }
-          } else {
-            dy[y_idx] = tmp;
-          }
-        }
-      }
-    }
-  }
-}
-
-#ifdef __NVCC__
 template <typename T, typename DX_OP, typename DY_OP, bool UseIntermediateOut,
           bool BcastY, bool SameShapeOfIntermediateOutAndOut>
 static __global__ void FusedElemwiseAndActGradBroadcast2CUDAKernel(
@@ -1319,7 +1325,6 @@ static void FusedElemwiseAndActGradBroadcast2CUDA(
       SameShapeOfIntermediateOutAndOut><<<gird_size, block_size, 0, stream>>>(
       x, y, intermediate_out, out, dout, pre, n, post, dx_op, dy_op, dx, dy);
 }
-
 #endif
 
 template <typename DeviceContext, typename T, typename DX_OP, typename DY_OP,
