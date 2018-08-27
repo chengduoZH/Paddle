@@ -181,11 +181,11 @@ static void RunFunctors(const framework::ExecutionContext &ctx,
                         const framework::Tensor &in_y,
                         std::vector<framework::Tensor *> *outputs) {
   auto &functors = ctx.Attr<std::vector<std::string>>("functor_list");
-
   auto funcs_str = functors[0] + "_and_" + functors[1];
-  T scale = static_cast<T>(ctx.Attr<float>("scale"));
-  math::CompoundFunctorRegistry::Instance().Get(funcs_str)->Compute(
-      ctx, in_x, in_y, outputs);
+
+  math::CompoundFunctorRegistry::Instance()
+      .Get(funcs_str)
+      ->Compute<DeviceContext, T>(ctx, in_x, in_y, outputs);
 }
 
 template <typename DeviceContext, typename T, bool ReComputation>
