@@ -278,10 +278,31 @@ class FusedElemwiseActivationOpGrad : public framework::OperatorWithKernel {
     return framework::OpKernelType(input_data_type, ctx.GetPlace());
   }
 };
+
+class AddAndScaleFunctor {
+ public:
+  //  template <typename DeviceContext, typename T>
+  void operator()(const framework::ExecutionContext &ctx,
+                  const framework::Tensor &in_x, const framework::Tensor &in_y,
+                  std::vector<framework::Tensor *> *outputs) {
+    // Z = Binary(X, Unary(Y))
+    //    T scale = static_cast<T>(ctx.Attr<float>("scale"));
+    //    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
+    //      math::ScaleFunctor<T>>(
+    //      ctx, math::AddFunctor<T>(), math::ScaleFunctor<T>(scale), in_x,
+    //      in_y,
+    //      outputs);
+  }
+};
+
 }  // namespace operators
 }  // namespace paddle
 
 namespace ops = paddle::operators;
+
+REGISTER_COMPOUNDFUNCTOR(elementwise_add_and_scale, ops::AddAndScaleFunctor);
+// USE_COMPOUNDFUNCTOR(elementwise_add_and_scale);
+
 REGISTER_OPERATOR(fused_elemwise_activation, ops::FusedElemwiseActivationOp,
                   ops::FusedElemwiseActivationMaker,
                   ops::FusedElemwiseActivationGradMaker);

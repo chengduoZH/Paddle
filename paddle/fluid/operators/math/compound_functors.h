@@ -214,10 +214,10 @@ class CompoundFunctorRegistry {
     map_.insert({functor_type, compound_functor});
   }
 
-  std::unique_ptr<CompoundFunctor> Get(const std::string &functor_type) const {
+  CompoundFunctor Get(const std::string &functor_type) const {
     PADDLE_ENFORCE(Has(functor_type),
                    "CompoundFunctor %s has not been registered", functor_type);
-    return map_.at(functor_type)();
+    return map_.at(functor_type);
   }
 
  private:
@@ -267,22 +267,6 @@ struct CompoundFunctorRegistrar : public Registrar {
       __attribute__((unused)) =                                       \
           TouchCompoundFunctorRegistrar_##compound_functor_type()
 
-class AddAndScaleFunctor {
- public:
-  template <typename DeviceContext, typename T>
-  void operator()(const framework::ExecutionContext &ctx,
-                  const framework::Tensor &in_x, const framework::Tensor &in_y,
-                  std::vector<framework::Tensor *> *outputs) {
-    // Z = Binary(X, Unary(Y))
-    T scale = static_cast<T>(ctx.Attr<float>("scale"));
-    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
-                             math::ScaleFunctor<T>>(
-        ctx, math::AddFunctor<T>(), math::ScaleFunctor<T>(scale), in_x, in_y,
-        outputs);
-  }
-};
-
-REGISTER_COMPOUNDFUNCTOR(elementwise_add_and_scale, AddAndScaleFunctor);
 }  // namespace math
 }  // namespace operators
 }  // namespace paddle
