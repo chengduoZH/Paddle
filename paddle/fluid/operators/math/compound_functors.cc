@@ -12,8 +12,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#pragma once
-
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -173,76 +171,88 @@ static void RunUnaryCompoundGradFunctors(
   }
 }
 
-class AddAndScaleFunctor {
+CompoundFunctorRegistry &CompoundFunctorRegistry::Instance() {
+  static CompoundFunctorRegistry g_compound_functor_info_map;
+  return g_compound_functor_info_map;
+}
+
+class AddAndScaleFunctor : public CompoundFunctor {
  public:
   template <typename DeviceContext, typename T>
-  void operator()(const framework::ExecutionContext &ctx,
-                  const framework::Tensor &in_x, const framework::Tensor &in_y,
-                  std::vector<framework::Tensor *> *outputs) {
-    // Z = Binary(X, Unary(Y))
-    T scale = static_cast<T>(ctx.Attr<float>("scale"));
-    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
-                             math::ScaleFunctor<T>>(
-        ctx, math::AddFunctor<T>(), math::ScaleFunctor<T>(scale), in_x, in_y,
-        outputs);
+  void Compute(const framework::ExecutionContext &ctx,
+               const framework::Tensor &in_x, const framework::Tensor &in_y,
+               std::vector<framework::Tensor *> *outputs) {
+    //    // Z = Binary(X, Unary(Y))
+    //    T scale = static_cast<T>(ctx.Attr<float>("scale"));
+    //    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
+    //                             math::ScaleFunctor<T>>(
+    //        ctx, math::AddFunctor<T>(), math::ScaleFunctor<T>(scale), in_x,
+    //        in_y,
+    //        outputs);
   }
 };
 
-class ScaleAndAddFunctor {
+class ScaleAndAddFunctor : public CompoundFunctor {
  public:
   template <typename DeviceContext, typename T>
-  void operator()(const framework::ExecutionContext &ctx,
-                  const framework::Tensor &in_x, const framework::Tensor &in_y,
-                  std::vector<framework::Tensor *> *outputs) {
+  void Compute(const framework::ExecutionContext &ctx,
+               const framework::Tensor &in_x, const framework::Tensor &in_y,
+               std::vector<framework::Tensor *> *outputs) {
     // Z = Unary(Binary(X, Y))
-    T scale = static_cast<T>(ctx.Attr<float>("scale"));
-    RunUnaryCompoundFunctors<DeviceContext, T, math::ScaleFunctor<T>,
-                             math::AddFunctor<T>>(
-        ctx, math::ScaleFunctor<T>(scale), math::AddFunctor<T>(), in_x, in_y,
-        outputs);
+    //    T scale = static_cast<T>(ctx.Attr<float>("scale"));
+    //    RunUnaryCompoundFunctors<DeviceContext, T, math::ScaleFunctor<T>,
+    //                             math::AddFunctor<T>>(
+    //        ctx, math::ScaleFunctor<T>(scale), math::AddFunctor<T>(), in_x,
+    //        in_y,
+    //        outputs);
   }
 };
 
-class AddAndReluFunctor {
+class AddAndReluFunctor : public CompoundFunctor {
  public:
   template <typename DeviceContext, typename T>
-  void operator()(const framework::ExecutionContext &ctx,
-                  const framework::Tensor &in_x, const framework::Tensor &in_y,
-                  std::vector<framework::Tensor *> *outputs) {
+  void Compute(const framework::ExecutionContext &ctx,
+               const framework::Tensor &in_x, const framework::Tensor &in_y,
+               std::vector<framework::Tensor *> *outputs) {
     // Z = Binary(X, Unary(Y))
-    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
-                             math::ReluFunctor<T>>(ctx, math::AddFunctor<T>(),
-                                                   math::ReluFunctor<T>(), in_x,
-                                                   in_y, outputs);
+    //    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
+    //                             math::ReluFunctor<T>>(ctx,
+    //                             math::AddFunctor<T>(),
+    //                                                   math::ReluFunctor<T>(),
+    //                                                   in_x,
+    //                                                   in_y, outputs);
   }
 };
 
-class ReluAndAddFunctor {
+class ReluAndAddFunctor : public CompoundFunctor {
  public:
   template <typename DeviceContext, typename T>
-  void operator()(const framework::ExecutionContext &ctx,
-                  const framework::Tensor &in_x, const framework::Tensor &in_y,
-                  std::vector<framework::Tensor *> *outputs) {
+  void Compute(const framework::ExecutionContext &ctx,
+               const framework::Tensor &in_x, const framework::Tensor &in_y,
+               std::vector<framework::Tensor *> *outputs) {
     // Z = Unary(Binary(X, Y))
-    RunUnaryCompoundFunctors<DeviceContext, T, math::ReluFunctor<T>,
-                             math::AddFunctor<T>>(ctx, math::ReluFunctor<T>(),
-                                                  math::AddFunctor<T>(), in_x,
-                                                  in_y, outputs);
+    //    RunUnaryCompoundFunctors<DeviceContext, T, math::ReluFunctor<T>,
+    //                             math::AddFunctor<T>>(ctx,
+    //                             math::ReluFunctor<T>(),
+    //                                                  math::AddFunctor<T>(),
+    //                                                  in_x,
+    //                                                  in_y, outputs);
   }
 };
 
-class MulAndScaleFunctor {
+class MulAndScaleFunctor : public CompoundFunctor {
  public:
   template <typename DeviceContext, typename T>
-  void operator()(const framework::ExecutionContext &ctx,
-                  const framework::Tensor &in_x, const framework::Tensor &in_y,
-                  std::vector<framework::Tensor *> *outputs) {
+  void Compute(const framework::ExecutionContext &ctx,
+               const framework::Tensor &in_x, const framework::Tensor &in_y,
+               std::vector<framework::Tensor *> *outputs) {
     // Z = Binary(X, Unary(Y))
-    T scale = static_cast<T>(ctx.Attr<float>("scale"));
-    RunBinaryCompoundFunctor<DeviceContext, T, math::MulFunctor<T>,
-                             math::ScaleFunctor<T>>(
-        ctx, math::MulFunctor<T>(), math::ScaleFunctor<T>(scale), in_x, in_y,
-        outputs);
+    //    T scale = static_cast<T>(ctx.Attr<float>("scale"));
+    //    RunBinaryCompoundFunctor<DeviceContext, T, math::MulFunctor<T>,
+    //                             math::ScaleFunctor<T>>(
+    //        ctx, math::MulFunctor<T>(), math::ScaleFunctor<T>(scale), in_x,
+    //        in_y,
+    //        outputs);
   }
 };
 

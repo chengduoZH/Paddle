@@ -14,7 +14,11 @@ limitations under the License. */
 
 #pragma once
 
+#include <algorithm>
+#include <atomic>
 #include <string>
+#include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -180,9 +184,14 @@ struct UnaryCompoundGradDyFunctor {
   DBinaryFun d_binary_fun_;
 };
 
-using CompoundFunctor = std::function<void(
-    const framework::ExecutionContext &, const framework::Tensor &,
-    const framework::Tensor &, std::vector<framework::Tensor *> *)>;
+class CompoundFunctor {
+ public:
+  template <typename DeviceContext, typename T>
+  virtual void Compute(const framework::ExecutionContext &ctx,
+                       const framework::Tensor &in_x,
+                       const framework::Tensor &in_y,
+                       std::vector<framework::Tensor *> *outputs) const = 0;
+};
 
 class Registrar {
  public:
@@ -201,6 +210,9 @@ class Registrar {
 
 class CompoundFunctorRegistry {
  public:
+  using CompoundFunctorCreator =
+      std::function<std::unique_ptr<CompoundFunctor>()>;
+
   static CompoundFunctorRegistry &Instance();
 
   bool Has(const std::string &functor_type) const {
@@ -208,33 +220,37 @@ class CompoundFunctorRegistry {
   }
 
   void Insert(const std::string &functor_type,
-              const CompoundFunctor &compound_functor) {
+              const CompoundFunctorCreator &compound_functor) {
     PADDLE_ENFORCE(!Has(functor_type), "Functor %s has been registered",
                    functor_type);
     map_.insert({functor_type, compound_functor});
   }
 
-  CompoundFunctor Get(const std::string &functor_type) const {
+  std::unique_ptr<CompoundFunctor> Get(const std::string &functor_type) const {
     PADDLE_ENFORCE(Has(functor_type),
                    "CompoundFunctor %s has not been registered", functor_type);
-    return map_.at(functor_type);
+    return map_.at(functor_type)();
   }
 
  private:
   CompoundFunctorRegistry() = default;
 
-  std::unordered_map<std::string, CompoundFunctor> map_;
+  std::unordered_map<std::string, CompoundFunctorCreator> map_;
 
   DISABLE_COPY_AND_ASSIGN(CompoundFunctorRegistry);
 };
 
-template <typename CompoundFunctorType>
+template <typename CompoundFunctor>
 struct CompoundFunctorRegistrar : public Registrar {
-  explicit CompoundFunctorRegistrar(const char *functor_type,
-                                    CompoundFunctor compound_functor) {
+  explicit CompoundFunctorRegistrar(const char *functor_type) {
     PADDLE_ENFORCE(!CompoundFunctorRegistry::Instance().Has(functor_type),
                    "'%s' is registered more than once.", functor_type);
-    CompoundFunctorRegistry::Instance().Insert(functor_type, compound_functor);
+    CompoundFunctorRegistry::Instance().Insert(
+        functor_type, [this]() -> std::unique_ptr<CompoundFunctor> {
+          std::unique_ptr<CompoundFunctor> compound_functor(
+              new CompoundFunctor());
+          return compound_functor;
+        });
   }
 };
 
@@ -254,7 +270,7 @@ struct CompoundFunctorRegistrar : public Registrar {
       "REGISTER_COMPOUNDFUNCTOR must be called in global namespace");          \
   static ::paddle::operators::math::CompoundFunctorRegistrar<compound_functor> \
       __compound_functor_registrar_##compound_functor_type##__(                \
-          #compound_functor_type, compound_functor);                           \
+          #compound_functor_type);                                             \
   int TouchCompoundFunctorRegistrar_##compound_functor_type() {                \
     __compound_functor_registrar_##compound_functor_type##__.Touch();          \
     return 0;                                                                  \
