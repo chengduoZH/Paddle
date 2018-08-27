@@ -238,6 +238,8 @@ struct CompoundFunctorRegistrar : public Registrar {
   }
 };
 
+}  // namespace math
+
 #define STATIC_ASSERT_COMPOUNDFUNCTOR_GLOBAL_NAMESPACE(uniq_name, msg)        \
   struct __test_global_namespace_##uniq_name##__ {};                          \
   static_assert(std::is_same<::__test_global_namespace_##uniq_name##__,       \
@@ -267,6 +269,5 @@ struct CompoundFunctorRegistrar : public Registrar {
       __attribute__((unused)) =                                       \
           TouchCompoundFunctorRegistrar_##compound_functor_type()
 
-}  // namespace math
 }  // namespace operators
 }  // namespace paddle
