@@ -187,6 +187,65 @@ class AddAndScaleFunctor {
         outputs);
   }
 };
+
+class ScaleAndAddFunctor {
+ public:
+  template <typename DeviceContext, typename T>
+  void operator()(const framework::ExecutionContext &ctx,
+                  const framework::Tensor &in_x, const framework::Tensor &in_y,
+                  std::vector<framework::Tensor *> *outputs) {
+    // Z = Unary(Binary(X, Y))
+    T scale = static_cast<T>(ctx.Attr<float>("scale"));
+    RunUnaryCompoundFunctors<DeviceContext, T, math::ScaleFunctor<T>,
+                             math::AddFunctor<T>>(
+        ctx, math::ScaleFunctor<T>(scale), math::AddFunctor<T>(), in_x, in_y,
+        outputs);
+  }
+};
+
+class AddAndReluFunctor {
+ public:
+  template <typename DeviceContext, typename T>
+  void operator()(const framework::ExecutionContext &ctx,
+                  const framework::Tensor &in_x, const framework::Tensor &in_y,
+                  std::vector<framework::Tensor *> *outputs) {
+    // Z = Binary(X, Unary(Y))
+    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
+                             math::ReluFunctor<T>>(ctx, math::AddFunctor<T>(),
+                                                   math::ReluFunctor<T>(), in_x,
+                                                   in_y, outputs);
+  }
+};
+
+class ReluAndAddFunctor {
+ public:
+  template <typename DeviceContext, typename T>
+  void operator()(const framework::ExecutionContext &ctx,
+                  const framework::Tensor &in_x, const framework::Tensor &in_y,
+                  std::vector<framework::Tensor *> *outputs) {
+    // Z = Unary(Binary(X, Y))
+    RunUnaryCompoundFunctors<DeviceContext, T, math::ReluFunctor<T>,
+                             math::AddFunctor<T>>(ctx, math::ReluFunctor<T>(),
+                                                  math::AddFunctor<T>(), in_x,
+                                                  in_y, outputs);
+  }
+};
+
+class MulAndScaleFunctor {
+ public:
+  template <typename DeviceContext, typename T>
+  void operator()(const framework::ExecutionContext &ctx,
+                  const framework::Tensor &in_x, const framework::Tensor &in_y,
+                  std::vector<framework::Tensor *> *outputs) {
+    // Z = Binary(X, Unary(Y))
+    T scale = static_cast<T>(ctx.Attr<float>("scale"));
+    RunBinaryCompoundFunctor<DeviceContext, T, math::MulFunctor<T>,
+                             math::ScaleFunctor<T>>(
+        ctx, math::MulFunctor<T>(), math::ScaleFunctor<T>(scale), in_x, in_y,
+        outputs);
+  }
+};
+
 }  // namespace math
 }  // namespace operators
 }  // namespace paddle
@@ -194,4 +253,8 @@ class AddAndScaleFunctor {
 namespace math = paddle::operators::math;
 
 REGISTER_COMPOUNDFUNCTOR(elementwise_add_and_scale, math::AddAndScaleFunctor);
+REGISTER_COMPOUNDFUNCTOR(scale_and_elementwise_add, math::ScaleAndAddFunctor);
+REGISTER_COMPOUNDFUNCTOR(elementwise_add_and_relu, math::AddAndReluFunctor);
+REGISTER_COMPOUNDFUNCTOR(relu_and_elementwise_add, math::ReluAndAddFunctor);
+REGISTER_COMPOUNDFUNCTOR(elementwise_mul_and_scale, math::MulAndScaleFunctor);
 // USE_COMPOUNDFUNCTOR(elementwise_add_and_scale);
