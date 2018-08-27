@@ -21,14 +21,15 @@ namespace operators {
 
 static bool IsUnaryCompound(const std::vector<std::string> &functor_list) {
   PADDLE_ENFORCE_EQ(functor_list.size(), 2);
-  return functor_list[1] == "elementwise_add" ||
-         functor_list[1] == "elementwise_mul";
+  static std::unordered_set<std::string> binary_fun = {"elementwise_add",
+                                                       "elementwise_mul"};
+  return binary_fun.count(functor_list[1]) == 1;
 }
 
 static bool IsSupportedCompound(const std::vector<std::string> &functors) {
-  std::unordered_set<std::string> unary_fun = {"scale", "relu"};
-  std::unordered_set<std::string> binary_fun = {"elementwise_add",
-                                                "elementwise_mul"};
+  static std::unordered_set<std::string> unary_fun = {"scale", "relu"};
+  static std::unordered_set<std::string> binary_fun = {"elementwise_add",
+                                                       "elementwise_mul"};
 
   std::string unary_fun_str;
   if (binary_fun.count(functors[0])) {
