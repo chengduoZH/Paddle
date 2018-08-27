@@ -1395,7 +1395,6 @@ void FusedElemwiseAndActGradComputeEx(
         ctx, x_dim, y_dim, x, y, intermediate_out, out, dout, axis, dx, dy,
         dx_op, dy_op);
   } else {  // Y is a scalar
-    // TODO(zcd): whether Y should be broadcast?
     bool bcast_y = x_dim.size() >= y_dim.size();
     if (x_dim.size() == y_dim.size()) {
       for (int i = 0; i < x_dim.size(); ++i) {
@@ -1405,6 +1404,7 @@ void FusedElemwiseAndActGradComputeEx(
         }
       }
     }
+
     // z = f1(x, f2(y))
     // z = f1(f2(x, y))
     if (bcast_y) {  // Y should be broadcast.
