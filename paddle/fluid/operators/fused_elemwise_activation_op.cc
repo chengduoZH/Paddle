@@ -251,10 +251,12 @@ class FusedElemwiseActivationOpGrad : public framework::OperatorWithKernel {
     if (ctx->HasOutput(x_grad_name)) {
       PADDLE_ENFORCE(ctx->HasInputs("X"), "Input(X) should not be null");
       ctx->SetOutputDim(x_grad_name, ctx->GetInputDim("X"));
+      ctx->ShareLoD("X", x_grad_name);
     }
     if (ctx->HasOutput(y_grad_name)) {
       PADDLE_ENFORCE(ctx->HasInput("Y"), "Input(Y) should not be null");
       ctx->SetOutputDim(y_grad_name, ctx->GetInputDim("Y"));
+      ctx->ShareLoD("Y", y_grad_name);
     }
   }
 
