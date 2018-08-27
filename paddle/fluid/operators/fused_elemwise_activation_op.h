@@ -182,44 +182,10 @@ static void RunFunctors(const framework::ExecutionContext &ctx,
                         std::vector<framework::Tensor *> *outputs) {
   auto &functors = ctx.Attr<std::vector<std::string>>("functor_list");
 
-  // TODO(zcd): The following code can be refined.
-  auto funcs_str = functors[0] + "," + functors[1];
-  if (funcs_str == "elementwise_add,scale") {
-    // Z = Binary(X, Unary(Y))
-    T scale = static_cast<T>(ctx.Attr<float>("scale"));
-    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
-                             math::ScaleFunctor<T>>(
-        ctx, math::AddFunctor<T>(), math::ScaleFunctor<T>(scale), in_x, in_y,
-        outputs);
-  } else if (funcs_str == "scale,elementwise_add") {
-    // Z = Unary(Binary(X, Y))
-    T scale = static_cast<T>(ctx.Attr<float>("scale"));
-    RunUnaryCompoundFunctors<DeviceContext, T, math::ScaleFunctor<T>,
-                             math::AddFunctor<T>>(
-        ctx, math::ScaleFunctor<T>(scale), math::AddFunctor<T>(), in_x, in_y,
-        outputs);
-  } else if (funcs_str == "elementwise_add,relu") {
-    // Z = Binary(X, Unary(Y))
-    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
-                             math::ReluFunctor<T>>(ctx, math::AddFunctor<T>(),
-                                                   math::ReluFunctor<T>(), in_x,
-                                                   in_y, outputs);
-  } else if (funcs_str == "relu,elementwise_add") {
-    // Z = Unary(Binary(X, Y))
-    RunUnaryCompoundFunctors<DeviceContext, T, math::ReluFunctor<T>,
-                             math::AddFunctor<T>>(ctx, math::ReluFunctor<T>(),
-                                                  math::AddFunctor<T>(), in_x,
-                                                  in_y, outputs);
-  } else if (funcs_str == "elementwise_mul,scale") {
-    // Z = Binary(X, Unary(Y))
-    T scale = static_cast<T>(ctx.Attr<float>("scale"));
-    RunBinaryCompoundFunctor<DeviceContext, T, math::MulFunctor<T>,
-                             math::ScaleFunctor<T>>(
-        ctx, math::MulFunctor<T>(), math::ScaleFunctor<T>(scale), in_x, in_y,
-        outputs);
-  } else {
-    PADDLE_THROW("%s has not been implemented.", funcs_str);
-  }
+  auto funcs_str = functors[0] + "_and_" + functors[1];
+  T scale = static_cast<T>(ctx.Attr<float>("scale"));
+  math::CompoundFunctorRegistry::Instance().Get(funcs_str)->Compute(
+      ctx, in_x, in_y, outputs);
 }
 
 template <typename DeviceContext, typename T, bool ReComputation>

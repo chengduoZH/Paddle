@@ -182,7 +182,7 @@ class AddAndScaleFunctor : public CompoundFunctor {
   void Compute(const framework::ExecutionContext &ctx,
                const framework::Tensor &in_x, const framework::Tensor &in_y,
                std::vector<framework::Tensor *> *outputs) {
-    //    // Z = Binary(X, Unary(Y))
+    // Z = Binary(X, Unary(Y))
     T scale = static_cast<T>(ctx.Attr<float>("scale"));
     RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
                              math::ScaleFunctor<T>>(
@@ -260,4 +260,9 @@ REGISTER_COMPOUNDFUNCTOR(scale_and_elementwise_add, math::ScaleAndAddFunctor);
 REGISTER_COMPOUNDFUNCTOR(elementwise_add_and_relu, math::AddAndReluFunctor);
 REGISTER_COMPOUNDFUNCTOR(relu_and_elementwise_add, math::ReluAndAddFunctor);
 REGISTER_COMPOUNDFUNCTOR(elementwise_mul_and_scale, math::MulAndScaleFunctor);
-// USE_COMPOUNDFUNCTOR(elementwise_add_and_scale);
+
+USE_COMPOUNDFUNCTOR(elementwise_add_and_scale);
+USE_COMPOUNDFUNCTOR(scale_and_elementwise_add);
+USE_COMPOUNDFUNCTOR(elementwise_add_and_relu);
+USE_COMPOUNDFUNCTOR(relu_and_elementwise_add);
+USE_COMPOUNDFUNCTOR(elementwise_mul_and_scale);

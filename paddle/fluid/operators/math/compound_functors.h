@@ -187,10 +187,9 @@ struct UnaryCompoundGradDyFunctor {
 class CompoundFunctor {
  public:
   template <typename DeviceContext, typename T>
-  virtual void Compute(const framework::ExecutionContext &ctx,
-                       const framework::Tensor &in_x,
-                       const framework::Tensor &in_y,
-                       std::vector<framework::Tensor *> *outputs) const = 0;
+  void Compute(const framework::ExecutionContext &ctx,
+               const framework::Tensor &in_x, const framework::Tensor &in_y,
+               std::vector<framework::Tensor *> *outputs) const;
 };
 
 class Registrar {
