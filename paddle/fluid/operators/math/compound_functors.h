@@ -180,6 +180,109 @@ struct UnaryCompoundGradDyFunctor {
   DBinaryFun d_binary_fun_;
 };
 
+using CompoundFunctor = std::function<void(
+    const framework::ExecutionContext &, const framework::Tensor &,
+    const framework::Tensor &, std::vector<framework::Tensor *> *)>;
+
+class Registrar {
+ public:
+  // In our design, various kinds of compound_functores,
+  // have their corresponding registry and registrar. The action of
+  // registration is in the constructor of a global registrar variable, which
+  // are not used in the code that calls package framework, and would
+  // be removed from the generated binary file by the linker. To avoid such
+  // removal, we add Touch to all registrar classes and make USE_COMPOUNDFUNCTOR
+  // macros to
+  // call this method. So, as long as the callee code calls USE_COMPOUNDFUNCTOR,
+  // the global
+  // registrar variable won't be removed by the linker.
+  void Touch() {}
+};
+
+class CompoundFunctorRegistry {
+ public:
+  static CompoundFunctorRegistry &Instance();
+
+  bool Has(const std::string &functor_type) const {
+    return map_.find(functor_type) != map_.end();
+  }
+
+  void Insert(const std::string &functor_type,
+              const CompoundFunctor &compound_functor) {
+    PADDLE_ENFORCE(!Has(functor_type), "Functor %s has been registered",
+                   functor_type);
+    map_.insert({functor_type, compound_functor});
+  }
+
+  std::unique_ptr<CompoundFunctor> Get(const std::string &functor_type) const {
+    PADDLE_ENFORCE(Has(functor_type),
+                   "CompoundFunctor %s has not been registered", functor_type);
+    return map_.at(functor_type)();
+  }
+
+ private:
+  CompoundFunctorRegistry() = default;
+
+  std::unordered_map<std::string, CompoundFunctor> map_;
+
+  DISABLE_COPY_AND_ASSIGN(CompoundFunctorRegistry);
+};
+
+template <typename CompoundFunctorType>
+struct CompoundFunctorRegistrar : public Registrar {
+  explicit CompoundFunctorRegistrar(const char *functor_type,
+                                    CompoundFunctor compound_functor) {
+    PADDLE_ENFORCE(!CompoundFunctorRegistry::Instance().Has(functor_type),
+                   "'%s' is registered more than once.", functor_type);
+    CompoundFunctorRegistry::Instance().Insert(functor_type, compound_functor);
+  }
+};
+
+#define STATIC_ASSERT_COMPOUNDFUNCTOR_GLOBAL_NAMESPACE(uniq_name, msg)        \
+  struct __test_global_namespace_##uniq_name##__ {};                          \
+  static_assert(std::is_same<::__test_global_namespace_##uniq_name##__,       \
+                             __test_global_namespace_##uniq_name##__>::value, \
+                msg)
+
+// Register a new compound_functor that can be applied on the
+// fused_elemwise_activation_op.
+#define REGISTER_COMPOUNDFUNCTOR(compound_functor_type, compound_functor)      \
+  STATIC_ASSERT_COMPOUNDFUNCTOR_GLOBAL_NAMESPACE(                              \
+      __reg_compound_functor__##compound_functor_type,                         \
+      "REGISTER_COMPOUNDFUNCTOR must be called in global namespace");          \
+  static ::paddle::operators::math::CompoundFunctorRegistrar<compound_functor> \
+      __compound_functor_registrar_##compound_functor_type##__(                \
+          #compound_functor_type, compound_functor);                           \
+  int TouchCompoundFunctorRegistrar_##compound_functor_type() {                \
+    __compound_functor_registrar_##compound_functor_type##__.Touch();          \
+    return 0;                                                                  \
+  }
+
+#define USE_COMPOUNDFUNCTOR(compound_functor_type)                    \
+  STATIC_ASSERT_COMPOUNDFUNCTOR_GLOBAL_NAMESPACE(                     \
+      __use_compound_functor_itself_##compound_functor_type,          \
+      "USE_COMPOUNDFUNCTOR must be called in global namespace");      \
+  extern int TouchCompoundFunctorRegistrar_##compound_functor_type(); \
+  static int use_compound_functor_itself_##compound_functor_type##_   \
+      __attribute__((unused)) =                                       \
+          TouchCompoundFunctorRegistrar_##compound_functor_type()
+
+class AddAndScaleFunctor {
+ public:
+  template <typename DeviceContext, typename T>
+  void operator()(const framework::ExecutionContext &ctx,
+                  const framework::Tensor &in_x, const framework::Tensor &in_y,
+                  std::vector<framework::Tensor *> *outputs) {
+    // Z = Binary(X, Unary(Y))
+    T scale = static_cast<T>(ctx.Attr<float>("scale"));
+    RunBinaryCompoundFunctor<DeviceContext, T, math::AddFunctor<T>,
+                             math::ScaleFunctor<T>>(
+        ctx, math::AddFunctor<T>(), math::ScaleFunctor<T>(scale), in_x, in_y,
+        outputs);
+  }
+};
+
+REGISTER_COMPOUNDFUNCTOR(elementwise_add_and_scale, AddAndScaleFunctor);
 }  // namespace math
 }  // namespace operators
 }  // namespace paddle
