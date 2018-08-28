@@ -315,13 +315,6 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
 
   // Set Input
   if (IsBackward(cur_op_node, tobe_fused_nodes)) {
-    PADDLE_ENFORCE(
-        cur_op_node_in_args.size() == 2 || cur_op_node_in_args.size() == 4,
-        "The number of inputs of %s should be 2 or 4, if the number is 2, "
-        "the input variable is `Y`, and `Out@Grad`, if the number is "
-        "4, the input variable is `X`, `Y`, `Out`, `Out@Grad`",
-        cur_op_type);
-
     const std::string op_type = "fused_elemwise_activation_grad";
     op_desc->SetType(op_type);
 
@@ -461,9 +454,9 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
           1 - static_cast<int>(result_iter - cur_op_node_in_args.begin());
       op_desc->SetInput("X", {cur_op_node_in_args[x_idx]});
 
-      //      if (cur_op_type == "elementwise_add") {
-      //        keep_intermediate_out = true;
-      //      }
+      // if (cur_op_type == "elementwise_add") {
+      //   keep_intermediate_out = true;
+      // }
     } else {
       // Z = Unary(Binary(X, Y))
       PADDLE_ENFORCE_EQ(cur_op_node_in_args.size(), 1,
