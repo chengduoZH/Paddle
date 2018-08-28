@@ -29,7 +29,7 @@ static bool IsUnaryCompound(const std::vector<std::string> &functor_list) {
   static std::unordered_set<std::string> binary_fun = {
       "elementwise_add", "elementwise_mul", "elementwise_add_grad",
       "elementwise_mul_grad"};
-  return binary_fun.count(functor_list[1]) == 0;
+  return binary_fun.count(functor_list[1]) != 0;
 }
 
 /*
