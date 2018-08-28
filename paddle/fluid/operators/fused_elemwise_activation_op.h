@@ -332,9 +332,9 @@ class FusedElemwiseActivationGradKernel : public framework::OpKernel<T> {
 
     framework::Tensor *in_x, *in_y;
     framework::Tensor *in_out, *in_intermediate_out;
-    // If functor_list contains elementwise_add, the backward doesn't use
-    // in_x,in_y and in_outs.
     auto functor_list = ctx.Attr<std::vector<std::string>>("functor_list");
+    // If functor_list contains elementwise_add, the backward doesn't use
+    // in_x, in_y and in_outs.
     if (functor_list[0] == "elementwise_add" ||
         functor_list[1] == "elementwise_add") {
       in_x = const_cast<framework::Tensor *>(in_outs_grad[0]);
