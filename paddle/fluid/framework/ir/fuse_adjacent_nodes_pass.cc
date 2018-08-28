@@ -96,7 +96,7 @@ bool FuseAdjacentNodesPass::FindToBeFusedNodes(
   for (auto &in_var : no_control_vars) {
     if (in_var->inputs.empty()) continue;
 
-    PADDLE_ENFORCE(in_var->IsVa(), "in_var should be a variable.");
+    PADDLE_ENFORCE(in_var->IsVar(), "in_var should be a variable.");
     PADDLE_ENFORCE_EQ(in_var->inputs.size(), 1,
                       "in_var's generation op should be only one.");
 
