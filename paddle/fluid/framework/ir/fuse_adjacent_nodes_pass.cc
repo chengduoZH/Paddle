@@ -311,110 +311,179 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
   auto upstream_op_node_out_args =
       upstream_op_node->Op()->OutputArgumentNames();
   auto cur_op_node_in_args = cur_op_node->Op()->InputArgumentNames();
+  auto cur_op_node_out_args = cur_op_node->Op()->InputArgumentNames();
 
   // Set Input
   if (IsBackward(cur_op_node, tobe_fused_nodes)) {
+    PADDLE_ENFORCE(
+        cur_op_node_in_args.size() == 2 || cur_op_node_in_args.size() == 4,
+        "The number of inputs of %s should be 2 or 4, if the number is 2, "
+        "the input variable is `Y`, and `Out@Grad`, if the number is "
+        "4, the input variable is `X`, `Y`, `Out`, `Out@Grad`",
+        cur_op_type);
+
     const std::string op_type = "fused_elemwise_activation_grad";
     op_desc->SetType(op_type);
 
     // Set attrs
     op_desc->SetAttr("functor_list",
                      std::vector<std::string>({upstream_op_type, cur_op_type}));
+    op_desc->SetAttr("recomputation", false);
+
+    auto out_grad = ::paddle::framework::GradVarName("Out");
+    auto x_grad = ::paddle::framework::GradVarName("X");
+    auto y_grad = ::paddle::framework::GradVarName("Y");
 
     if (IsElemwise(cur_op_type)) {
+      // the backward of  Unary(Binary(X, Y))
+      PADDLE_ENFORCE(upstream_op_node_out_args.size() == 1,
+                     "The number of output of %s should be 1.",
+                     upstream_op_type);
+      PADDLE_ENFORCE(cur_op_node_out_args.size() == 2,
+                     "The number of output of %s should be 2.", cur_op_type);
       PADDLE_ENFORCE(
           upstream_op_node_in_args.size() == 2 ||
               upstream_op_node_in_args.size() == 3,
-          "The number of inputs of %s should be 2 or 3, because the computation"
-          " of activation operator maybe inplace.",
+          "The number of inputs of %s should be 2 or 3, "
+          "if the number is 2, the input is 'Out', 'Out@Grad', "
+          "if the number is 3, the input is 'X', 'Out' and 'Out@Grad'.",
           upstream_op_node->Op()->Type());
       PADDLE_ENFORCE(
-          cur_op_node_in_args.size() == 3 || cur_op_node_in_args.size() == 4,
-          "The number of inputs of %s should be 2 or 4, if the number is 3, "
-          "the input variable is `Y`, `Out` and `Out@Grad`, if the number is "
-          "4, "
-          "the input variable is `X`, `Y`, `Out`, `Out@Grad`",
+          cur_op_node_in_args.size() == 2 || cur_op_node_in_args.size() == 4,
+          "The number of inputs of %s should be 2 or 4, if the number is 2, "
+          "the input variable is `Y`, and `Out@Grad`, if the number is "
+          "4, the input variable is `X`, `Y`, `Out`, `Out@Grad`",
           cur_op_type);
 
       if (cur_op_node_in_args.size() == 4) {
         op_desc->SetInput("X", cur_op_node->Op()->Input("X"));
-        op_desc->SetInput("Y", cur_op_node->Op()->Input("Y"));
       } else {
-        bool insert_input = false;
-        auto out_name = cur_op_node->Op()->Input("Out")[0];
-        for (auto in : cur_op_node->inputs) {
-          if (in->Var()->Name() == out_name) {
-            auto forward_node = in->inputs[0];
-            PADDLE_ENFORCE(
-                forward_node->Name() + "_grad" == op_type,
-                "%s and %s should be a pair of forward and backward.", op_type,
-                forward_node->Name());
-            op_desc->SetInput("X", forward_node->Op()->Input("X"));
-            op_desc->SetInput("Y", forward_node->Op()->Input("Y"));
-            insert_input = true;
-            break;
-          }
+        // for the BinaryFunctor is elementwise_add, the computation
+        // of its backward doesn't use 'x' and 'y', but the shape of
+        // dy only can be inferred from 'y', so 'y' should be input.
+        if (upstream_op_node_in_args.size() == 3) {
+          op_desc->SetInput("IntermediateOut",
+                            upstream_op_node->Op()->Input("Y"));
         }
-        PADDLE_ENFORCE(insert_input, "Doesn't find `X` and `Y` of %s.",
-                       cur_op_node->Name());
       }
-
-      auto upstream_op_node_in1 = upstream_op_node->Op()->Input("Out");
-      auto upstream_op_node_in2 = upstream_op_node->Op()->Input(
-          ::paddle::framework::GradVarName("Out"));
-      auto out1 =
-          cur_op_node->Op()->Output(::paddle::framework::GradVarName("X"));
-      auto out2 =
-          cur_op_node->Op()->Output(::paddle::framework::GradVarName("Y"));
-
-      op_desc->SetInput("Out", upstream_op_node_in1);
-      op_desc->SetInput(::paddle::framework::GradVarName("Out"),
-                        upstream_op_node_in2);
-      op_desc->SetOutput(::paddle::framework::GradVarName("X"), out1);
-      op_desc->SetOutput(::paddle::framework::GradVarName("Y"), out2);
+      op_desc->SetInput("Y", cur_op_node->Op()->Input("Y"));
+      op_desc->SetInput("Out", upstream_op_node->Op()->Input("Out"));
+      op_desc->SetInput(out_grad, upstream_op_node->Op()->Input(out_grad));
+      op_desc->SetOutput(x_grad, cur_op_node->Op()->Output(x_grad));
+      op_desc->SetOutput(y_grad, upstream_op_node->Op()->Output(x_grad));
     } else {
-      PADDLE_THROW("Not implement.");
+      // the backward of Binary(X, Unary(Y))
+      PADDLE_ENFORCE(upstream_op_node_out_args.size() == 2,
+                     "The number of output of %s should be 2.",
+                     upstream_op_type);
+      PADDLE_ENFORCE(cur_op_node_out_args.size() == 1,
+                     "The number of output of %s should be 1.", cur_op_type);
+      PADDLE_ENFORCE(
+          cur_op_node_in_args.size() == 2 || cur_op_node_in_args.size() == 3,
+          "The number of inputs of %s should be 2 or 3, "
+          "if the number is 2, the input is 'Out', 'Out@Grad', "
+          "if the number is 3, the input is 'X', 'Out' and 'Out@Grad'.",
+          cur_op_type);
+      PADDLE_ENFORCE(
+          upstream_op_node_in_args.size() == 2 ||
+              upstream_op_node_in_args.size() == 4,
+          "The number of inputs of %s should be 2 or 4, if the number is 2, "
+          "the input variable is `Y`, and `Out@Grad`, if the number is "
+          "4, the input variable is `X`, `Y`, `Out`, `Out@Grad`",
+          upstream_op_type);
+
+      if (upstream_op_node_in_args.size() == 4) {
+        op_desc->SetInput("X", upstream_op_node->Op()->Input("X"));
+      } else {
+        // for the BinaryFunctor is elementwise_add, the computation
+        // of its backward doesn't use 'x' and 'y', but the shape of
+        // dy only can be inferred from 'y', so 'y' should be input.
+        if (cur_op_node_in_args.size() == 3) {
+          op_desc->SetInput("Y", upstream_op_node->Op()->Input("Y"));
+        } else {
+        }
+      }
+      op_desc->SetInput("IntermediateOut", cur_op_node->Op()->Input("Out"));
+      op_desc->SetInput("Y", upstream_op_node->Op()->Input("Y"));
+      op_desc->SetInput("Out", upstream_op_node->Op()->Input("Out"));
+      op_desc->SetInput(out_grad, upstream_op_node->Op()->Input(out_grad));
+      op_desc->SetOutput(x_grad, upstream_op_node->Op()->Output(x_grad));
+      op_desc->SetOutput(y_grad, cur_op_node->Op()->Output(x_grad));
+
+      // Set the "X"
+      auto result_iter = std::find(upstream_op_node_out_args.begin(),
+                                   upstream_op_node_out_args.end(),
+                                   cur_op_node->Op()->Input(out_grad)[0]);
+      if (result_iter == upstream_op_node_out_args.end()) {
+        PADDLE_THROW("%s's output is not the input of %s", upstream_op_type,
+                     cur_op_type);
+      }
     }
-  } else {
+  } else {  // The forward of Binary(X, Unary(Y)) or Unary(Binary(X, Y))
+    PADDLE_ENFORCE_EQ(
+        upstream_op_node_out_args.size(), 1,
+        "The number of output of UnaryFunctor(BinaryFunctor) should be one.");
+    PADDLE_ENFORCE_EQ(
+        cur_op_node_out_args.size(), 1,
+        "The number of output of BinaryFunctor(UnaryFunctor) should be one.");
+
     op_desc->SetType("fused_elemwise_activation");
     op_desc->SetAttr("functor_list",
                      std::vector<std::string>({cur_op_type, upstream_op_type}));
+    op_desc->SetAttr("recomputation", false);
+
+    op_desc->SetOutput("Out", cur_op_node_out_args);
+
+    // The output of compound functor.
+    std::vector<std::string> out_args;
+    out_args.emplace_back(cur_op_node_out_args[0]);
+    bool keep_intermediate_out = false;
 
     if (IsElemwise(cur_op_type)) {
       // Z = Binary(X, Unary(Y))
       PADDLE_ENFORCE_EQ(upstream_op_node_in_args.size(), 1,
-                        "The number of input of Unary should be one.");
-      PADDLE_ENFORCE_EQ(upstream_op_node_out_args.size(), 1,
-                        "The number of output of Unary should be one.");
+                        "The number of input of UnaryFunctor should be one.");
       PADDLE_ENFORCE_EQ(cur_op_node_in_args.size(), 2,
-                        "The number of input of Binary should be one.");
-
+                        "The number of input of BinaryFunctor should be two.");
+      // Set the "Y"
       op_desc->SetInput("Y", upstream_op_node_in_args);
 
       // Set the "X"
-      if (cur_op_node_in_args[0] == upstream_op_node_out_args[0]) {
-        op_desc->SetInput("X", {cur_op_node_in_args[1]});
-      } else if (cur_op_node_in_args[1] == upstream_op_node_out_args[0]) {
-        op_desc->SetInput("X", {cur_op_node_in_args[0]});
-      } else {
+      auto result_iter =
+          std::find(cur_op_node_in_args.begin(), cur_op_node_in_args.end(),
+                    upstream_op_node_out_args[0]);
+      if (result_iter == cur_op_node_in_args.end()) {
         PADDLE_THROW("%s's output is not the input of %s", upstream_op_type,
                      cur_op_type);
       }
-      if (cur_op_type == "elementwise_add") {
-        op_desc->SetAttr("recomputation", false);
-        op_desc->SetAttr("keep_intermediate_value", true);
-      }
+      // x_idx is 0 or 1 here.
+      int x_idx =
+          1 - static_cast<int>(result_iter - cur_op_node_in_args.begin());
+      op_desc->SetInput("X", {cur_op_node_in_args[x_idx]});
+
+      //      if (cur_op_type == "elementwise_add") {
+      //        keep_intermediate_out = true;
+      //      }
     } else {
       // Z = Unary(Binary(X, Y))
+      PADDLE_ENFORCE_EQ(cur_op_node_in_args.size(), 1,
+                        "The number of input of UnaryFunctor should be one.");
+      PADDLE_ENFORCE_EQ(upstream_op_node_in_args.size(), 2,
+                        "The number of input of BinaryFunctor should be two.");
+      // Set the "Y" and "X"
       op_desc->SetInput("Y", upstream_op_node->Op()->Input("Y"));
       op_desc->SetInput("X", upstream_op_node->Op()->Input("X"));
+      // the input of the backward of elementwise_add doesn't include "X",
+      // so we must save the intermediate_out here.
       if (cur_op_type == "elementwise_add") {
-        op_desc->SetAttr("recomputation", false);
-        op_desc->SetAttr("keep_intermediate_value", true);
+        keep_intermediate_out = true;
       }
     }
-    // Set output
-    op_desc->SetOutput("Out", cur_op_node->Op()->OutputArgumentNames());
+
+    if (keep_intermediate_out) {
+      op_desc->SetOutput("IntermediateOut", upstream_op_node_out_args);
+      op_desc->SetAttr("keep_intermediate_value", true);
+    }
   }
 
   // Set attrs
