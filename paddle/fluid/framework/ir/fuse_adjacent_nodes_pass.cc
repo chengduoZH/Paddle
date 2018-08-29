@@ -139,6 +139,7 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
 
   // Adjust the link relationship between nodes
 
+  // Replace cur_node with new_node.
   auto replace_node = [](NodePtr cur_node, NodePtr new_node,
                          std::vector<NodePtr> *nodes) {
     bool has_replaced = false;
@@ -148,9 +149,11 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
         has_replaced = true;
       }
     }
-    PADDLE_ENFORCE(has_replaced, "Not find cur_node in nodes.");
+    PADDLE_ENFORCE(has_replaced, "Not find %s in the node list.",
+                   cur_node->Name());
   };
 
+  // Remove cur_node from nodes.
   auto remove_node = [](NodePtr cur_node,
                         std::vector<NodePtr> *nodes) -> std::vector<NodePtr> {
     std::vector<NodePtr> new_list;
@@ -162,53 +165,71 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
     return new_list;
   };
 
-  // Get the input arguments of the fused_node.
+  // Get the input and output arguments of the fused_node.
   // Node: the in_args may have duplicated name.
   auto in_args = fused_node->Op()->InputArgumentNames();
   std::unordered_set<std::string> in_args_set;
   for (auto &in : in_args) {
     in_args_set.emplace(in);
   }
+  auto out_args = fused_node->Op()->InputArgumentNames();
+  std::unordered_set<std::string> out_args_set;
+  for (auto &out : out_args) {
+    out_args_set.emplace(out);
+  }
 
   // link fused_node's input.
   std::unordered_set<NodePtr> has_resolved_nodes;
   std::vector<NodePtr> cur_op_node_ins = cur_op_node->inputs;
   for (auto &var : cur_op_node_ins) {
+    PADDLE_ENFORCE(var->IsVar(), "%s should be variable.", var->Name());
+
     if (has_resolved_nodes.count(var)) continue;
     has_resolved_nodes.emplace(var);
 
-    PADDLE_ENFORCE(var->IsVar());
-
-    bool no_need_merge =
+    // If the var's input is empty, or the var's input is not in
+    // tobe_fused_nodes,
+    // the var should be the input of the fused_op.
+    bool is_fused_op_input =
         var->inputs.empty() || !tobe_fused_nodes.count(var->inputs[0]);
 
-    if (no_need_merge) {
+    if (is_fused_op_input) {
+      // the var only should be in the in_args_set or be a ControlDepVar.
       if (in_args_set.count(var->Name()) || ir::IsControlDepVar(*var)) {
         fused_node->inputs.emplace_back(var);
         replace_node(cur_op_node, fused_node, &(var->outputs));
       } else {
-        PADDLE_THROW("%s is not the input of %s, and not a cntrl var.",
+        PADDLE_THROW("%s is not the input of %s, and not a ControlDepVar.",
                      var->Name(), fused_node->Name());
       }
     } else {
+      // Otherwise, the var may be removed.
       need_removed_nodes->emplace(var);
 
       auto &in_var_gen_node = var->inputs[0];
+      var->inputs.clear();
+      PADDLE_ENFORCE(tobe_fused_nodes.count(in_var_gen_node) == 1, "");
 
       for (auto &in_var : in_var_gen_node->inputs) {
-        PADDLE_ENFORCE(in_var->IsVar());
+        PADDLE_ENFORCE(in_var->IsVar(), "%s should be the input of Op(%s)",
+                       in_var->Name(), in_var_gen_node->Name());
         fused_node->inputs.emplace_back(in_var);
         replace_node(in_var_gen_node, fused_node, &(in_var->outputs));
       }
 
       for (auto &out_var : in_var_gen_node->outputs) {
-        PADDLE_ENFORCE(out_var->IsVar());
+        PADDLE_ENFORCE(out_var->IsVar(), "%s should be the output of Op(%s)",
+                       out_var->Name(), in_var_gen_node->Name());
+        // the out_var maybe the input of cur_op_node
         has_resolved_nodes.emplace(out_var);
+
         if (ir::IsControlDepVar(*out_var)) {
           if (out_var->outputs.size() > 0) {
             out_var->outputs = remove_node(cur_op_node, &out_var->outputs);
-            out_var->inputs.clear();
-            out_var->inputs.emplace_back(fused_node);
+            out_var->inputs[0] = fused_node;
+            if (need_removed_nodes->count(out_var)) {
+              need_removed_nodes->erase(out_var);
+            }
           } else {
             PADDLE_ENFORCE(out_var->outputs.size() == 1 &&
                            out_var->outputs[0] == cur_op_node);
@@ -219,7 +240,14 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
             need_removed_nodes->emplace(out_var);
           }
         } else {
-          need_removed_nodes->emplace(out_var);
+          // If the out_var is in out_args_set, it should be the output of
+          // fused_node
+          if (out_args_set.count(out_var->Name()) == 1) {
+            fused_node->outputs.emplace_back(out_var);
+            out_var->inputs[0] = fused_node;
+          } else {
+            need_removed_nodes->emplace(out_var);
+          }
         }
       }
     }
@@ -227,13 +255,11 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
 
   // link fused_node's output.
   for (auto &cur_output : cur_op_node->outputs) {
-    PADDLE_ENFORCE(cur_output->IsVar());
+    PADDLE_ENFORCE(cur_output->IsVar(), "%s should be the output of Op(%s)",
+                   cur_output->Name(), cur_op_node->Name());
     fused_node->outputs.emplace_back(cur_output);
-    cur_output->inputs.clear();
-    cur_output->inputs.emplace_back(fused_node);
+    cur_output->inputs[0] = fused_node;
   }
-
-  AddAbsentNodes(cur_op_node, tobe_fused_nodes, fused_node);
   return fused_node;
 }
 
@@ -263,15 +289,15 @@ bool FuseAdjacentNodesPass::IsFusible(const NodePtr cur_op_node,
   bool case2 = (cur_op_node->Op()->Type() == "elementwise_add") &&
                (upstream_op_node->Op()->Type() == "scale" ||
                 upstream_op_node->Op()->Type() == "relu");
-  bool case3 = (cur_op_node->Op()->Type() == "elementwise_add_grad") &&
-               (upstream_op_node->Op()->Type() == "scale_grad" ||
-                upstream_op_node->Op()->Type() == "relu_grad");
+  //  bool case3 = (cur_op_node->Op()->Type() == "elementwise_add_grad") &&
+  //               (upstream_op_node->Op()->Type() == "scale_grad" ||
+  //                upstream_op_node->Op()->Type() == "relu_grad");
   //  bool case4 =
   //    (cur_op_node->Op()->Type() == "scale_grad" || cur_op_node->Op()->Type()
   //    == "relu_grad") &&
   //    (n2->Op()->Type() == "elementwise_add_grad");
 
-  return case1 || case2 || case3;
+  return case1 || case2;
 }
 
 // temporally
@@ -425,8 +451,6 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
                      std::vector<std::string>({cur_op_type, upstream_op_type}));
     op_desc->SetAttr("recomputation", false);
 
-    op_desc->SetOutput("Out", cur_op_node_out_args);
-
     // The output of compound functor.
     std::vector<std::string> out_args;
     out_args.emplace_back(cur_op_node_out_args[0]);
@@ -454,9 +478,9 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
           1 - static_cast<int>(result_iter - cur_op_node_in_args.begin());
       op_desc->SetInput("X", {cur_op_node_in_args[x_idx]});
 
-      // if (cur_op_type == "elementwise_add") {
-      //   keep_intermediate_out = true;
-      // }
+      if (cur_op_type == "elementwise_add") {
+        keep_intermediate_out = true;
+      }
     } else {
       // Z = Unary(Binary(X, Y))
       PADDLE_ENFORCE_EQ(cur_op_node_in_args.size(), 1,
@@ -474,46 +498,16 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
     }
 
     if (keep_intermediate_out) {
-      op_desc->SetOutput("IntermediateOut", upstream_op_node_out_args);
       op_desc->SetAttr("keep_intermediate_value", true);
+      op_desc->SetOutput("IntermediateOut", upstream_op_node_out_args);
     }
+    op_desc->SetOutput("Out", cur_op_node_out_args);
   }
 
   // Set attrs
   for (auto &n : {upstream_op_node, cur_op_node}) {
     for (auto &m_ele : n->Op()->GetAttrMap()) {
       op_desc->SetAttr(m_ele.first, m_ele.second);
-    }
-  }
-}
-
-void FuseAdjacentNodesPass::AddAbsentNodes(
-    const NodePtr outside_node,
-    const std::unordered_set<NodePtr> &tobe_fused_nodes,
-    Node *fused_node) const {
-  std::unordered_set<NodePtr> fused_node_ins;
-  for (auto in : fused_node->inputs) {
-    fused_node_ins.emplace(in);
-  }
-
-  auto cur_op_type = outside_node->Op()->Type();
-
-  if (this->IsBackward(outside_node, tobe_fused_nodes)) {
-    if (IsElemwise(cur_op_type)) {
-      auto out_name = outside_node->Op()->Input("Out")[0];
-      for (auto in_var : outside_node->inputs) {
-        if (in_var->Var()->Name() == out_name) {
-          auto forward_node = in_var->inputs[0];
-          for (auto in : forward_node->inputs) {
-            if (!fused_node_ins.count(in)) {
-              fused_node->inputs.emplace_back(in);
-            }
-          }
-          break;
-        }
-      }
-    } else {
-      PADDLE_THROW("Not implement.");
     }
   }
 }

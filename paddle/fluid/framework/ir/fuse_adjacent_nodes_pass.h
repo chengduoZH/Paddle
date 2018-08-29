@@ -85,10 +85,6 @@ class FuseAdjacentNodesPass : public Pass {
 
   bool IsElemwiseAndActivation(
       const NodePtr node, const std::unordered_set<NodePtr> &tobe_fused) const;
-
-  void AddAbsentNodes(const NodePtr cur_op_node,
-                      const std::unordered_set<NodePtr> &tobe_fused_nodes,
-                      Node *fused_node) const;
 };
 
 }  // namespace ir
