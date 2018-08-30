@@ -150,7 +150,7 @@ class FusedElemwiseActivationMaker : public framework::OpProtoAndCheckerMaker {
     AddOutput("IntermediateOut",
               "Tensor The IntermediateOut tensor of fused_elemwise_activation "
               "operator.")
-        .AsIntermediate();
+        .AsDispensable();
     AddAttr<int>("axis",
                  "axis is used by elementwise_op, the default value is -1.")
         .SetDefault(-1);
