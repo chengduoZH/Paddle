@@ -41,14 +41,6 @@ class FuseAdjacentNodesPass : public Pass {
    * Whether cur_op_node and upstream_op_node can be fused.
    * cur_op_node and upstream_op_node should be Operation and upstream_op_node's
    * output is the input of cur_op_node here.
-   *
-   * The condition of fusing cur_op_node and upstream_op_node is:
-   *   - the number of upstream_op_node's outputs(not include ControlDepVar)
-   *     should be one.
-   *   - upstream_op_node's output is only used by cur_op_node or
-   *     cur_op_grad_node or upstream_op_grad_node.
-   *   - there is a template function to represent the fused of cur_op_node and
-   * upstream_op_node.
    */
   bool IsFusible(const NodePtr cur_op_node,
                  const NodePtr upstream_op_node) const;
@@ -85,10 +77,6 @@ class FuseAdjacentNodesPass : public Pass {
 
   bool IsElemwiseAndActivation(
       const NodePtr node, const std::unordered_set<NodePtr> &tobe_fused) const;
-
-  void AddAbsentNodes(const NodePtr cur_op_node,
-                      const std::unordered_set<NodePtr> &tobe_fused_nodes,
-                      Node *fused_node) const;
 };
 
 }  // namespace ir

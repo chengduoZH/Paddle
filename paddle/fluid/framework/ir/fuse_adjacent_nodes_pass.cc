@@ -22,14 +22,9 @@ limitations under the License. */
 namespace paddle {
 namespace framework {
 namespace ir {
-const char kOpDescs[] = "op_descs";
-using OpDescs = std::vector<std::unique_ptr<OpDesc>>;
 
 std::unique_ptr<ir::Graph> FuseAdjacentNodesPass::ApplyImpl(
     std::unique_ptr<ir::Graph> graph) const {
-  // The created OpDesc will be stored in graph.
-  graph->Set<OpDescs>(kOpDescs, new OpDescs());
-
   std::vector<NodePtr> topo_order = ir::TopologySortOperations(*graph.get());
 
   // internal_nodes is used to record the origin node and fused node
@@ -116,14 +111,11 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
     const NodePtr cur_op_node,
     const std::unordered_set<NodePtr> &tobe_fused_nodes,
     std::unordered_set<NodePtr> *need_removed_nodes, ir::Graph *graph) const {
-  //  Create OpDesc,
-  graph->Get<OpDescs>(kOpDescs).emplace_back(new framework::OpDesc());
-  auto *fused_op_desc = graph->Get<OpDescs>(kOpDescs).back().get();
-
+  framework::OpDesc fused_op_desc;
   if (tobe_fused_nodes.size() == 1) {
     // Init OpDesc
     if (IsElemwiseAndActivation(cur_op_node, tobe_fused_nodes)) {
-      FuseElemwiseAndActivation(cur_op_node, tobe_fused_nodes, fused_op_desc);
+      FuseElemwiseAndActivation(cur_op_node, tobe_fused_nodes, &fused_op_desc);
     } else {
       PADDLE_THROW(
           "Currently, only support fusing elementwise and activation "
@@ -134,8 +126,7 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
   }
 
   // Create Node
-  fused_op_desc->Flush();
-  auto fused_node = graph->CreateOpNode(fused_op_desc);
+  auto fused_node = graph->CreateOpNode(&fused_op_desc);
 
   // Adjust the link relationship between nodes
 
@@ -224,7 +215,6 @@ NodePtr FuseAdjacentNodesPass::FuseNodes(
       for (auto &out_var : in_var_gen_node->outputs) {
         PADDLE_ENFORCE(out_var->IsVar(), "%s should be the output of Op(%s)",
                        out_var->Name(), in_var_gen_node->Name());
-
         // the out_var maybe the input of cur_op_node
         has_resolved_nodes.emplace(out_var);
 
@@ -297,15 +287,15 @@ bool FuseAdjacentNodesPass::IsFusible(const NodePtr cur_op_node,
   bool case2 = (cur_op_node->Op()->Type() == "elementwise_add") &&
                (upstream_op_node->Op()->Type() == "scale" ||
                 upstream_op_node->Op()->Type() == "relu");
-  //  bool case3 = (cur_op_node->Op()->Type() == "elementwise_add_grad") &&
-  //               (upstream_op_node->Op()->Type() == "scale_grad" ||
-  //                upstream_op_node->Op()->Type() == "relu_grad");
+  bool case3 = (cur_op_node->Op()->Type() == "elementwise_add_grad") &&
+               (upstream_op_node->Op()->Type() == "scale_grad" ||
+                upstream_op_node->Op()->Type() == "relu_grad");
   //  bool case4 =
   //    (cur_op_node->Op()->Type() == "scale_grad" || cur_op_node->Op()->Type()
   //    == "relu_grad") &&
   //    (n2->Op()->Type() == "elementwise_add_grad");
 
-  return case1 || case2;
+  return case1 || case2 || case3;
 }
 
 // temporally
@@ -383,68 +373,32 @@ void FuseAdjacentNodesPass::FuseElemwiseAndActivation(
           "4, the input variable is `X`, `Y`, `Out`, `Out@Grad`",
           cur_op_type);
 
+      op_desc->SetInput("X", {});
+
+      //      bool keep_intermediate = true;
       if (cur_op_node_in_args.size() == 4) {
         op_desc->SetInput("X", cur_op_node->Op()->Input("X"));
       }
+
       if (upstream_op_node_in_args.size() == 3) {
         op_desc->SetInput("IntermediateOut",
                           upstream_op_node->Op()->Input("X"));
       } else {
+        // if the number of upstream_op_node_in_args is 2, the Unary is inplace,
+        // so the IntermediateOut is rewrote by Unary.
+        // In this situation, the backward should not use the the
+        // intermediate_out.
+        //        keep_intermediate = false;
         op_desc->SetInput("IntermediateOut",
-                          upstream_op_node->Op()->Input("X"));
+                          upstream_op_node->Op()->Input("Out"));
       }
+      op_desc->SetAttr("keep_intermediate_value", true);
       op_desc->SetInput("Y", cur_op_node->Op()->Input("Y"));
       op_desc->SetInput("Out", upstream_op_node->Op()->Input("Out"));
       op_desc->SetInput(out_grad, upstream_op_node->Op()->Input(out_grad));
       op_desc->SetOutput(x_grad, cur_op_node->Op()->Output(x_grad));
       op_desc->SetOutput(y_grad, cur_op_node->Op()->Output(y_grad));
-      op_desc->SetOutput(inter_grad, upstream_op_node->Op()->Output(out_grad));
-    } else {
-      // the backward of Binary(X, Unary(Y))
-      PADDLE_ENFORCE(upstream_op_node_out_args.size() == 2,
-                     "The number of output of %s should be 2.",
-                     upstream_op_type);
-      PADDLE_ENFORCE(cur_op_node_out_args.size() == 1,
-                     "The number of output of %s should be 1.", cur_op_type);
-      PADDLE_ENFORCE(
-          cur_op_node_in_args.size() == 2 || cur_op_node_in_args.size() == 3,
-          "The number of inputs of %s should be 2 or 3, "
-          "if the number is 2, the input is 'Out', 'Out@Grad', "
-          "if the number is 3, the input is 'X', 'Out' and 'Out@Grad'.",
-          cur_op_type);
-      PADDLE_ENFORCE(
-          upstream_op_node_in_args.size() == 2 ||
-              upstream_op_node_in_args.size() == 4,
-          "The number of inputs of %s should be 2 or 4, if the number is 2, "
-          "the input variable is `Y`, and `Out@Grad`, if the number is "
-          "4, the input variable is `X`, `Y`, `Out`, `Out@Grad`",
-          upstream_op_type);
-
-      if (upstream_op_node_in_args.size() == 4) {
-        op_desc->SetInput("X", upstream_op_node->Op()->Input("X"));
-      }
-      if (cur_op_node_in_args.size() == 3) {
-        op_desc->SetInput("Y", upstream_op_node->Op()->Input("Y"));
-      }
-      op_desc->SetInput("IntermediateOut", cur_op_node->Op()->Input("Out"));
-      op_desc->SetInput("Out", upstream_op_node->Op()->Input("Out"));
-      op_desc->SetInput(out_grad, upstream_op_node->Op()->Input(out_grad));
-      op_desc->SetOutput(x_grad, upstream_op_node->Op()->Output(x_grad));
-      op_desc->SetOutput(y_grad, cur_op_node->Op()->Output(x_grad));
-
-      // Set the IntermediateOut_Grad
-      auto result_iter = std::find(upstream_op_node_out_args.begin(),
-                                   upstream_op_node_out_args.end(),
-                                   cur_op_node->Op()->Input(out_grad)[0]);
-      if (result_iter == upstream_op_node_out_args.end()) {
-        PADDLE_THROW("%s's output is not the input of %s", upstream_op_type,
-                     cur_op_type);
-      }
-      // x_idx is 0 or 1 here.
-      int inter_grad_idx =
-          1 - static_cast<int>(result_iter - cur_op_node_in_args.begin());
-      op_desc->SetInput(inter_grad,
-                        {upstream_op_node_out_args[inter_grad_idx]});
+      op_desc->SetOutput(inter_grad, upstream_op_node->Op()->Output(x_grad));
     }
   } else {  // The forward of Binary(X, Unary(Y)) or Unary(Binary(X, Y))
     PADDLE_ENFORCE_EQ(upstream_op_node_out_args.size(), 1,
