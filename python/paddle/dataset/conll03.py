@@ -148,58 +148,55 @@ def load_dict(path):
 
 
 def train(word_idx, label_idx, char_idx):
-    return reader_creator(
-        '/home/work/.cache/paddle/dataset/conll03/eng.train.bioes', word_idx,
-        label_idx, char_idx)
+    return reader_creator('/root/.cache/paddle/dataset/conll03/eng.train.bioes',
+                          word_idx, label_idx, char_idx)
 
 
 def test(word_idx, label_idx, char_idx):
-    return reader_creator(
-        '/home/work/.cache/paddle/dataset/conll03/eng.testb.bioes', word_idx,
-        label_idx, char_idx)
+    return reader_creator('/root/.cache/paddle/dataset/conll03/eng.testb.bioes',
+                          word_idx, label_idx, char_idx)
 
 
 def valid(word_idx, label_idx, char_idx):
-    return reader_creator(
-        '/home/work/.cache/paddle/dataset/conll03/eng.testa.bioes', word_idx,
-        label_idx, char_idx)
+    return reader_creator('/root/.cache/paddle/dataset/conll03/eng.testa.bioes',
+                          word_idx, label_idx, char_idx)
 
 
 def train_word(word_idx, label_idx):
     return reader_creator_word(
-        '/home/work/.cache/paddle/dataset/conll03/eng.train.bioes', word_idx,
+        '/root/.cache/paddle/dataset/conll03/eng.train.bioes', word_idx,
         label_idx)
 
 
 def test_word(word_idx, label_idx):
     return reader_creator_word(
-        '/home/work/.cache/paddle/dataset/conll03/eng.testb.bioes', word_idx,
+        '/root/.cache/paddle/dataset/conll03/eng.testb.bioes', word_idx,
         label_idx)
 
 
 def valid_word(word_idx, label_idx):
     return reader_creator_word(
-        '/home/work/.cache/paddle/dataset/conll03/eng.testa.bioes', word_idx,
+        '/root/.cache/paddle/dataset/conll03/eng.testa.bioes', word_idx,
         label_idx)
 
 
 def test_debug(word_idx, label_idx, char_idx):
-    return reader_creator(
-        '/home/work/.cache/paddle/dataset/conll03/eng.testb.debug', word_idx,
-        label_idx, char_idx)
+    return reader_creator('/root/.cache/paddle/dataset/conll03/eng.testb.debug',
+                          word_idx, label_idx, char_idx)
 
 
 def word_dict():
-    word_idx = load_dict(
-        '/home/disk3/wangsheng07/book-develop/09.lstm_crf/emb_data/word_dict.vocab'
-    )
-    return word_idx
-    #return build_dict('/home/work/.cache/paddle/dataset/conll03/eng.train.bioes', 0, 0)
+    #word_idx = load_dict(
+    #    '/home/disk3/wangsheng07/book-develop/09.lstm_crf/emb_data/word_dict.vocab'
+    #)
+    #return word_idx
+    return build_dict('/root/.cache/paddle/dataset/conll03/eng.train.bioes', 0,
+                      0)
 
 
 def char_dict():
     char_dict = build_char_dict(
-        '/home/work/.cache/paddle/dataset/conll03/eng.train.bioes', 0, 0)
+        '/root/.cache/paddle/dataset/conll03/eng.train.bioes', 0, 0)
     #print char_dict
     return char_dict
 
