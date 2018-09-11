@@ -62,7 +62,7 @@ class TestDynRNN(unittest.TestCase):
 
                 rnn.update_memory(mem, out_)
                 out2_ = rnn2()
-                out2_ = fluid.layers.sum(x=[out_, out2_])
+                out2_ = fluid.layers.sum(input=[out_, out2_])
                 rnn.output(out2_)
 
             last = fluid.layers.sequence_last_step(input=rnn())
