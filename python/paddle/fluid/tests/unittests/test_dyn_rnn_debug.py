@@ -47,18 +47,19 @@ class TestDynRNN(unittest.TestCase):
 
             with rnn.block():
                 in_ = rnn.step_input(sent_emb)
+                sent_emb2 = rnn.static_input(sent_emb)
                 mem = rnn.memory(shape=[100], dtype='float32')
                 out_ = fluid.layers.fc(input=[in_, mem], size=100, act='tanh')
 
                 rnn2 = fluid.layers.DynamicRNN()
                 with rnn2.block():
-                    in2_ = rnn.step_input(in_)
-                    mem2 = rnn.memory(shape=[100], dtype='float32')
+                    in2_ = rnn2.step_input(sent_emb2)
+                    mem2 = rnn2.memory(shape=[100], dtype='float32')
                     out2_ = fluid.layers.fc(input=[in2_, mem2],
                                             size=100,
                                             act='tanh')
-                    rnn.update_memory(mem2, out2_)
-                    rnn.output(out2_)
+                    rnn2.update_memory(mem2, out2_)
+                    rnn2.output(out2_)
 
                 rnn.update_memory(mem, out_)
                 out2_ = rnn2()
