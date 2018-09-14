@@ -52,7 +52,7 @@ struct SequenceExpandFunctor<platform::CPUDeviceContext, T> {
     int64_t width = framework::product(x.dims()) / hight;
 
     const T *in_data = x.data<T>();
-    T *out_data = out->mutable_data(context.GetPlace());
+    T *out_data = out->mutable_data<T>(context.GetPlace());
 
     for (int h_id = 0; h_id < hight; ++h_id) {
       size_t span = ref_lod[h_id + 1] - ref_lod[h_id];

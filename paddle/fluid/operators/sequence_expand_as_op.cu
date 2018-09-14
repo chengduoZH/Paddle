@@ -77,6 +77,9 @@ struct SequenceExpandFunctor<platform::CUDADeviceContext, T> {
       thread_x = ((width + 31) >> 5) << 5;
     }
 
+    int max_threads = context.GetMaxPhysicalThreadCount();
+    int block_x = std::max(max_threads / thread_x, 1);
+
     dim3 block_size(thread_x);
     dim3 grid_size(block_x);
     sequence_expand_as_kernel<<<grid_size, block_size, 0, context.stream()>>>(
