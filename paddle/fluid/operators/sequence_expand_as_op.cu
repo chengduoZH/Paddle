@@ -22,6 +22,25 @@ namespace operators {
 using LoDTensor = framework::LoDTensor;
 
 template <typename T>
+__global__ void sequence_expand_as_kernel(const T *in_data,
+                                          const size_t *expand_offset,
+                                          const size_t src_hight,
+                                          const size_t src_widht, T *out_data) {
+  for (int h_id = blockIdx.x; h_id < src_hight; h_id += gridDim.x) {
+    int span = expand_offset[h_id + 1] - expand_offset[h_id];
+    if (span == 0) continue;
+    const T *src = in_data + h_id * src_widht;
+    for (int w_id = threadIdx.x; w_id < src_widht; w_id += blockDim.x) {
+      T ele = src[w_id];
+      int offset = expand_offset[h_id] * src_widht;
+      for (int k = 0; k < span; ++k) {
+        out_data[offset + k * src_widht + w_id] = ele;
+      }
+    }
+  }
+}
+
+template <typename T>
 __global__ void sequence_expand_as_grad_kernel(const T *dout_data,
                                                const size_t *expand_offset,
                                                const size_t dst_hight,
