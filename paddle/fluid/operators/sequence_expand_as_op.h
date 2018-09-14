@@ -121,9 +121,9 @@ class SequenceExpandAsGradKernel : public framework::OpKernel<T> {
 
     g_x->mutable_data<T>(context.GetPlace());
 
-    auto &dev_ctx = context.template device_context<DeviceContext>();
-    math::SetConstant<DeviceContext, T> set_zero;
-    set_zero(dev_ctx, g_x, static_cast<T>(0));
+    //    auto &dev_ctx = context.template device_context<DeviceContext>();
+    //    math::SetConstant<DeviceContext, T> set_zero;
+    //    set_zero(dev_ctx, g_x, static_cast<T>(0));
 
     SequenceExpandAsGradFunctor<DeviceContext, T> functor;
     functor(context.template device_context<DeviceContext>(), *g_out,

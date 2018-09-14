@@ -30,6 +30,9 @@ __global__ void sequence_expand_as_grad_kernel(const T* dout_data,
   for (int h_id = blockIdx.x; h_id < dst_hight; h_id += gridDim.x) {
     T* dst = dx_data + h_id * dst_widht;
     int span = expand_offset[h_id + 1] - expand_offset[h_id];
+    for (int w_id = threadIdx.x; w_id < dst_widht; w_id += blockDim.x) {
+      dst[w_id] = 0;
+    }
     for (int k = 0; k < span; ++k) {
       int offset = (expand_offset[h_id] + k) * dst_widht;
       const T* src = dout_data + offset;
