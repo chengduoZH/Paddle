@@ -63,7 +63,7 @@ struct SequenceExpandFunctor<platform::CPUDeviceContext, T> {
         T ele = src[w_id];
         size_t offset = ref_lod[h_id] * width;
         for (int k = 0; k < span; ++k) {
-          out_data[offset + k * width + w_id] += ele;
+          out_data[offset + k * width + w_id] = ele;
         }
       }
     }
