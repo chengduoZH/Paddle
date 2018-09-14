@@ -22,42 +22,23 @@ namespace operators {
 using LoDTensor = framework::LoDTensor;
 
 template <typename T>
-__global__ void sequence_expand_as_kernel(const T* in_data,
-                                          const size_t* expand_offset,
-                                          const size_t src_hight,
-                                          const size_t src_widht, T* out_data) {
-  for (int h_id = blockIdx.x; h_id < src_hight; h_id += gridDim.x) {
-    int span = expand_offset[h_id + 1] - expand_offset[h_id];
-    if (span == 0) continue;
-    const T* src = in_data + h_id * src_widht;
-    for (int w_id = threadIdx.x; w_id < src_widht; w_id += blockDim.x) {
-      T ele = src[w_id];
-      int offset = expand_offset[h_id] * src_widht;
-      for (int k = 0; k < span; ++k) {
-        out_data[offset + k * src_widht + w_id] += ele;
-      }
-    }
-  }
-}
-
-template <typename T>
-__global__ void sequence_expand_as_grad_kernel(const T* dout_data,
-                                               const size_t* expand_offset,
+__global__ void sequence_expand_as_grad_kernel(const T *dout_data,
+                                               const size_t *expand_offset,
                                                const size_t dst_hight,
-                                               const size_t dst_widht,
-                                               T* dx_data) {
+                                               const size_t dst_width,
+                                               T *dx_data) {
   for (int h_id = blockIdx.x; h_id < dst_hight; h_id += gridDim.x) {
-    T* dst = dx_data + h_id * dst_widht;
+    T *dst = dx_data + h_id * dst_width;
     int span = expand_offset[h_id + 1] - expand_offset[h_id];
-    for (int w_id = threadIdx.x; w_id < dst_widht; w_id += blockDim.x) {
-      dst[w_id] = 0;
-    }
-    for (int k = 0; k < span; ++k) {
-      int offset = (expand_offset[h_id] + k) * dst_widht;
-      const T* src = dout_data + offset;
-      for (int w_id = threadIdx.x; w_id < dst_widht; w_id += blockDim.x) {
-        dst[w_id] += src[w_id];
+
+    for (int w_id = threadIdx.x; w_id < dst_width; w_id += blockDim.x) {
+      T result = 0;
+      for (int k = 0; k < span; ++k) {
+        int offset = (expand_offset[h_id] + k) * dst_width;
+        const T *src = dout_data + offset;
+        result += src[w_id];
       }
+      dst[w_id] = result;
     }
   }
 }
@@ -65,9 +46,9 @@ __global__ void sequence_expand_as_grad_kernel(const T* dout_data,
 template <typename T>
 struct SequenceExpandFunctor<platform::CUDADeviceContext, T> {
   void operator()(
-      const platform::CUDADeviceContext& context, const LoDTensor& x,
-      const framework::Vector<size_t>& ref_lod, /*expand referenced lod*/
-      LoDTensor* out) {
+      const platform::CUDADeviceContext &context, const LoDTensor &x,
+      const framework::Vector<size_t> &ref_lod, /*expand referenced lod*/
+      LoDTensor *out) {
     int hight = x.dims()[0];
     int width = framework::product(x.dims()) / hight;
 
@@ -90,10 +71,10 @@ struct SequenceExpandFunctor<platform::CUDADeviceContext, T> {
 
 template <typename T>
 struct SequenceExpandAsGradFunctor<platform::CUDADeviceContext, T> {
-  void operator()(const platform::CUDADeviceContext& context,
-                  const LoDTensor& dout,
-                  const framework::Vector<size_t>& ref_lod, /*expand based lod*/
-                  LoDTensor* dx) {
+  void operator()(const platform::CUDADeviceContext &context,
+                  const LoDTensor &dout,
+                  const framework::Vector<size_t> &ref_lod, /*expand based lod*/
+                  LoDTensor *dx) {
     int hight = dx->dims()[0];
     int width = framework::product(dx->dims()) / hight;
 
