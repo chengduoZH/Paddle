@@ -77,7 +77,7 @@ class FillConstantAsLodTensorArrayOp : public framework::OperatorBase {
         auto data_type = src_lod_tensor_array[j].type();
         dst_lod_tensor.mutable_data(dev_place, data_type);
 
-        math::set_constant(dev_ctx, dst_lod_tensor, value);
+        math::set_constant(dev_ctx, &dst_lod_tensor, value);
       }
     }
   }
