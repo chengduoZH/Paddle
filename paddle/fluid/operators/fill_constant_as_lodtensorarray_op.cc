@@ -63,19 +63,19 @@ class FillConstantAsLodTensorArrayOp : public framework::OperatorBase {
 
     dst_lod_tensor_array->resize(src_lod_tensor_array.size());
 
-    auto &dev_ctx = platform::DeviceContextPool::Instance().Get(dev_place);
+    platform::DeviceContextPool &pool = platform::DeviceContextPool::Instance();
+    auto &dev_ctx = *pool.Get(dev_place);
 
     for (size_t j = 0; j < src_lod_tensor_array.size(); ++j) {
-      if (outside_array[j].numel() != 0) {
+      if (src_lod_tensor_array[j].numel() != 0) {
         auto src_lod_tensor = src_lod_tensor_array[j];
         auto &dst_lod_tensor = (*dst_lod_tensor_array)[j];
 
         dst_lod_tensor.Resize(src_lod_tensor.dims());
-        dst_lod_tensor.set_layout(src_lod_tensor.lod());
+        dst_lod_tensor.set_lod(src_lod_tensor.lod());
 
         auto data_type = src_lod_tensor_array[j].type();
-        dst_lod_tensor.mutable_data(dev_place,
-                                    framework::ToTypeIndex(data_type));
+        dst_lod_tensor.mutable_data(dev_place, data_type);
 
         math::set_constant(dev_ctx, dst_lod_tensor, value);
       }
