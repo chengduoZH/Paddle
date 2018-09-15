@@ -33,8 +33,8 @@ class FillConstantAsLodTensorArrayInferShape
 
     auto var_types = ctx->GetInputsVarType("X");
     PADDLE_ENFORCE(var_types.size(), 1);
-    PADDLE_ENFORCE(var_types.at[0] ==
-                   framework::proto::VarType::LOD_TENSOR_ARRAY);
+    //    PADDLE_ENFORCE(var_types.at[0] ==
+    //                   framework::proto::VarType::LOD_TENSOR_ARRAY);
     //    ctx->SetOutputDim("Out", framework::make_ddim(shape));
   }
 };
