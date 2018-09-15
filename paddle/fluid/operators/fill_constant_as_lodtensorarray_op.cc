@@ -61,8 +61,7 @@ class FillConstantAsLodTensorArrayOp : public framework::OperatorBase {
     framework::LoDTensorArray *dst_lod_tensor_array =
         out_var.GetMutable<framework::LoDTensorArray>();
 
-    VLOG(10) << "ARRAY - > " << &dst_lod_tensor_array << " "
-             << Output("Out")[0];
+    VLOG(5) << "ARRAY - > " << &dst_lod_tensor_array << " " << Output("Out")[0];
     dst_lod_tensor_array->resize(src_lod_tensor_array.size());
 
     platform::DeviceContextPool &pool = platform::DeviceContextPool::Instance();
