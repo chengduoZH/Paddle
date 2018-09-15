@@ -63,7 +63,7 @@ class WhileOp : public framework::OperatorBase {
     while (cond.data<bool>()[0]) {
       auto &current_scope = scope.NewScope();
       step_scopes->push_back(&current_scope);
-      executor.RunPreparedContext(ctx.get(), &current_scope, false);
+      executor.RunPreparedContext(ctx.get(), &current_scope, false, true, true);
       if (is_test) {
         scope.DeleteScope(&current_scope);
       }
@@ -169,7 +169,8 @@ class WhileGradOp : public framework::OperatorBase {
           }
         }
       }
-      executor.RunPreparedContext(ctx.get(), *cur_scope_iter, false);
+      executor.RunPreparedContext(ctx.get(), *cur_scope_iter, false, true,
+                                  true);
 
       auto &pg_names = Outputs(kXGRAD);
       auto &p_names = Inputs(kX);
@@ -246,6 +247,7 @@ class WhileGradOpDescMaker : public framework::SingleGradOpDescMaker {
     for (const auto *op : grad_block->AllOps()) {
       for (auto &oname : op->OutputArgumentNames()) {
         inner_op_outputs.insert(oname);
+        VLOG(5) << "WhileGrad Op: inner_op_output: " << oname;
       }
     }
     auto igs = InputGrad(kX, /*do not drop empty gradient*/ false);
@@ -263,9 +265,11 @@ class WhileGradOpDescMaker : public framework::SingleGradOpDescMaker {
     block_ins.reserve(Input(kX).size() + Output(kOutputs).size());
     for (auto &p : Input(kX)) {
       block_ins.insert(p);
+      VLOG(5) << "WhileGrad Op: input: " << p;
     }
     for (auto &o : Output(kOutputs)) {
       block_ins.insert(o);
+      VLOG(5) << "WhileGrad Op: output: " << o;
     }
     std::unordered_set<std::string> output_grads;
     for (const auto *op : grad_block->AllOps()) {
@@ -280,6 +284,7 @@ class WhileGradOpDescMaker : public framework::SingleGradOpDescMaker {
              parent_block->FindVarRecursive(input_name) != nullptr)) {
           continue;
         }
+        VLOG(6) << "original_output_grad" << input_name;
         output_grads.insert(input_name);
       }
       for (auto &output_name : op->OutputArgumentNames()) {
