@@ -228,16 +228,16 @@ class WhileGradOp : public framework::OperatorBase {
             // TODO(zcd): it should use scope here.
             zero_op->Run(cur_scope, dev_place);
 
-            auto ptr = scope.FindVar(var_name)
-                           ->GetMutable<framework::LoDTensorArray>();
+            auto ptr1 = scope.FindVar(var_name)
+                            ->GetMutable<framework::LoDTensorArray>();
 
-            auto ptr1 = cur_scope.FindVar(new_inside_name)
+            auto ptr2 = cur_scope.FindVar(new_inside_name)
                             ->GetMutable<framework::LoDTensorArray>();
 
             VLOG(6) << "fill_constant_as_lodtensorarray " << new_inside_name
                     << " -> " << var_name;
-            VLOG(6) << "SCOPE: " << var_name << " " << ptr;
-            VLOG(6) << "cur_scope: " << new_inside_name << " " << ptr1;
+            VLOG(6) << "SCOPE: " << var_name << " " << ptr1;
+            VLOG(6) << "cur_scope: " << new_inside_name << " " << ptr2;
             cur_scope.Rename(new_inside_name, inside_grad_name);
           } else {
             PADDLE_THROW(
