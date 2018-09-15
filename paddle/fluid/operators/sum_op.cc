@@ -110,9 +110,10 @@ class SumOp : public framework::OperatorWithKernel {
       return framework::OpKernelType(framework::proto::VarType::FP32,
                                      ctx.device_context(), layout, library);
     } else if (x_vars[0]->IsType<framework::LoDTensorArray>()) {
-      for (auto& x_var : x_vars) {
+      for (int i = 0; i < x_vars.size(); ++i) {
+        auto& x_var = x_vars[i];
         auto& array = x_var->Get<framework::LoDTensorArray>();
-        VLOG(5) << "ARRAY - > " << &array << " " << ctx.Inputs("X")[0];
+        VLOG(5) << "ARRAY - > " << &array << " " << ctx.Inputs("X")[i];
         for (auto& each : array) {
           if (each.numel() != 0) {
             return framework::OpKernelType(framework::ToDataType(each.type()),

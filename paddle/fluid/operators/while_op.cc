@@ -224,10 +224,14 @@ class WhileGradOp : public framework::OperatorBase {
                 {{"Out", {var_name}}}, attrs);
             // TODO(zcd): it should use scope here.
             zero_op->Run(cur_scope, dev_place);
-            cur_scope.Rename(new_inside_name, inside_grad_name);
 
-            VLOG(6) << "fill_constant_as_lodtensorarray" << inside_grad_name
+            auto ptr = scope.FindVar(var_name)
+                           ->GetMutable<framework::LoDTensorArray>();
+
+            VLOG(6) << "fill_constant_as_lodtensorarray" << new_inside_name
                     << " -> " << var_name;
+            VLOG(6) << "SCOPE: " << var_name << " "
+                    << ptr cur_scope.Rename(new_inside_name, inside_grad_name);
           } else {
             PADDLE_THROW(
                 "Currently only support LoDTensor and LoDTensorArray.");
