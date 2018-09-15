@@ -209,6 +209,22 @@ class WhileGradOp : public framework::OperatorBase {
             scope.FindVar(var_name)
                 ->GetMutable<framework::LoDTensor>()
                 ->set_lod(inside_tensor.lod());
+          } else if (var->IsType<framework::LoDTensorArray>()) {
+            auto &inside_tensor = var->Get<framework::LoDTensorArray>();
+            PADDLE_ENFORCE_GT(inside_tensor.size(), 0);
+
+            framework::AttributeMap attrs;
+            attrs["value"] = 0.0f;
+
+            auto var_name = pg_names[param_id];
+            auto zero_op = framework::OpRegistry::CreateOp(
+                "fill_constant_as_lodtensorarray", {{"X", {inside_grad_name}}},
+                {{"Out", {var_name}}}, attrs);
+            // TODO(zcd): it should use scope here.
+            zero_op->Run(**cur_scope_iter, dev_place);
+          } else {
+            PADDLE_THROW(
+                "Currently only support LoDTensor and LoDTensorArray.");
           }
         }
         auto new_inside_name = cur_scope.Rename(inside_grad_name);
@@ -216,6 +232,7 @@ class WhileGradOp : public framework::OperatorBase {
             "sum", {{"X", {pg_names[param_id], new_inside_name}}},
             {{"Out", {pg_names[param_id]}}},
             framework::AttributeMap{{"use_mkldnn", {false}}});
+        VLOG(5) << "Sum " << pg_names[param_id] << ", " << new_inside_name;
         sum_op->Run(cur_scope, dev_place);
         cur_scope.Rename(new_inside_name, inside_grad_name);
       }
