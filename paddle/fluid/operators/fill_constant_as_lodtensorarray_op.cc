@@ -87,7 +87,7 @@ class FillConstantAsLodTensorArrayOpMaker
     : public framework::OpProtoAndCheckerMaker {
  public:
   void Make() override {
-    AddOutput("X", "(LoDTensorArray)");
+    AddInput("X", "(LoDTensorArray)");
     AddAttr<float>("value", "(float, default 0) The value to be filled")
         .SetDefault(0.0f);
     AddAttr<bool>("force_cpu",
