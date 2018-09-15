@@ -112,6 +112,7 @@ class SumOp : public framework::OperatorWithKernel {
     } else if (x_vars[0]->IsType<framework::LoDTensorArray>()) {
       for (auto& x_var : x_vars) {
         auto& array = x_var->Get<framework::LoDTensorArray>();
+        VLOG(10) << "ARRAY - > " << &array << " " << ctx.Inputs("X")[0];
         for (auto& each : array) {
           if (each.numel() != 0) {
             return framework::OpKernelType(framework::ToDataType(each.type()),
