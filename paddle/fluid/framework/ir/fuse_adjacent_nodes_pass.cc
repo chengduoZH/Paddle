@@ -89,6 +89,7 @@ void FuseAdjacentNodesPass::RemoveIntermediateOut(
       // If the intermediate_out's output is only
       // fused_elemwise_activation_grad, but the fused_elemwise_activation_grad
       // doesn't use the intermediate_out.
+      bool find_backward = false;
       auto upstream_node_outputs = upstream_node->outputs;
       for (auto out : upstream_node_outputs) {
         if (out->Name() == intermediate_out_args[0]) {
@@ -106,8 +107,24 @@ void FuseAdjacentNodesPass::RemoveIntermediateOut(
               out->outputs.clear();
               need_removed_nodes->emplace(out);
             }
+            find_backward = true;
           }
         }
+      }
+      // If the backward is not found, it is unnecessary to save the
+      // intermediate_out
+      if (!find_backward) {
+        upstream_node->Op()->SetAttr("save_intermediate_out", false);
+        auto intermediate_node_iter = std::find_if(
+            upstream_node->outputs.begin(), upstream_node->outputs.end(),
+            [&intermediate_out_args](const Node *node) -> bool {
+              return node->Name() == intermediate_out_args[0];
+            });
+
+        PADDLE_ENFORCE(intermediate_node_iter != upstream_node->outputs.end());
+        upstream_node->outputs =
+            this->RemoveNode(*intermediate_node_iter, upstream_node->outputs);
+        need_removed_nodes->emplace(*intermediate_node_iter);
       }
     } else if (upstream_node->Name() == "fused_elemwise_activation_grad") {
       // If the intermediate_out_grad's output is zero.
