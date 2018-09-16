@@ -45,12 +45,14 @@ class WriteToArrayOp : public ArrayOp {
           platform::DeviceContextPool::Instance();
       auto &dev_ctx = *pool.Get(place);
 
+      VLOG(5) << "Adree:" << out;
       TensorCopy(x_tensor, place, dev_ctx, out_tensor);
     } else {
       VLOG(10) << "WARNING: The input tensor 'x_tensor' holds no memory, so "
                   "nothing has been written to output array["
                << offset << "].";
-    }
+    }     
+    VLOG(5) << "Adree:" << out;
   }
 };
 
@@ -218,3 +220,4 @@ REGISTER_OPERATOR(write_to_array, ops::WriteToArrayOp,
 REGISTER_OPERATOR(read_from_array, ops::ReadFromArrayOp,
                   ops::ReadFromArrayInferShape, ops::ReadFromArrayProtoMaker,
                   ops::ReadFromArrayGradMaker);
+

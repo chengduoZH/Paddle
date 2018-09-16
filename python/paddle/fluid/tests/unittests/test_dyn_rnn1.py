@@ -103,8 +103,8 @@ class TestDynRNN(unittest.TestCase):
         word_dict = dict(word_dict)
 
         def fake_reader():
-            lod = [[2, 2], [4, 1, 5, 1, 3]]
-            label = [[0, 1], [0, 1, 1, 0]]
+            lod = [[2, 1]]
+            label = [[0, 1]]
             data = []
             for ele in lod:
                 seq = []
@@ -233,4 +233,3 @@ class TestDynRNN(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

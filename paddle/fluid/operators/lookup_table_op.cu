@@ -150,6 +150,11 @@ class LookupTableGradCUDAKernel : public framework::OpKernel<T> {
       auto ids_t = context.Input<LoDTensor>("Ids");
       auto d_output_t = context.Input<LoDTensor>(framework::GradVarName("Out"));
       auto d_table_t = context.Output<LoDTensor>(framework::GradVarName("W"));
+      auto d_ids = context.Output<LoDTensor>(framework::GradVarName("Ids"));
+
+      auto gpu_place = boost::get<platform::CUDAPlace>(context.GetPlace());
+      d_ids->mutable_data<T>(context.GetPlace());
+      framework::TensorCopy(*ids_t, context.GetPlace(), dev_ctx, d_ids);
 
       int N = d_table_t->dims()[0];
       int D = d_table_t->dims()[1];
@@ -178,3 +183,4 @@ REGISTER_OP_CUDA_KERNEL(lookup_table, ops::LookupTableCUDAKernel<float>,
 REGISTER_OP_CUDA_KERNEL(lookup_table_grad,
                         ops::LookupTableGradCUDAKernel<float>,
                         ops::LookupTableGradCUDAKernel<double>);
+

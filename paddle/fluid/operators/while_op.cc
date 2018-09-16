@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 PaddlePaddle Authors. All Rights Reserved.
+/*opyright (c) 2016 PaddlePaddle Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -60,7 +60,11 @@ class WhileOp : public framework::OperatorBase {
 
     bool is_test = Attr<bool>("is_test");
     auto ctx = executor.Prepare(*program, block->ID());
+    int i =0;
     while (cond.data<bool>()[0]) {
+      VLOG(3) << "Start forward at time_step "
+              << i;
+      i++;
       auto &current_scope = scope.NewScope();
       step_scopes->push_back(&current_scope);
       executor.RunPreparedContext(ctx.get(), &current_scope, false, true, true);
@@ -167,6 +171,9 @@ class WhileGradOp : public framework::OperatorBase {
               PADDLE_ENFORCE_EQ(inside_array[j].numel(), 0);
             }
           }
+        }else{
+          PADDLE_THROW(
+            "Currently only support LoDTensor and LoDTensorArray.");
         }
       }
       executor.RunPreparedContext(ctx.get(), *cur_scope_iter, false, true,
@@ -209,40 +216,61 @@ class WhileGradOp : public framework::OperatorBase {
             scope.FindVar(var_name)
                 ->GetMutable<framework::LoDTensor>()
                 ->set_lod(inside_tensor.lod());
-          } else if (var->IsType<framework::LoDTensorArray>()) {
+          }
+            else if (var->IsType<framework::LoDTensorArray>()) {
+        auto new_inside_name = cur_scope.Rename(inside_grad_name);
+        auto sum_op = framework::OpRegistry::CreateOp(
+            "sum", {{"X", {pg_names[param_id], new_inside_name}}},
+            {{"Out", {pg_names[param_id]}}},
+            framework::AttributeMap{{"use_mkldnn", {false}}});
+        VLOG(5) << "Sum " << pg_names[param_id] << ", " << new_inside_name;
+        sum_op->Run(cur_scope, dev_place);
+        cur_scope.Rename(new_inside_name, inside_grad_name);
+          continue;
+         }
+         /* 
+ 
+            continue;
             auto &inside_tensor = var->Get<framework::LoDTensorArray>();
             PADDLE_ENFORCE_GT(inside_tensor.size(), 0);
 
             framework::AttributeMap attrs;
             attrs["value"] = 0.0f;
-            auto var_name = pg_names[param_id];
 
+            auto var_name = pg_names[param_id];
             auto new_inside_name = cur_scope.Rename(inside_grad_name);
 
+            // Debug
             auto zero_op = framework::OpRegistry::CreateOp(
                 "fill_constant_as_lodtensorarray", {{"X", {new_inside_name}}},
                 {{"Out", {var_name}}}, attrs);
             auto ptr = scope.FindVar(var_name)
                            ->GetMutable<framework::LoDTensorArray>();
             VLOG(6) << "SCOPE: " << var_name << " " << ptr;
-            // TODO(zcd): it should use scope here.
+
+
+
             zero_op->Run(cur_scope, dev_place);
 
+
+
+            // Debug
             auto ptr1 = scope.FindVar(var_name)
                             ->GetMutable<framework::LoDTensorArray>();
-
             auto ptr2 = cur_scope.FindVar(new_inside_name)
                             ->GetMutable<framework::LoDTensorArray>();
-
             VLOG(6) << "fill_constant_as_lodtensorarray " << new_inside_name
                     << " -> " << var_name;
             VLOG(6) << "SCOPE: " << var_name << " " << ptr1;
             VLOG(6) << "cur_scope: " << new_inside_name << " " << ptr2;
+
+
             cur_scope.Rename(new_inside_name, inside_grad_name);
           } else {
             PADDLE_THROW(
                 "Currently only support LoDTensor and LoDTensorArray.");
           }
+         */
         }
         auto new_inside_name = cur_scope.Rename(inside_grad_name);
         auto sum_op = framework::OpRegistry::CreateOp(
@@ -402,3 +430,4 @@ REGISTER_OPERATOR(while, paddle::operators::WhileOp,
 REGISTER_OPERATOR(while_grad, paddle::operators::WhileGradOp,
                   paddle::operators::WhileGradOpShapeInference,
                   paddle::operators::WhileGradOpVarTypeInference);
+

@@ -110,6 +110,10 @@ class LookupTableOpGrad : public framework::OperatorWithKernel {
   void InferShape(framework::InferShapeContext* ctx) const override {
     auto table_dims = ctx->GetInputDim("W");
     ctx->SetOutputDim(framework::GradVarName("W"), table_dims);
+
+    auto ids = ctx->GetInputDim("Ids");
+    ctx->SetOutputDim(framework::GradVarName("Ids"), ids);
+    ctx->ShareLoD("Ids", /*->*/ framework::GradVarName("Ids"));
   }
 
  protected:
@@ -153,3 +157,4 @@ REGISTER_OP_CPU_KERNEL(lookup_table, ops::LookupTableKernel<float>,
                        ops::LookupTableKernel<double>);
 REGISTER_OP_CPU_KERNEL(lookup_table_grad, ops::LookupTableGradKernel<float>,
                        ops::LookupTableGradKernel<double>);
+

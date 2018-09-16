@@ -55,30 +55,31 @@ class FillConstantAsLodTensorArrayOp : public framework::OperatorBase {
     PADDLE_ENFORCE(out_var.IsType<framework::LoDTensorArray>());
     PADDLE_ENFORCE(in_var.IsType<framework::LoDTensorArray>());
 
-    framework::LoDTensorArray src_lod_tensor_array =
-        out_var.Get<framework::LoDTensorArray>();
+    framework::LoDTensorArray* src_lod_tensor_array =
+        in_var.GetMutable<framework::LoDTensorArray>();
 
     framework::LoDTensorArray *dst_lod_tensor_array =
         out_var.GetMutable<framework::LoDTensorArray>();
 
     VLOG(5) << "ARRAY - > " << dst_lod_tensor_array << " " << Output("Out");
+    VLOG(5) << "ARRAY - > " << src_lod_tensor_array << " " << Input("X");
 
-    VLOG(5) << "ARRAY - > " << &src_lod_tensor_array << " " << Output("Out");
-
-    dst_lod_tensor_array->resize(src_lod_tensor_array.size());
+    dst_lod_tensor_array->resize(src_lod_tensor_array->size());
 
     platform::DeviceContextPool &pool = platform::DeviceContextPool::Instance();
     auto &dev_ctx = *pool.Get(dev_place);
 
-    for (size_t j = 0; j < src_lod_tensor_array.size(); ++j) {
-      if (src_lod_tensor_array[j].numel() != 0) {
-        auto src_lod_tensor = src_lod_tensor_array[j];
-        auto &dst_lod_tensor = (*dst_lod_tensor_array)[j];
+    VLOG(5) << "src_lod_tensor_array " << src_lod_tensor_array->size();
 
+    for (size_t j = 0; j < src_lod_tensor_array->size(); ++j) {
+      if ((*src_lod_tensor_array)[j].numel() != 0) {
+        auto src_lod_tensor = (*src_lod_tensor_array)[j];
+        auto &dst_lod_tensor = (*dst_lod_tensor_array)[j];
+        VLOG(5) << "src_lod_tensor_array[" << j << "] len " << src_lod_tensor.numel();
         dst_lod_tensor.Resize(src_lod_tensor.dims());
         dst_lod_tensor.set_lod(src_lod_tensor.lod());
 
-        auto data_type = src_lod_tensor_array[j].type();
+        auto data_type = (*src_lod_tensor_array)[j].type();
         dst_lod_tensor.mutable_data(dev_place, data_type);
 
         math::set_constant(dev_ctx, &dst_lod_tensor, value);
@@ -119,3 +120,4 @@ REGISTER_OPERATOR(fill_constant_as_lodtensorarray,
                   ops::FillConstantAsLodTensorArrayInferShape,
                   ops::FillConstantAsLodTensorArrayOpMaker,
                   paddle::framework::EmptyGradOpMaker);
+

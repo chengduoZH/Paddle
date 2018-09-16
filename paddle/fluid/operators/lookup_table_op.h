@@ -137,6 +137,13 @@ class LookupTableGradKernel : public framework::OpKernel<T> {
       auto *d_output = context.Input<LoDTensor>(framework::GradVarName("Out"));
       auto *d_table = context.Output<LoDTensor>(framework::GradVarName("W"));
 
+      auto d_ids = context.Output<LoDTensor>(framework::GradVarName("Ids"));
+
+      auto gpu_place = boost::get<platform::CPUPlace>(context.GetPlace());
+      auto *dev_ctx = platform::DeviceContextPool::Instance().Get(gpu_place);
+      d_ids->mutable_data<T>(context.GetPlace());
+      framework::TensorCopy(*ids, context.GetPlace(), *dev_ctx, d_ids);
+
       auto *ids_data = ids->data<int64_t>();
 
       int N = table_dim[0];
@@ -160,3 +167,4 @@ class LookupTableGradKernel : public framework::OpKernel<T> {
 
 }  // namespace operators
 }  // namespace paddle
+

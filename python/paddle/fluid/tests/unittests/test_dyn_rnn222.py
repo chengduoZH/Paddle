@@ -103,7 +103,7 @@ class TestDynRNN(unittest.TestCase):
         word_dict = dict(word_dict)
 
         def fake_reader():
-            lod = [[2, 2], [4, 1, 5, 1, 3]]
+            lod = [[2, 1], [4, 1, 5, 1, 3]]
             label = [[0, 1], [0, 1, 1, 0]]
             data = []
             for ele in lod:
@@ -115,6 +115,9 @@ class TestDynRNN(unittest.TestCase):
             while True:
                 yield data[0], label[0]
 
+        def train():
+            return fake_reader
+
         train_data = paddle.batch(fake_reader, batch_size=2)
 
         main_program = fluid.Program()
@@ -124,18 +127,19 @@ class TestDynRNN(unittest.TestCase):
                 name='word', shape=[1], dtype='int64', lod_level=2)
             label = fluid.layers.data(
                 name='label', shape=[1], dtype='float32', lod_level=1)
+            sent_emb = fluid.layers.embedding(
+                input=sentence, size=[len(word_dict), 32], dtype='float32')
 
             rnn = fluid.layers.DynamicRNN()
+
             with rnn.block():
-                in_ = rnn.step_input(sentence)
-                sent_emb = fluid.layers.embedding(
-                    input=in_, size=[len(word_dict), 32], dtype='float32')
-                out_ = fluid.layers.fc(input=sent_emb, size=100)
+                in_ = rnn.step_input(sent_emb)
+                out_ = fluid.layers.fc(input=[in_], size=100, act='tanh')
 
                 rnn1 = fluid.layers.DynamicRNN()
                 with rnn1.block():
                     in_1 = rnn1.step_input(out_)
-                    out_1 = fluid.layers.fc(input=[in_1], size=100)
+                    out_1 = fluid.layers.fc(input=[in_1], size=100, act='tanh')
                     rnn1.output(out_1)
 
                 last = fluid.layers.sequence_last_step(input=rnn1())
