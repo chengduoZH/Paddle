@@ -213,20 +213,25 @@ class WhileGradOp : public framework::OperatorBase {
             scope.FindVar(var_name)
                 ->GetMutable<framework::LoDTensor>()
                 ->set_lod(inside_tensor.lod());
-          } else if (var->IsType<framework::LoDTensorArray>()) {
-            auto new_inside_name = cur_scope.Rename(inside_grad_name);
-            auto sum_op = framework::OpRegistry::CreateOp(
-                "sum", {{"X", {pg_names[param_id], new_inside_name}}},
-                {{"Out", {pg_names[param_id]}}},
-                framework::AttributeMap{{"use_mkldnn", {false}}});
-            VLOG(5) << "Sum " << pg_names[param_id] << ", " << new_inside_name;
-            sum_op->Run(cur_scope, dev_place);
-            cur_scope.Rename(new_inside_name, inside_grad_name);
-            continue;
-          } else {
-            PADDLE_THROW(
-                "Currently only support LoDTensor and LoDTensorArray.");
           }
+          //          else if (var->IsType<framework::LoDTensorArray>()) {
+          //            auto new_inside_name =
+          //            cur_scope.Rename(inside_grad_name);
+          //            auto sum_op = framework::OpRegistry::CreateOp(
+          //                "sum", {{"X", {pg_names[param_id],
+          //                new_inside_name}}},
+          //                {{"Out", {pg_names[param_id]}}},
+          //                framework::AttributeMap{{"use_mkldnn", {false}}});
+          //            VLOG(5) << "Sum " << pg_names[param_id] << ", " <<
+          //            new_inside_name;
+          //            sum_op->Run(cur_scope, dev_place);
+          //            cur_scope.Rename(new_inside_name, inside_grad_name);
+          //            continue;
+          //          } else {
+          //            PADDLE_THROW(
+          //                "Currently only support LoDTensor and
+          //                LoDTensorArray.");
+          //          }
         }
         auto new_inside_name = cur_scope.Rename(inside_grad_name);
         auto sum_op = framework::OpRegistry::CreateOp(
@@ -275,6 +280,18 @@ class WhileGradOpDescMaker : public framework::SingleGradOpDescMaker {
         each_ig = framework::kEmptyVarName;
       }
     }
+
+    //    for (const auto *op : grad_block->AllOps()) {
+    //      for(auto& in_var : op->Inputs()){
+    //        op->Input()
+    //        in_var
+    //      }
+    //      for (auto &oname : op->OutputArgumentNames()) {
+    //        inner_op_outputs.insert(oname);
+    //        VLOG(5) << "WhileGrad Op: inner_op_output: " << oname;
+    //      }
+    //    }
+
     while_grad->SetOutput(framework::GradVarName(kX), igs);
 
     // OG should be re-calculated by step blocks, since many outputs of while op
