@@ -233,6 +233,24 @@ class WhileGradOp : public framework::OperatorBase {
           //                LoDTensorArray.");
           //          }
         }
+        //        auto *var1 = (*cur_scope_iter)->FindVar(inside_grad_name);
+        //        if (var1->IsType<framework::LoDTensorArray>()) {
+        //          if (cur_scope_iter == step_scopes->rend()-1) {
+        //            auto new_inside_name =
+        //              cur_scope.Rename(inside_grad_name);
+        //            auto sum_op = framework::OpRegistry::CreateOp(
+        //              "sum", {{"X", {pg_names[param_id],
+        //                              new_inside_name}}},
+        //              {{"Out", {pg_names[param_id]}}},
+        //              framework::AttributeMap{{"use_mkldnn", {false}}});
+        //            VLOG(5) << "Sum " << pg_names[param_id] << ", " <<
+        //                    new_inside_name;
+        //            sum_op->Run(cur_scope, dev_place);
+        //            cur_scope.Rename(new_inside_name, inside_grad_name);
+        //          }
+        //          continue;
+        //        }
+
         auto new_inside_name = cur_scope.Rename(inside_grad_name);
         auto sum_op = framework::OpRegistry::CreateOp(
             "sum", {{"X", {pg_names[param_id], new_inside_name}}},
