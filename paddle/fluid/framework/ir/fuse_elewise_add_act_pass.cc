@@ -58,7 +58,6 @@ void FuseElewiseAddActPass::RemoveIntermediateOut(Graph *graph) const {
       // If the intermediate_out's output is only
       // fused_elemwise_activation_grad, but the fused_elemwise_activation_grad
       // doesn't use the intermediate_out.
-      bool find_backward = false;
       auto upstream_node_outputs = upstream_node->outputs;
       for (auto out : upstream_node_outputs) {
         if (out->Name() == intermediate_out_args[0]) {
@@ -71,11 +70,16 @@ void FuseElewiseAddActPass::RemoveIntermediateOut(Graph *graph) const {
         }
       }
     } else if (upstream_node->Name() == "fused_elemwise_activation_grad") {
-      auto intermediate_out_arg =
-          upstream_node->Op()->Output("IntermediateOut@GRAD")[0];
+      auto intermediate_out_grad_args =
+          upstream_node->Op()->Output("IntermediateOut@GRAD");
+      PADDLE_ENFORCE(
+          !intermediate_out_grad_args.empty(),
+          "The %s should save the intermediate_out in the fusing stage.",
+          upstream_node->Name());
       auto upstream_node_outputs = upstream_node->outputs;
       for (auto &out : upstream_node_outputs) {
-        if (out->Name() == intermediate_out_arg && out->outputs.empty()) {
+        if (out->Name() == intermediate_out_grad_args[0] &&
+            out->outputs.empty()) {
           upstream_node->Op()->SetOutput("IntermediateOut@GRAD", {});
           upstream_node->outputs =
               this->RemoveNode(out, upstream_node->outputs);
