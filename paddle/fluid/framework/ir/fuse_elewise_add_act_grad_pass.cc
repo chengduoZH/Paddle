@@ -47,7 +47,7 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActGradPass::FuseElewiseAddActGrad1(
                         ->assert_is_ops_input(act_types, "Out@GRAD");
   patterns::ElewiseAddActGrad1 elewise_add_act_grad_pattern(
       gpd.mutable_pattern(), "elewise_add_act_grad_inplace");
-  elewise_add_act_grad_pattern(x, act_types);
+  elewise_add_act_grad_pattern(d_act_out, act_types);
 
   int found_elewise_add_act_count = 0;
 
@@ -74,20 +74,20 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActGradPass::FuseElewiseAddActGrad1(
 
     OpDesc desc;
     desc.SetType("fused_elemwise_activation_grad");
-    op_desc->SetInput("IntermediateOut", {});
-    op_desc->SetInput("X", {});
-    op_desc->SetInput("Y", std::vector<std::string>({ele_y_n}));
-    op_desc->SetInput("Out", std::vector<std::string>({act_out_n}));
-    op_desc->SetInput("Out@GRAD", std::vector<std::string>({d_act_out_n}));
-    op_desc->SetOutput("X@GRAD", std::vector<std::string>({d_ele_x_n}));
-    op_desc->SetOutput("Y@GRAD", std::vector<std::string>({d_ele_y_n}));
-    op_desc->SetOutput("IntermediateOut@GRAD",
-                       std::vector<std::string>({d_itermediate_out_n}));
+    desc.SetInput("IntermediateOut", {});
+    desc.SetInput("X", {});
+    desc.SetInput("Y", std::vector<std::string>({ele_y_n}));
+    desc.SetInput("Out", std::vector<std::string>({act_out_n}));
+    desc.SetInput("Out@GRAD", std::vector<std::string>({d_act_out_n}));
+    desc.SetOutput("X@GRAD", std::vector<std::string>({d_ele_x_n}));
+    desc.SetOutput("Y@GRAD", std::vector<std::string>({d_ele_y_n}));
+    desc.SetOutput("IntermediateOut@GRAD",
+                   std::vector<std::string>({d_itermediate_out_n}));
 
-    op_desc->SetAttr("save_intermediate_out", false);
-    op_desc->SetAttr("functor_list",
-                     std::vector<std::string>(
-                         {act_grad->Op()->Type(), ele_add_grad->Op()->Type()}));
+    desc.SetAttr("save_intermediate_out", false);
+    desc.SetAttr("functor_list",
+                 std::vector<std::string>(
+                     {act_grad->Op()->Type(), ele_add_grad->Op()->Type()}));
 
     for (auto &n : {act_grad->Op(), ele_add_grad->Op()}) {
       for (auto &m_ele : n->GetAttrMap()) {
@@ -95,7 +95,7 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActGradPass::FuseElewiseAddActGrad1(
       }
     }
 
-    auto elewise_add_act_grad_node = g->CreateOpNode(&desc);
+    auto fused_node = g->CreateOpNode(&desc);
 
     VLOG(4) << "\n\t " << d_act_out_n << " and " << act_out_n << " -> "
             << act_grad->Name() << " -> " << d_itermediate_out_n << "\n\t "
@@ -103,8 +103,8 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActGradPass::FuseElewiseAddActGrad1(
             << act_grad->Name() << " -> " << d_itermediate_out_n;
 
     for (auto in : act_grad->inputs) {
-      elewise_add_act_grad_node->inputs.emplace_back(in);
-      in->outputs = this->ReplaceNode(op_1, fused_op, in->outputs);
+      fused_node->inputs.emplace_back(in);
+      in->outputs = this->ReplaceNode(act_grad, fused_node, in->outputs);
     }
 
     std::unordered_set<const Node *> nodes2delete;
@@ -115,13 +115,13 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActGradPass::FuseElewiseAddActGrad1(
             [&out](const Node *node) -> bool { return node == out; });
 
         if (result_iter == ele_add_grad->inputs.end()) {
-          IR_OP_VAR_LINK(fused_op, out);
+          IR_OP_VAR_LINK(fused_node, out);
         } else {
           nodes2delete.emplace(out);
         }
       } else {
         PADDLE_ENFORCE(out == d_itermediate_out);
-        IR_OP_VAR_LINK(fused_op, out);
+        IR_OP_VAR_LINK(fused_node, out);
       }
     }
 
@@ -129,12 +129,12 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActGradPass::FuseElewiseAddActGrad1(
       if (in == d_itermediate_out || nodes2delete.count(in)) {
         continue;
       }
-      fused_op->inputs.emplace_back(in);
-      in->outputs = this->ReplaceNode(ele_add_grad, fused_op, in->outputs);
+      fused_node->inputs.emplace_back(in);
+      in->outputs = this->ReplaceNode(ele_add_grad, fused_node, in->outputs);
     }
 
     for (auto out : ele_add_grad->outputs) {
-      IR_OP_VAR_LINK(fused_op, out);
+      IR_OP_VAR_LINK(fused_node, out);
     }
 
     found_elewise_add_act_count++;
