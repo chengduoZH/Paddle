@@ -502,6 +502,30 @@ struct ActElewiseAdd : public PatternBase {
   PATTERN_DECL_NODE(x);
 };
 
+// InPlace
+// f1(f2(x,y))
+// elementwise_add_act with bias
+// op: act + elementwise_add
+// named nodes:
+// act, elementwise_add
+// act_out, x, elewise_add_out
+struct ElewiseAddActGrad1 : public PatternBase {
+  ElewiseAddActGrad1(PDPattern* pattern, const std::string& name_scope)
+      : PatternBase(pattern, name_scope, "elewise_add_act_grad1") {}
+
+  PDNode* operator()(PDNode* x, std::unordered_set<std::string> acts);
+
+  // declare operator node's name
+  PATTERN_DECL_NODE(act_grad);
+  PATTERN_DECL_NODE(ele_add_grad);
+  // declare variable node's name
+  PATTERN_DECL_NODE(act_out);
+  PATTERN_DECL_NODE(d_itermediate_out);
+  PATTERN_DECL_NODE(d_ele_x);
+  PATTERN_DECL_NODE(d_ele_y);
+  PATTERN_DECL_NODE(ele_y);
+};
+
 }  // namespace patterns
 
 // Link two ir::Nodes from each other.

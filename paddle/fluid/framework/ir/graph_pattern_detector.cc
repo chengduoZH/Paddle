@@ -757,7 +757,6 @@ PDNode *patterns::GRU::operator()(PDNode *x) {
 PDNode *patterns::ActElewiseAdd::operator()(
     paddle::framework::ir::PDNode *in_var,
     std::unordered_set<std::string> act_types) {
-  // Create shared nodes.
   in_var->assert_is_ops_input(act_types, "X");
 
   auto *act = pattern->NewNode(act_repr())->assert_is_ops(act_types);
@@ -786,8 +785,6 @@ PDNode *patterns::ActElewiseAdd::operator()(
 PDNode *patterns::ElewiseAddAct::operator()(
     paddle::framework::ir::PDNode *ele_x_var,
     std::unordered_set<std::string> act_types) {
-  // Create shared nodes.
-  //  ele_x_var->assert_is_op_input("elementwise_add", "X");
   auto *ele_y_var = pattern->NewNode(ele_y_repr())
                         ->assert_is_op_input("elementwise_add", "Y");
 
@@ -809,6 +806,44 @@ PDNode *patterns::ElewiseAddAct::operator()(
 
   return act_out_var;
 }
+
+PDNode *patterns::ElewiseAddActGrad1::operator()(
+    paddle::framework::ir::PDNode *d_act_out_var,
+    std::unordered_set<std::string> act_types) {
+  // act_grad: in["Out", "Out@GRAD"], out["X@GRAD"]
+  // ele_add_grad: in["Y", "Out@GRAD"], out["X@GRAD", "Y@GRAD"]
+  auto *act_grad = pattern->NewNode(act_grad_repr())->assert_is_ops(act_types);
+
+  auto *act_out_var =
+      pattern->NewNode(act_out_repr())->assert_is_ops_input(act_types, "Out");
+
+  auto *d_intermediate_var = pattern->NewNode(d_itermediate_out_repr())
+                                 ->assert_is_ops_output(act_types, "X@GRAD");
+
+  act_grad->LinksFrom({d_act_out_var, act_out_var})
+      .LinksTo({d_intermediate_var});
+
+  auto *ele_y_var = pattern->NewNode(ele_y_repr())
+                        ->assert_is_not_ctrl_var()
+                        ->assert_is_op_input("elementwise_add_grad", "Y");
+
+  auto *ele_add_grad = pattern->NewNode(ele_add_grad_repr())
+                           ->assert_is_op("elementwise_add_grad");
+
+  auto *d_ele_x_var = pattern->NewNode(d_ele_x_repr())
+                          ->assert_is_not_ctrl_var()
+                          ->assert_is_op_output("elementwise_add_grad");
+
+  auto *d_ele_y_var = pattern->NewNode(d_ele_y_repr())
+                          ->assert_is_not_ctrl_var()
+                          ->assert_is_op_output("elementwise_add_grad");
+
+  ele_add_grad->LinksFrom({d_intermediate_var, ele_y_var})
+      .LinksTo({d_ele_x_var, d_ele_y_var});
+
+  return ele_add_grad;
+}
+
 }  // namespace ir
 }  // namespace framework
 }  // namespace paddle

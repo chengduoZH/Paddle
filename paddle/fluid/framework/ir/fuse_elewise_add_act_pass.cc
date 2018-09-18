@@ -29,7 +29,7 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActPass::ApplyImpl(
   graph = FuseElewiseAddAct(std::move(graph), act_types);
   return graph;
 }
-
+// f1(f2(x,y))
 std::unique_ptr<ir::Graph> FuseElewiseAddActPass::FuseElewiseAddAct(
     std::unique_ptr<ir::Graph> graph,
     const std::unordered_set<std::string> &act_types) const {
@@ -82,6 +82,7 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActPass::FuseElewiseAddAct(
   return graph;
 }
 
+// f1(x,f2(y))
 void FuseElewiseAddActPass::ReLinkNodes(Graph *graph,
                                         const Node *intermediate_out,
                                         Node *op_1, Node *op_2,
