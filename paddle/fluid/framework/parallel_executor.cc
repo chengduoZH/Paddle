@@ -391,6 +391,7 @@ ParallelExecutor::~ParallelExecutor() {
 }  // namespace framework
 }  // namespace paddle
 
+USE_PASS(fuse_elewise_add_act_grad_pass);
 USE_PASS(fuse_adjacent_nodes_pass);
 USE_PASS(fuse_elewise_add_act_pass);
 USE_PASS(graph_viz_pass);
