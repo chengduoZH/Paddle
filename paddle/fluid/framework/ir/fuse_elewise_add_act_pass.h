@@ -46,8 +46,19 @@ class FuseElewiseAddActPass : public FusePassBase {
       std::unique_ptr<ir::Graph> graph,
       const std::unordered_set<std::string> &act_types) const;
 
+  /**
+   * Remove the removable intermediate_out.
+   *   - If the intermediate_out is only used by the backward op, but the
+   *     backward op doesn't use intermediate_out.
+   *   - If the intermediate_out_grad is not used by any op.
+   */
+  void RemoveIntermediateOut(Graph *graph) const;
+
   std::vector<Node *> ReplaceNode(Node *cur_node, Node *new_node,
                                   const std::vector<Node *> &nodes) const;
+
+  std::vector<Node *> RemoveNode(Node *trg_node,
+                                 const std::vector<Node *> &nodes) const;
 
   void ReLinkNodes(Graph *graph, const Node *intermediate_out, Node *op_1,
                    Node *op_2, Node *fused_op) const;

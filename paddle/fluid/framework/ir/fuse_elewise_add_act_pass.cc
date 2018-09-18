@@ -27,13 +27,64 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActPass::ApplyImpl(
   std::unordered_set<std::string> act_types = {"relu", "scale"};
   graph = FuseActElewiseAdd(std::move(graph), act_types);
   graph = FuseElewiseAddAct(std::move(graph), act_types);
-  {
-    std::unordered_set<std::string> in_place_act_types = {"relu_grad"};
-    // std::unordered_set<std::string> no_in_place_act_types = {"scale_grad"};
-    //  graph = FuseActElewiseAdd(std::move(graph), act_types);
-    graph = FuseElewiseAddActGrad1(std::move(graph), in_place_act_types);
-  }
+  //  {
+  //    std::unordered_set<std::string> in_place_act_types = {"relu_grad"};
+  //    // std::unordered_set<std::string> no_in_place_act_types =
+  //    {"scale_grad"};
+  //    //  graph = FuseActElewiseAdd(std::move(graph), act_types);
+  //    graph = FuseElewiseAddActGrad1(std::move(graph), in_place_act_types);
+  //  }
+
+  // Remove the removable intermediate_out.
+  RemoveIntermediateOut(graph.get());
+
   return graph;
+}
+
+void FuseElewiseAddActPass::RemoveIntermediateOut(Graph *graph) const {
+  std::unordered_set<const Node *> need_removed_nodes;
+  for (auto upstream_node : graph->Nodes()) {
+    if (upstream_node->IsVar()) continue;
+    if (upstream_node->Name() == "fused_elemwise_activation") {
+      bool save_intermediate_out = boost::get<bool>(
+          upstream_node->Op()->GetAttr("save_intermediate_out"));
+      auto intermediate_out_args =
+          upstream_node->Op()->Output("IntermediateOut");
+      PADDLE_ENFORCE(
+          save_intermediate_out && !intermediate_out_args.empty(),
+          "The %s should save the intermediate_out in the fusing stage.",
+          upstream_node->Name());
+
+      // If the intermediate_out's output is only
+      // fused_elemwise_activation_grad, but the fused_elemwise_activation_grad
+      // doesn't use the intermediate_out.
+      bool find_backward = false;
+      auto upstream_node_outputs = upstream_node->outputs;
+      for (auto out : upstream_node_outputs) {
+        if (out->Name() == intermediate_out_args[0]) {
+          if (out->outputs.size() == 0) {
+            upstream_node->outputs =
+                this->RemoveNode(out, upstream_node->outputs);
+            need_removed_nodes.insert(std::move(out));
+            upstream_node->Op()->SetAttr("save_intermediate_out", false);
+          }
+        }
+      }
+    } else if (upstream_node->Name() == "fused_elemwise_activation_grad") {
+      auto intermediate_out_arg =
+          upstream_node->Op()->Output("IntermediateOut@GRAD")[0];
+      auto upstream_node_outputs = upstream_node->outputs;
+      for (auto &out : upstream_node_outputs) {
+        if (out->Name() == intermediate_out_arg && out->outputs.empty()) {
+          upstream_node->Op()->SetOutput("IntermediateOut@GRAD", {});
+          upstream_node->outputs =
+              this->RemoveNode(out, upstream_node->outputs);
+          need_removed_nodes.insert(std::move(out));
+        }
+      }
+    }
+  }
+  GraphSafeRemoveNodes(graph, need_removed_nodes);
 }
 
 // f1(f2(x,y))
@@ -212,7 +263,7 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActPass::FuseElewiseAddActGrad1(
     VLOG(4) << "\n\t " << d_act_out_n << " and " << act_out_n << " -> "
             << act_grad->Name() << " -> " << d_itermediate_out_n << "\n\t "
             << d_itermediate_out_n << " and " << act_out_n << " -> "
-            << act_grad->Name() << " -> " << d_itermediate_out_n;
+            << ele_add_grad->Name() << " -> " << d_itermediate_out_n;
 
     for (auto in : act_grad->inputs) {
       fused_node->inputs.emplace_back(in);
@@ -350,6 +401,16 @@ std::vector<Node *> FuseElewiseAddActPass::ReplaceNode(
   return new_list;
 }
 
+std::vector<Node *> FuseElewiseAddActPass::RemoveNode(
+    Node *trg_node, const std::vector<Node *> &nodes) const {
+  std::vector<Node *> new_list(nodes.size());
+  auto end_iter =
+      std::copy_if(nodes.begin(), nodes.end(), new_list.begin(),
+                   [&](Node *node) -> bool { return node != trg_node; });
+  new_list.resize(
+      static_cast<uint64_t>(std::distance(new_list.begin(), end_iter)));
+  return new_list;
+}
 }  // namespace ir
 }  // namespace framework
 }  // namespace paddle
