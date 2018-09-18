@@ -35,6 +35,7 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActPass::ApplyImpl(
   }
   return graph;
 }
+
 // f1(f2(x,y))
 std::unique_ptr<ir::Graph> FuseElewiseAddActPass::FuseElewiseAddAct(
     std::unique_ptr<ir::Graph> graph,
@@ -248,6 +249,10 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActPass::FuseElewiseAddActGrad1(
       IR_OP_VAR_LINK(fused_node, out);
     }
 
+    nodes2delete.insert(std::move(act_grad));
+    nodes2delete.insert(std::move(ele_add_grad));
+
+    GraphSafeRemoveNodes(g, nodes2delete);
     found_elewise_add_act_count++;
   };
 
