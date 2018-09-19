@@ -18,7 +18,6 @@ limitations under the License. */
 #include <tuple>
 #include <vector>
 
-#include "paddle/fluid/framework/ir/fuse_adjacent_nodes_pass.h"
 #include "paddle/fluid/framework/ir/graph.h"
 #include "paddle/fluid/framework/ir/graph_viz_pass.h"
 
@@ -60,18 +59,6 @@ std::unique_ptr<ir::Graph> ApplyParallelExecutorPass(
 
   // Apply op fusion.
   if (strategy.fuse_adjacent_ops_) {
-    //    auto fuse_adjacent_ops_pass =
-    //        ir::PassRegistry::Instance().Get("fuse_adjacent_nodes_pass");
-    //    graph = fuse_adjacent_ops_pass->Apply(std::move(graph));
-    //    // Apply a graph viz pass to record a graph.
-    //    if (!strategy.debug_graphviz_path_.empty()) {
-    //      auto viz_pass = ir::PassRegistry::Instance().Get("graph_viz_pass");
-    //      const std::string graph_path = string::Sprintf(
-    //          "%s%s", strategy.debug_graphviz_path_.c_str(), "_fused_graph");
-    //      viz_pass->Set<std::string>("graph_viz_path", new
-    //      std::string(graph_path));
-    //      graph = viz_pass->Apply(std::move(graph));
-    //    }
     auto fuse_elewise_add_act_pass =
         ir::PassRegistry::Instance().Get("fuse_elewise_add_act_pass");
     graph = fuse_elewise_add_act_pass->Apply(std::move(graph));
@@ -391,8 +378,6 @@ ParallelExecutor::~ParallelExecutor() {
 }  // namespace framework
 }  // namespace paddle
 
-// USE_PASS(fuse_elewise_add_act_grad_pass);
-USE_PASS(fuse_adjacent_nodes_pass);
 USE_PASS(fuse_elewise_add_act_pass);
 USE_PASS(graph_viz_pass);
 USE_PASS(multi_devices_pass);
