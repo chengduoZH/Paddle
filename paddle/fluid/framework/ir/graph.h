@@ -170,7 +170,6 @@ class Graph {
 };
 
 bool IsControlDepVar(const ir::Node &var);
-std::vector<Node *> NoControlDepVar(const std::vector<Node *> &vars);
 
 }  // namespace ir
 }  // namespace framework

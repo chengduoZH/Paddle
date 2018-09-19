@@ -118,7 +118,7 @@ std::unique_ptr<ir::Graph> FuseElewiseAddActPass::FuseActElewiseAdd(
     VLOG(4) << "handle FuseElewiseAddAct fuse";
 
     GET_IR_NODE_FROM_SUBGRAPH(act_out, act_out, act_elewise_add_pattern);
-    GET_IR_NODE_FROM_SUBGRAPH(ele_x, x, act_elewise_add_pattern);
+    GET_IR_NODE_FROM_SUBGRAPH(ele_x, ele_x, act_elewise_add_pattern);
     GET_IR_NODE_FROM_SUBGRAPH(ele_out, elewise_add_out,
                               act_elewise_add_pattern);
 

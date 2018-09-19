@@ -203,16 +203,6 @@ bool IsControlDepVar(const ir::Node &var) {
   return var.Name().find(ir::Node::kControlDepVarName) != std::string::npos;
 }
 
-std::vector<Node *> NoControlDepVar(const std::vector<Node *> &vars) {
-  std::vector<Node *> no_control_vars;
-  for (auto &var : vars) {
-    if (!IsControlDepVar(*var)) {
-      no_control_vars.emplace_back(var);
-    }
-  }
-  return no_control_vars;
-}
-
 }  // namespace ir
 }  // namespace framework
 }  // namespace paddle
