@@ -20,10 +20,6 @@ limitations under the License. */
 #include "paddle/fluid/framework/rw_lock.h"
 #endif
 
-#ifdef PADDLE_WITH_CUDA
-#include "paddle/fluid/platform/gpu_info.h"
-#endif
-
 namespace paddle {
 namespace platform {
 
@@ -215,12 +211,13 @@ CUDADeviceContext::CUDADeviceContext(CUDAPlace place)
     cudnn_holder_.reset(new CudnnHolder(&stream_, place));
   }
 
-  gridMaxDims_ = GpuMaxGridDim(place_.device);
+  callback_manager_.reset(new StreamCallbackManager(stream_));
 }
 
 CUDADeviceContext::~CUDADeviceContext() {
   SetDeviceId(place_.device);
   Wait();
+  WaitStreamCallback();
   PADDLE_ENFORCE(dynload::cublasDestroy(cublas_handle_));
   eigen_stream_.reset();
   eigen_device_.reset();
@@ -275,11 +272,6 @@ Eigen::DefaultDevice* CUDAPinnedDeviceContext::eigen_device() const {
 }
 
 Place CUDAPinnedDeviceContext::GetPlace() const { return place_; }
-
-std::tuple<int, int, int> CUDADeviceContext::GetMaxGridDims() const {
-  return gridMaxDims_;
-}
-
 #endif
 
 #ifdef PADDLE_WITH_MKLDNN

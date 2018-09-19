@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 PaddlePaddle Authors. All Rights Reserved.
+/* Copyright (c) 2018 PaddlePaddle Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -45,13 +45,14 @@ class SequenceExpandAsOp : public framework::OperatorWithKernel {
           boost::get<framework::Variable*>(ctx->GetInputVarPtrs("Y")[0]);
 
       auto& x_dim = x_var->Get<LoDTensor>().dims();
-      // auto& x_lod = x_var->Get<LoDTensor>().lod();
       auto& y_lod = y_var->Get<LoDTensor>().lod();
 
       PADDLE_ENFORCE_EQ(y_lod.size(), 1,
                         "Level number of Input(Y)'s lod should be 1.");
 
-      PADDLE_ENFORCE_EQ(static_cast<size_t>(x_dim[0]), y_lod[0].size() - 1, "");
+      PADDLE_ENFORCE_EQ(static_cast<size_t>(x_dim[0]), y_lod[0].size() - 1,
+                        "The first dimension of Input(X) should be equal "
+                        "to the size of Input(Y)'s 0 level lod.");
 
       int64_t out_first_dim = 0;
       if (y_lod[0].size() <= 1) {
@@ -86,12 +87,10 @@ class SequenceExpandAsOpMaker : public framework::OpProtoAndCheckerMaker {
     AddComment(R"DOC(
 Sequence Expand As Operator.
 
-This operator expands `X` according to specified level lod of `Y`. Current
-implementation constaints that lod level of `X` should be at most 1. Attribute
-`ref_level` is used to specify which level lod of `Y` is referred to expand `X`.
-If set `ref_level` to -1, then last level lod of `Y` would be referred.
-Please note, rank of `X` should be at least 2, when the rank exceeds 2, `X`
-would be viewed as a 2-D tensor.
+This operator expands `X` according to the zeroth level lod of `Y`. Current
+implementation requires the level number of Input(Y)'s lod should be 1, and
+the first dimension of Input(X) should be equal to the size of Input(Y)'s zeroth
+level lod, and lod of Input(X) is not considered.
 
 Following are cases to better explain how this works:
 
