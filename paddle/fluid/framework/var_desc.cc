@@ -146,8 +146,14 @@ void VarDesc::SetCapacity(int64_t capacity) {
 }
 
 void VarDesc::SetLoDLevel(int32_t lod_level) {
+  VLOG(5) << "lod level" << lod_level;
+  desc_.type();
+  VLOG(5) << "lod level" << lod_level;
+  desc_.type().type();
+  VLOG(5) << "lod level" << lod_level;
   switch (desc_.type().type()) {
     case proto::VarType::LOD_TENSOR:
+      VLOG(5) << "lod level" << lod_level;
       desc_.mutable_type()->mutable_lod_tensor()->set_lod_level(lod_level);
       break;
     case proto::VarType::LOD_TENSOR_ARRAY:
