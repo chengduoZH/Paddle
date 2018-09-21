@@ -60,7 +60,9 @@ class WhileOp : public framework::OperatorBase {
 
     bool is_test = Attr<bool>("is_test");
     auto ctx = executor.Prepare(*program, block->ID());
+    int i = 0;
     while (cond.data<bool>()[0]) {
+      VLOG(3) << "Start forward at time_step " << i++;
       auto &current_scope = scope.NewScope();
       step_scopes->push_back(&current_scope);
       executor.RunPreparedContext(ctx.get(), &current_scope, false, true, true);
