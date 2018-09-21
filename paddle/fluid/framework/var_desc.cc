@@ -150,16 +150,24 @@ void VarDesc::SetLoDLevel(int32_t lod_level) {
   desc_.type();
   VLOG(5) << "lod level" << lod_level;
   desc_.type().type();
+  if (desc_.type().type() == proto::VarType::LOD_TENSOR) {
+    VLOG(5) << "This is a lodtensor";
+  } else {
+    VLOG(5) << "This is not a lodtensor";
+  }
   VLOG(5) << "lod level" << lod_level;
+
   switch (desc_.type().type()) {
     case proto::VarType::LOD_TENSOR:
       VLOG(5) << "lod level" << lod_level;
       desc_.mutable_type()->mutable_lod_tensor()->set_lod_level(lod_level);
       break;
     case proto::VarType::LOD_TENSOR_ARRAY:
+      VLOG(5) << "lod level" << lod_level;
       desc_.mutable_type()->mutable_tensor_array()->set_lod_level(lod_level);
       break;
     default:
+      VLOG(5) << "lod level" << lod_level;
       PADDLE_THROW(
           "Setting 'lod_level' is not supported by the type of var %s.",
           this->Name());
