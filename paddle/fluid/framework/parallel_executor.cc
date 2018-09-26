@@ -102,6 +102,15 @@ std::unique_ptr<ir::Graph> ApplyParallelExecutorPass(
     graph = multi_devices_print_pass->Apply(std::move(graph));
   }
 
+  // Apply a graph viz pass to record a graph.
+  if (!strategy.debug_graphviz_path_.empty()) {
+    auto viz_pass = ir::PassRegistry::Instance().Get("graph_viz_pass");
+    const std::string graph_path = string::Sprintf(
+        "%s%s", strategy.debug_graphviz_path_.c_str(), "_original_graph");
+    viz_pass->Set<std::string>("graph_viz_path", new std::string(graph_path));
+    graph = viz_pass->Apply(std::move(graph));
+  }
+
   // Verify that the graph is correct for multi-device executor.
   auto multi_devices_check_pass =
       ir::PassRegistry::Instance().Get("multi_devices_check_pass");
