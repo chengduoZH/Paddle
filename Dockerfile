@@ -2,7 +2,8 @@
 # Use cuda devel base image for both cpu and gpu environment
 # When you modify it, please be aware of cudnn-runtime version
 # and libcudnn.so.x in paddle/scripts/docker/build.sh
-FROM nvidia/cuda:8.0-cudnn7-devel-ubuntu16.04
+ARG BASE_IMAGE=nvidia/cuda:8.0-cudnn7-devel-ubuntu16.04
+FROM $BASE_IMAGE
 MAINTAINER PaddlePaddle Authors <paddle-dev@baidu.com>
 
 ARG UBUNTU_MIRROR
@@ -25,7 +26,6 @@ COPY ./paddle/scripts/docker/root/ /root/
 RUN apt-get update && \
     apt-get install -y --allow-downgrades patchelf \
     git python-pip python-dev python-opencv openssh-server bison \
-    libnccl2=2.1.2-1+cuda8.0 libnccl-dev=2.1.2-1+cuda8.0 \
     wget unzip unrar tar xz-utils bzip2 gzip coreutils ntp \
     curl sed grep graphviz libjpeg-dev zlib1g-dev  \
     python-matplotlib gcc-4.8 g++-4.8 \
@@ -33,6 +33,11 @@ RUN apt-get update && \
     liblapack-dev liblapacke-dev \
     clang-3.8 llvm-3.8 libclang-3.8-dev \
     net-tools libtool ccache && \
+  if [ "$BASE_IMAGE" = "nvidia/cuda:8.0-cudnn7-devel-ubuntu16.04" ]; then \
+    apt-get install -y libnccl2=2.1.2-1+cuda8.0 libnccl-dev=2.1.2-1+cuda8.0; \
+  else \
+    apt-get install -y libnccl2=2.3.4-1+cuda9.0 libnccl-dev=2.3.4-1+cuda9.0; \
+  fi && \
     apt-get clean -y
 
 # Install Go and glide
@@ -53,10 +58,18 @@ RUN curl -s -q https://glide.sh/get | sh
 #    and its size is only one-third of the official one.
 # 2. Manually add ~IPluginFactory() in IPluginFactory class of NvInfer.h, otherwise, it couldn't work in paddle.
 #    See https://github.com/PaddlePaddle/Paddle/issues/10129 for details.
-RUN wget -qO- http://paddlepaddledeps.cdn.bcebos.com/TensorRT-4.0.0.3.Ubuntu-16.04.4.x86_64-gnu.cuda-8.0.cudnn7.0.tar.gz | \
-    tar -xz -C /usr/local && \
-    cp -rf /usr/local/TensorRT/include /usr && \
-    cp -rf /usr/local/TensorRT/lib /usr
+
+RUN if [ "$BASE_IMAGE" = "nvidia/cuda:8.0-cudnn7-devel-ubuntu16.04" ]; then \
+      wget -qO- http://paddlepaddledeps.cdn.bcebos.com/TensorRT-4.0.0.3.Ubuntu-16.04.4.x86_64-gnu.cuda-8.0.cudnn7.0.tar.gz | \
+      tar -xz -C /usr/local && \
+      cp -rf /usr/local/TensorRT/include /usr && \
+      cp -rf /usr/local/TensorRT/lib /usr; \
+    else \
+      wget -qO- http://paddlepaddledeps.cdn.bcebos.com/TensorRT-4.0.1.6.Ubuntu-16.04.4.x86_64-gnu.cuda-9.0.cudnn7.1.tar.gz | \
+      tar -xz -C /usr/local && \
+      cp -rf /usr/local/TensorRT-4.0.1.6/include /usr && \
+      cp -rf /usr/local/TensorRT-4.0.1.6/lib/* /usr/lib; \
+    fi
 
 # git credential to skip password typing
 RUN git config --global credential.helper store
