@@ -89,6 +89,12 @@ extern void EnforceCUDNNLoaded(const char* fn_name);
   __macro(cudnnDestroyConvolutionDescriptor);       \
   __macro(cudnnSetConvolutionNdDescriptor);         \
   __macro(cudnnGetConvolutionNdDescriptor);         \
+  __macro(cudnnCreateDropoutDescriptor);            \
+  __macro(cudnnDropoutGetStatesSize);               \
+  __macro(cudnnDestroyDropoutDescriptor);           \
+  __macro(cudnnDropoutForward);                     \
+  __macro(cudnnDropoutBackward);                    \
+  __macro(cudnnDropoutGetReserveSpaceSize);         \
   __macro(cudnnDeriveBNTensorDescriptor);           \
   __macro(cudnnCreate);                             \
   __macro(cudnnDestroy);                            \
