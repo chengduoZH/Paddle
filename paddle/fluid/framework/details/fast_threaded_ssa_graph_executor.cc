@@ -151,7 +151,9 @@ void FastThreadedSSAGraphExecutor::RunOpAsync(
       }
     }
     --remaining_;
-    complete_q->Push(complete);
+    if (complete != 0) {
+      complete_q->Push(complete);
+    }
   });
 }
 void FastThreadedSSAGraphExecutor::PrepareAtomicOpDeps() {
