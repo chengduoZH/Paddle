@@ -50,6 +50,7 @@ struct VarHandleBase {
   void AddOutput(OpHandleBase* out, ir::Node* node) {
     if (pending_ops_.find(out) == pending_ops_.end()) {
       pending_ops_.insert(out);
+      PADDLE_ENFORCE(out != nullptr, "Error");
       node_->outputs.push_back(node);
     }
   }
