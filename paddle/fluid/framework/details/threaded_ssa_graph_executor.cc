@@ -87,9 +87,10 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   run_op_futures_.clear();
   exception_holder_.Clear();
   event.reset(nullptr);
+  BlockingQueue<size_t> complete_q;
 
   // Step 3. Execution
-  while (!pending_vars.empty()) {
+  while (!pending_vars.empty() && delayed_ops.empty()) {
     // 1. Run All Ready ops
     // Keep loop until all vars are ready.
     //
@@ -132,7 +133,10 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
       }
     }
   }
-  PADDLE_ENFORCE(ready_ops.empty());
+
+  PADDLE_ENFORCE(ready_ops.empty() && delayed_ops.empty(),
+                 "The ready_ops[%d] or delayed_ops[%d] is not empty.",
+                 ready_ops.size(), delayed_ops.size());
 
   // Wait FetchOps.
   ClearFetchOp(graph_.get(), &fetch_ops);
@@ -214,8 +218,8 @@ void ThreadedSSAGraphExecutor::RunOp(
       }
       op->Run(strategy_.use_cuda_);
       VLOG(10) << op << " " << op->Name() << " Done ";
-      running_ops_--;
       ready_var_q->Extend(op->Outputs());
+      running_ops_--;
       VLOG(10) << op << " " << op->Name() << "Signal posted";
     } catch (...) {
       exception_holder_.Catch(std::current_exception());
