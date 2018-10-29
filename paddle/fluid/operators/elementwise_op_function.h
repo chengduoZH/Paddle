@@ -642,9 +642,18 @@ void ElementwiseGradCompute(const framework::ExecutionContext &ctx,
   }
 }
 
+template <typename T, typename Func>
+struct ElemwiseFunc {
+  const T *x_;
+  const T *y_;
+  T *out_;
+
+  HOSTDEVICE void operator()(size_t i) { out_[i] = fun(x_[i], y_[i]); }
+  Func fun;
+};
+
 template <typename Functor, typename DeviceContext, typename T,
           typename OutType = T>
-
 void ElementwiseComputeEx(const framework::ExecutionContext &ctx,
                           const framework::Tensor *x,
                           const framework::Tensor *y, int axis, Functor func,
@@ -657,7 +666,13 @@ void ElementwiseComputeEx(const framework::ExecutionContext &ctx,
                     "Rank of first input must >= rank of second input.");
 
   if (x_dims == y_dims_untrimed) {
-    functor.Run();
+    //    functor.Run();
+    platform::ForRange<DeviceContext> for_range(
+        ctx.template device_context<DeviceContext>(),
+        framework::product(x_dims));
+    for_range(ElemwiseFunc<T, Functor>{x.data<T>(), y.data<T>(),
+                                       z->mutable_data<OutType>(ctx.GetPlace()),
+                                       func});
     return;
   }
 
