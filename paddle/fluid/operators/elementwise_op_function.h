@@ -670,7 +670,7 @@ void ElementwiseComputeEx(const framework::ExecutionContext &ctx,
     size_t num = framework::product(x_dims);
     platform::ForRange<DeviceContext> for_range(
         ctx.template device_context<DeviceContext>(), num);
-    for_range(ElemwiseFunc<T, Functor>{x.data<T>(), y.data<T>(),
+    for_range(ElemwiseFunc<T, Functor>{x->data<T>(), y->data<T>(),
                                        z->mutable_data<OutType>(ctx.GetPlace()),
                                        func});
     return;
