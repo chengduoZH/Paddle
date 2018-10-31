@@ -28,6 +28,7 @@ __all__ = ['switch_dtype_block', ]
 @contextlib.contextmanager
 def switch_dtype_block(main_program,
                        dtype=np.float16,
+                       exclude_set=[],
                        enable_tensor_core=None,
                        **kwargs):
 
@@ -67,7 +68,7 @@ def switch_dtype_block(main_program,
             continue
         in_var = cur_block.var(in_var_name)
         out_var_dtype = framework.convert_np_dtype_to_dtype_(dtype)
-        if in_var.dtype == out_var_dtype:
+        if in_var.dtype == out_var_dtype or in_var in exclude_set:
             continue
         out_var = _create_tmp_variable_(cur_block, "casted_" + in_var.name,
                                         out_var_dtype)
