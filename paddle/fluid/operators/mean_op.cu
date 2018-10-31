@@ -18,6 +18,7 @@ limitations under the License. */
 #include "paddle/fluid/platform/float16.h"
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 REGISTER_OP_CUDA_KERNEL(
     mean, ops::MeanKernel<paddle::platform::CUDADeviceContext, float>,
     ops::MeanKernel<paddle::platform::CUDADeviceContext, double>,

@@ -35,17 +35,15 @@ struct TolerableValue {
 };
 
 // float16 value clip behave different.
-using paddle::platform::float16;
-using paddle::platform::isfinite;
 template <>
-struct TolerableValue<float16> {
-  HOSTDEVICE float16 operator()(const float16& x) const {
-    if (isfinite(x))
+struct TolerableValue<platform::float16> {
+  HOSTDEVICE platform::float16 operator()(const platform::float16& x) const {
+    if (platform::isfinite(x))
       return x;
-    else if (x > static_cast<float16>(0))
-      return std::numeric_limits<float16>::max();
+    else if (x > static_cast<platform::float16>(0))
+      return std::numeric_limits<platform::float16>::max();
     else
-      return std::numeric_limits<float16>::min();
+      return std::numeric_limits<platform::float16>::min();
   }
 };
 

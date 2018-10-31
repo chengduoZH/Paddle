@@ -43,7 +43,7 @@ __global__ void CrossEntropyKernel(T* Y, const T* X, const int64_t* label,
        i += blockDim.x * gridDim.x) {
     PADDLE_ASSERT(label[i] >= 0 && label[i] < D || label[i] == ignore_index);
     Y[i] = ignore_index == label[i]
-               ? 0
+               ? static_cast<T>(0)
                : -math::TolerableValue<T>()(log<T>(X[i * D + label[i]]));
   }
 }

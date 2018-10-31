@@ -68,7 +68,7 @@ def switch_dtype_block(main_program,
             continue
         in_var = cur_block.var(in_var_name)
         out_var_dtype = framework.convert_np_dtype_to_dtype_(dtype)
-        if in_var.dtype == out_var_dtype or in_var in exclude_set:
+        if in_var.dtype == out_var_dtype or in_var_name in exclude_set:
             continue
         out_var = _create_tmp_variable_(cur_block, "casted_" + in_var.name,
                                         out_var_dtype)
@@ -92,9 +92,9 @@ def switch_dtype_block(main_program,
         op.desc.infer_var_type(cur_block.desc)
         # op.desc.infer_shape(cur_block.desc)
 
-    # Node: Some output doesn't need convert data type
-    # Temporally doesn't cast data to origin type, because some
-    # output may be not used.
+        # Node: Some output doesn't need convert data type
+        # Temporally doesn't cast data to origin type, because some
+        # output may be not used.
 
 
 def _rename_arg_(cur_block, old_name, new_name, begin_idx=None, end_idx=None):
