@@ -204,6 +204,7 @@ inline void Blas<platform::CUDADeviceContext>::GEMM(
   } else {
     PADDLE_ENFORCE(platform::dynload::cublasSetMathMode(
         context_.cublas_handle(), CUBLAS_DEFAULT_MATH));
+    VLOG(5) << "NOT use_tensor_op_math";
   }
 #endif  // CUDA_VERSION >= 9000
 
