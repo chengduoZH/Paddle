@@ -15,8 +15,6 @@
 from __future__ import print_function
 
 import paddle.fluid.core as core
-import math
-import os
 import sys
 import unittest
 
@@ -24,9 +22,6 @@ import numpy as np
 
 import paddle
 import paddle.fluid as fluid
-
-from paddle.fluid.layers.device import get_places
-from paddle.fluid.layers.control_flow import ParallelDo
 
 BATCH_SIZE = 64
 
