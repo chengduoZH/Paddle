@@ -38,7 +38,7 @@ template <typename T>
 __global__ void SoftCrossEntropyKernel(T* Y, const T* X, const T* label,
                                        const int class_num) {
   int tid = threadIdx.x;
-  T val = 0;
+  T val(0);
 
   int idx = blockIdx.x * class_num + tid;
   int end = blockIdx.x * class_num + class_num;
