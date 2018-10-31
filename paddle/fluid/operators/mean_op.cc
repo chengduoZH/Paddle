@@ -50,6 +50,14 @@ class MeanGradOp : public framework::OperatorWithKernel {
     ctx->SetOutputDim(framework::GradVarName("X"), ctx->GetInputDim("X"));
     ctx->ShareLoD("X", framework::GradVarName("X"));
   }
+
+  framework::OpKernelType GetExpectedKernelType(
+      const framework::ExecutionContext& ctx) const override {
+    auto input_data_type =
+        framework::ToDataType(ctx.Input<Tensor>("X")->type());
+
+    return framework::OpKernelType(input_data_type, ctx.GetPlace());
+  }
 };
 
 class MeanGradMaker : public framework::SingleGradOpDescMaker {
