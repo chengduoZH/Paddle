@@ -21,6 +21,20 @@ namespace operators {
 namespace math {
 
 namespace {
+
+template <typename T>
+__device__ T log(const T& val) {
+  return log(val);
+}
+template <>
+__device__ float log(const float& val) {
+  return logf(val);
+}
+template <>
+__device__ platform::float16 log(const platform::float16& val) {
+  return static_cast<platform::float16>(hlog(static_cast<half>(val)));
+}
+
 template <typename T>
 __global__ void CrossEntropyKernel(T* Y, const T* X, const int64_t* label,
                                    const int N, const int D,
@@ -30,7 +44,7 @@ __global__ void CrossEntropyKernel(T* Y, const T* X, const int64_t* label,
     PADDLE_ASSERT(label[i] >= 0 && label[i] < D || label[i] == ignore_index);
     Y[i] = ignore_index == label[i]
                ? 0
-               : -math::TolerableValue<T>()(log(X[i * D + label[i]]));
+               : -math::TolerableValue<T>()(log<T>(X[i * D + label[i]]));
   }
 }
 
@@ -43,7 +57,7 @@ __global__ void SoftCrossEntropyKernel(T* Y, const T* X, const T* label,
   int idx = blockIdx.x * class_num + tid;
   int end = blockIdx.x * class_num + class_num;
   for (; idx < end; idx += blockDim.x) {
-    val += math::TolerableValue<T>()(std::log(X[idx])) * label[idx];
+    val += math::TolerableValue<T>()(log(X[idx])) * label[idx];
   }
 
   val = paddle::platform::reduceSum(val, tid, blockDim.x);
