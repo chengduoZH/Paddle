@@ -215,7 +215,7 @@ class Optimizer(object):
 
         # Create any accumulators
         program = loss.block.program
-        self._dtype = loss.dtype
+        # self._dtype = loss.dtype
         with program_guard(program, startup_program):
             global_block = framework.default_main_program().global_block()
             start = len(global_block.ops)
