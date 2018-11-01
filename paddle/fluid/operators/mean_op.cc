@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "paddle/fluid/operators/mean_op.h"
-
+#include <string>
 namespace paddle {
 namespace operators {
 
@@ -39,6 +39,23 @@ class MeanOpMaker : public framework::OpProtoAndCheckerMaker {
 Mean Operator calculates the mean of all elements in X.
 
 )DOC");
+  }
+};
+
+class MeanOpInferVarType : public framework::InferVarTypeHelper {
+ protected:
+  std::unordered_map<std::string, std::string> ShareTypeAndDType()
+      const override {
+    return std::unordered_map<std::string, std::string>{{"X", /*->*/ "Out"}};
+  }
+};
+
+class ConvOpInferVarType : public framework::InferVarTypeHelper {
+ protected:
+  std::unordered_map<std::string, std::string> ShareTypeAndDType()
+      const override {
+    return std::unordered_map<std::string, std::string>{
+        {"Input", /*->*/ "Output"}};
   }
 };
 
@@ -80,7 +97,8 @@ class MeanGradMaker : public framework::SingleGradOpDescMaker {
 
 namespace ops = paddle::operators;
 namespace plat = paddle::platform;
-REGISTER_OPERATOR(mean, ops::MeanOp, ops::MeanOpMaker, ops::MeanGradMaker);
+REGISTER_OPERATOR(mean, ops::MeanOp, ops::MeanOpMaker, ops::MeanOpInferVarType,
+                  ops::MeanGradMaker);
 REGISTER_OPERATOR(mean_grad, ops::MeanGradOp);
 REGISTER_OP_CPU_KERNEL(
     mean, ops::MeanKernel<paddle::platform::CPUDeviceContext, float>,
