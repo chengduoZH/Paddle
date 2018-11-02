@@ -219,7 +219,7 @@ $$
 )DOC");
 }
 
-class ConvOpInferVarType : public framework::VarTypeInferenceHelperlper {
+class ConvOpInferVarType : public framework::VarTypeInferenceHelper {
  protected:
   std::unordered_map<std::string, std::string> InferTypeAndDType()
       const override {

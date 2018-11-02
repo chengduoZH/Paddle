@@ -62,7 +62,7 @@ class ElementwiseOp : public framework::OperatorWithKernel {
   }
 };
 
-class ElementwiseOpInferVarType : public framework::VarTypeInferenceHelperlper {
+class ElementwiseOpInferVarType : public framework::VarTypeInferenceHelper {
  protected:
   std::unordered_map<std::string, std::string> InferTypeAndDType()
       const override {

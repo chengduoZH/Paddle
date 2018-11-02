@@ -181,8 +181,7 @@ or not. But the output only shares the LoD information with input X.
   }
 };
 
-class CrossEntropyOpInferVarType
-    : public framework::VarTypeInferenceHelperlper {
+class CrossEntropyOpInferVarType : public framework::VarTypeInferenceHelper {
  protected:
   std::unordered_map<std::string, std::string> InferTypeAndDType()
       const override {
