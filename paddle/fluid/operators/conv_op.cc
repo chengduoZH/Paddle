@@ -219,9 +219,9 @@ $$
 )DOC");
 }
 
-class ConvOpInferVarType : public framework::InferVarTypeHelper {
+class ConvOpInferVarType : public framework::VarTypeInferenceHelperlper {
  protected:
-  std::unordered_map<std::string, std::string> ShareTypeAndDType()
+  std::unordered_map<std::string, std::string> InferTypeAndDType()
       const override {
     return std::unordered_map<std::string, std::string>{
         {"Input", /*->*/ "Output"}};
