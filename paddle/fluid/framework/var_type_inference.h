@@ -30,7 +30,7 @@ class VarTypeInference {
 class VarTypeInferenceHelper : public framework::VarTypeInference {
  public:
   void operator()(const framework::OpDesc& op_desc,
-                  framework::BlockDesc* block) const override {
+                  framework::BlockDesc* block) const final {
     auto in_out_var_names = this->InferTypeAndDType();
 
     for (auto& i_o_n : in_out_var_names) {
