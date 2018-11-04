@@ -329,12 +329,13 @@ void Executor::Run(const ProgramDesc& program, Scope* scope,
 
 std::unique_ptr<ExecutorPrepareContext> Executor::Prepare(
     const ProgramDesc& program, int block_id) {
+  PADDLE_ENFORCE_LT(static_cast<size_t>(block_id), program.Size());
   std::unique_ptr<ExecutorPrepareContext> ctx(
       new ExecutorPrepareContext(program, block_id));
-  PADDLE_ENFORCE_LT(static_cast<size_t>(block_id), program.Size());
   auto& block = program.Block(block_id);
+  ctx->ops_.resize(block.AllOps().size());
   for (auto& op_desc : block.AllOps()) {
-    ctx->ops_.push_back(OpRegistry::CreateOp(*op_desc));
+    ctx->ops_.emplace_back(OpRegistry::CreateOp(*op_desc));
   }
   return ctx;
 }
