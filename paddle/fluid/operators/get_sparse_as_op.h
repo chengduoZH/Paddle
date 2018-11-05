@@ -51,9 +51,12 @@ class GetSparseAsKernel : public framework::OpKernel<T> {
     int64_t row_width = w_t->dims()[1];
     auto *table = w_t->data<T>();
 
+    int64_t ids_numel = x_s->rows().size();
+    auto ids_v = x_s->rows();
+
     for (int64_t i = 0; i < ids_numel; ++i) {
-      PADDLE_ENFORCE_LT(ids[i], row_number);
-      PADDLE_ENFORCE_GE(ids[i], 0, "ids %d", i);
+      PADDLE_ENFORCE_LT(ids_v[i], row_number);
+      PADDLE_ENFORCE_GE(ids_v[i], 0, "ids %d", i);
       memcpy(output + i * row_width, table + ids[i] * row_width,
              row_width * sizeof(T));
     }
