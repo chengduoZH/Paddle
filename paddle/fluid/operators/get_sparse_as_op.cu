@@ -70,14 +70,14 @@ class GetSparseAsCUDAKernel : public framework::OpKernel<T> {
     auto *table_ptr = w_t->data<T>();
 
     int64_t sparse_row_num = x_s->rows().size();
-    auto *ids_t = x_s->rows();
+    auto ids_t = x_s->rows();
 
     dim3 threads(128, 8);
     dim3 grids(8, 1);
 
     GetSparseAs<T, 128, 8, 8, false /*padding_idx*/><<<
         grids, threads, 0, context.cuda_device_context().stream()>>>(
-        output_ptr, table_ptr, ids_t->CUDAData<int64_t>(), row_num,
+        output_ptr, table_ptr, ids_t.CUDAData<int64_t>(), row_num,
         sparse_row_num, row_width, -1 /*padding_idx*/);
   }
 };
