@@ -32,7 +32,6 @@ template <typename T>
 class GetSparseAsKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext &context) const override {
-    using Tensor = framework::Tensor;
     using LoDTensor = framework::LoDTensor;
     using SelectedRows = framework::SelectedRows;
 
