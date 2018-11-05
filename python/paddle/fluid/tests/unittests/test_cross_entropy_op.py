@@ -252,27 +252,30 @@ class TestCrossEntropyOp6(TestCrossEntropyOp):
             ["X"], "Y", max_relative_error=0.05, numeric_grad_delta=0.001)
 
 
-class TestCrossEntropyOp7(OpTest):
+class TestCrossEntropyOp7(TestCrossEntropyOp):
     """Test cross-entropy with ignore index.
     """
 
-    def setUp(self):
-        self.op_type = "cross_entropy"
-        batch_size = 30
-        class_num = 10
-        ignore_index = 3
+    def init_label(self):
+        self.label = np.random.randint(
+            0, self.class_num, (self.batch_size, 1), dtype="int64")
 
-        X = randomize_probability(batch_size, class_num, dtype='float64')
+    def get_cross_entropy(self):
+        self.cross_entropy = np.asmatrix(
+            [[-np.log(self.x[i][self.label[i][0]])]
+             if self.label[i][0] != self.ignore_index else [0]
+             for i in range(self.x.shape[0])]).astype(self.dtype)
 
-        label = np.random.randint(0, class_num, (batch_size, 1), dtype="int64")
-        cross_entropy = np.asmatrix(
-            [[-np.log(X[i][label[i][0]])]
-             if label[i][0] != ignore_index else [0]
-             for i in range(X.shape[0])],
-            dtype="float64")
-        self.inputs = {"X": X, "Label": label}
-        self.outputs = {"Y": cross_entropy}
-        self.attrs = {"soft_label": False, "ignore_index": ignore_index}
+    def init_attr_type(self):
+        self.soft_label = False
+        self.ignore_index = 3
+
+    def init_dtype_type(self):
+        self.dtype = np.float64
+
+    def init_bs_class_num(self):
+        self.batch_size = 30
+        self.class_num = 10
 
     def test_check_output(self):
         self.check_output()
