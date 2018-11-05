@@ -38,7 +38,6 @@ class GetSparseAsOp : public framework::OperatorWithKernel {
 
     auto table_dims = ctx->GetInputDim("W");
     auto x_dims = ctx->GetInputDim("X");
-    int ids_rank = ids_dims.size();
 
     PADDLE_ENFORCE_EQ(table_dims.size(), 2);
     PADDLE_ENFORCE_EQ(table_dims, x_dims);
