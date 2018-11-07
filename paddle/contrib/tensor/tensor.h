@@ -17,8 +17,6 @@
 #include <string>
 #include <vector>
 
-#include <ATen/ATen.h>
-
 #include "paddle/fluid/framework/tensor.h"
 
 namespace tc {
