@@ -19,8 +19,8 @@
 
 #include "paddle/fluid/framework/tensor.h"
 
-namespace tc {
-namespace aten {
+namespace paddle {
+namespace contrib {
 
 inline TensorInfo toTensorInfo(const paddle::framework::Tensor&);
 
@@ -33,7 +33,7 @@ inline std::vector<DLConstTensorUPtr> makeDLConstTensors(
 inline void setAtenSeed(uint64_t seed, at::Backend backend);
 inline uint64_t getAtenSeed(at::Backend backend);
 
-}  // namespace aten
-}  // namespace tc
+}  // namespace contrib
+}  // namespace paddle
 
 #include "paddle/contrib/tensor/tensor_impl.h"
