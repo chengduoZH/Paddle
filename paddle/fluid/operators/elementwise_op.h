@@ -164,6 +164,7 @@ class ElementwiseOpGrad : public framework::OperatorWithKernel {
     }
   }
 
+ protected:
   framework::OpKernelType GetExpectedKernelType(
       const framework::ExecutionContext& ctx) const override {
     auto input_data_type = framework::ToDataType(
