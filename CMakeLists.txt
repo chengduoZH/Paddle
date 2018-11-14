@@ -179,7 +179,7 @@ include(external/pybind11)  # download pybind11
 include(external/cares)
 include(external/cub)
 include(external/xxhash)    # download xxhash
-include(external/dlpank)
+#include(external/dlpank)
 
 if (NOT WIN32)
 # there is no official support of snappystream, warpctc, nccl, cupti in windows
@@ -215,6 +215,7 @@ include(external/threadpool)
 include(flags)              # set paddle compile flags
 include(cudnn)              # set cudnn libraries, must before configure
 include(configure)          # add paddle env configuration
+include(tc)
 
 if(WITH_GPU)
     include(cuda)
