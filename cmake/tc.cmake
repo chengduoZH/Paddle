@@ -35,6 +35,8 @@ find_library(TC_LIBRARY NAMES ${TC_LIB_NAME} # libcudnn_static.a
 
 if(TC_INCLUDE_DIR AND TC_LIBRARY)
     message("TC FOUND")
+    message(${TC_INCLUDE_DIR})
+    message(${TC_LIBRARY})
 else()
     message("TC NOT FOUND")
 endif()
