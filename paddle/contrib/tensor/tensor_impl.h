@@ -18,65 +18,111 @@
 #include <vector>
 
 #include "paddle/fluid/framework/tensor.h"
-//#include <ATen/ATen.h>
-//#include <ATen/DLConvertor.h>
 #include "tc/core/tensor.h"
 
 namespace tc {
 namespace aten {
 
-// Stolen from ATen, get rid of our copy when ATen exposes the functionality
-// Unfortunately we need to wait for updated conda packages so we just copy
-// for now.
-inline DLDataType getDLDataType(const at::Type& type) {
-  using at::ScalarType;
-
+static DLDataType getDLDataType(const std::type_index& type) {
   DLDataType dtype;
   dtype.lanes = 1;
-  dtype.bits = type.elementSizeInBytes() * 8;
-  switch (type.scalarType()) {
-    case ScalarType::Byte:
-      dtype.code = DLDataTypeCode::kDLUInt;
-      break;
-    case ScalarType::Char:
-      dtype.code = DLDataTypeCode::kDLInt;
-      break;
-    case ScalarType::Double:
+  dtype.bits = paddle::framework::SizeOfType(type);
+
+  switch (type) {
+    case std::type_index(typeid(double)):
       dtype.code = DLDataTypeCode::kDLFloat;
       break;
-    case ScalarType::Float:
+    case std::type_index(typeid(float)):
       dtype.code = DLDataTypeCode::kDLFloat;
       break;
-    case ScalarType::Int:
+    case std::type_index(typeid(int)):
       dtype.code = DLDataTypeCode::kDLInt;
       break;
-    case ScalarType::Long:
-      dtype.code = DLDataTypeCode::kDLInt;
-      break;
-    case ScalarType::Short:
-      dtype.code = DLDataTypeCode::kDLInt;
-      break;
-    case ScalarType::Half:
-      dtype.code = DLDataTypeCode::kDLFloat;
-      break;
-    case ScalarType::Undefined:
-      throw std::logic_error("Undefined is not a valid ScalarType");
-    case ScalarType::NumOptions:
+    default:
       throw std::logic_error("NumOptions is not a valid ScalarType");
   }
   return dtype;
 }
 
-inline TensorInfo toTensorInfo(const at::Tensor& t) {
-  return TensorInfo(
-      getDLDataType(t.type()),
-      reinterpret_cast<std::uintptr_t>(t.data_ptr()) % TensorInfo::kAlignment,
-      t.sizes(),
-      t.strides());
+static std::type_index getDType(const DLDataType& dtype) {
+  std::type_index type;
+  switch (dtype) {
+    case DLDataTypeCode::kDLFloat:
+      type = std::type_index(typeid(double));
+    case DLDataTypeCode::kDLFloat:
+      type = std::type_index(typeid(float));
+    case DLDataTypeCode::kDLInt:
+      type = std::type_index(typeid(int));
+      break;
+    default:
+      throw std::logic_error("NumOptions is not a valid ScalarType");
+  }
+  return type;
+}
+
+static DLContext getDLContext(const paddle::framework::Tensor& src,
+                              const int64_t& device_id) {
+  DLContext ctx;
+  ctx.device_id = device_id;
+  if (paddle::platform::is_gpu_place(src.place())) {
+    ctx.device_type = DLDeviceType::kDLGPU;
+  } else {
+    ctx.device_type = DLDeviceType::kDLCPU;
+  }
+  return ctx;
+}
+
+struct PTenDLMTensor {
+  paddle::framework::Tensor handle;
+  DLManagedTensor tensor;
+};
+
+// This function returns a shared_ptr to memory managed DLpack tensor
+// constructed
+// out of ATen tensor
+DLManagedTensor* toDLPack(const paddle::framework::Tensor& src) {
+  PTenDLMTensor* paddle_dl_tensor(new PTenDLMTensor);
+  paddle_dl_tensor->handle = src;
+  paddle_dl_tensor->tensor.manager_ctx = paddle_dl_tensor;
+  paddle_dl_tensor->tensor.deleter = nullptr;
+  paddle_dl_tensor->tensor.dl_tensor.data = src.data<void>();
+
+  int64_t device_id =
+      boost::get<paddle::platform::CUDAPlace>(src.place()).device;
+
+  paddle_dl_tensor->tensor.dl_tensor.ctx = getDLContext(src, device_id);
+  paddle_dl_tensor->tensor.dl_tensor.ndim = src.dims().size();
+  paddle_dl_tensor->tensor.dl_tensor.dtype = getDLDataType(src.type());
+  paddle_dl_tensor->tensor.dl_tensor.shape =
+      const_cast<int64_t*>(paddle::framework::vectorize(src.dims()).data());
+  paddle_dl_tensor->tensor.dl_tensor.strides =
+      nullptr;  // const_cast<int64_t*>(src.strides().data());
+  paddle_dl_tensor->tensor.dl_tensor.byte_offset = 0;
+  return &(paddle_dl_tensor->tensor);
+}
+
+std::vector<int64_t> ToVector(int64_t* shape, int dims) {
+  std::vector<int64_t> vec(dims);
+  vec.insert(vec.begin(), shape, shape + dims);
+  return vec;
+}
+
+paddle::framework::Tensor fromDLPack(const DLManagedTensor* src) {
+  paddle::framework::Tensor tensor;
+
+  int dev_id = paddle_dl_tensor->tensor.dl_tensor.ctx.device_id;
+  auto dim = ToVector(src->dl_tensor.shape, src->dl_tensor.ndim);
+  auto type = getDType(paddle_dl_tensor->tensor.dl_tensor.dtype);
+
+  tensor.Resize(paddle::framework::make_ddim(dim));
+  tensor.mutable_data(paddle::platform::CUDAPlace(dev_id), type);
+
+  std::swap(tensor.data<void>(), src->dl_tensor.data);
+  return tensor;
 }
 
 inline std::vector<DLTensorUPtr> makeDLTensors(
-    const std::vector<at::Tensor>& tensors) {
+    const std::vector<paddle::framework::Tensor>& tensors) {
   std::vector<DLTensorUPtr> dlTensors;
   for (auto tensor : tensors) {
     auto dlMTensor = at::toDLPack(tensor);
@@ -87,7 +133,7 @@ inline std::vector<DLTensorUPtr> makeDLTensors(
 }
 
 inline std::vector<DLConstTensorUPtr> makeDLConstTensors(
-    const std::vector<at::Tensor>& tensors) {
+    const std::vector<paddle::framework::Tensor>& tensors) {
   std::vector<DLConstTensorUPtr> dlTensors;
   for (auto tensor : tensors) {
     auto dlMTensor = at::toDLPack(tensor);
@@ -97,14 +143,5 @@ inline std::vector<DLConstTensorUPtr> makeDLConstTensors(
   return dlTensors;
 }
 
-inline void setAtenSeed(uint64_t seed, at::Backend backend) {
-  at::Generator& gen = at::globalContext().defaultGenerator(backend);
-  gen.manualSeed(seed);
-}
-
-inline uint64_t getAtenSeed(at::Backend backend) {
-  at::Generator& gen = at::globalContext().defaultGenerator(backend);
-  return gen.seed();
-}
 }  // namespace aten
 }  // namespace tc

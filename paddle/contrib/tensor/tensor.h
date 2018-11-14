@@ -19,19 +19,16 @@
 
 #include "paddle/fluid/framework/tensor.h"
 
+#include "tc/core/tensor.h"
+
 namespace paddle {
 namespace contrib {
-
-inline TensorInfo toTensorInfo(const paddle::framework::Tensor&);
 
 inline std::vector<DLTensorUPtr> makeDLTensors(
     const std::vector<paddle::framework::Tensor>& tensors);
 
 inline std::vector<DLConstTensorUPtr> makeDLConstTensors(
     const std::vector<paddle::framework::Tensorr>& tensors);
-
-inline void setAtenSeed(uint64_t seed, at::Backend backend);
-inline uint64_t getAtenSeed(at::Backend backend);
 
 }  // namespace contrib
 }  // namespace paddle
