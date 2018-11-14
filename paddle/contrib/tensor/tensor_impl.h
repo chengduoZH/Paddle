@@ -21,7 +21,7 @@
 #include "tc/core/tensor.h"
 
 namespace tc {
-namespace aten {
+namespace pten {
 
 static DLDataType getDLDataType(const std::type_index& type) {
   DLDataType dtype;
@@ -142,5 +142,5 @@ inline std::vector<DLConstTensorUPtr> makeDLConstTensors(
   return dlTensors;
 }
 
-}  // namespace aten
+}  // namespace pten
 }  // namespace tc

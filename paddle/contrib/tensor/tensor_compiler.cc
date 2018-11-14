@@ -11,3 +11,59 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#include "paddle/contrib/tensor/tensor_compiler.h"
+
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include "paddle/contrib/tensor/tensor.h"
+#include "paddle/fluid/framework/tensor.h"
+#include "tc/core/check.h"
+#include "tc/core/compiler.h"
+#include "tc/core/tc_executor.h"
+#include "tc/core/tensor.h"
+
+namespace tc {
+namespace aten {
+std::vector<tc::DLTensorUPtr> inferOutputTensorInfo(
+    const std::string& tc,
+    const std::string& entryPoint,
+    const std::vector<paddle::framework::Tensor>& inputs) {
+  auto parsedTcs = tc::detail::parse(tc);
+  if (parsedTcs.count(entryPoint) != 1u) {
+    TC_CHECK_GE(parsedTcs.size(), 1u)
+        << "No TC was parsed, should have thrown earlier";
+    throw lang::ErrorReport(parsedTcs.begin()->second)
+        << "\nattempting to access undefined entryPoint: " << entryPoint;
+  }
+  auto inputDLTensors = makeDLConstTensors(inputs);
+  return makeDLTensorVector(detail::inferOutputTensorInfo(
+      parsedTcs.at(entryPoint), extractRawPtrs(inputDLTensors)));
+}
+
+std::vector<paddle::framework::Tensor> prepareOutputs(
+    const std::string& tc,
+    const std::string& entryPoint,
+    const std::vector<paddle::framework::Tensor>& inputs) {
+  std::vector<paddle::framework::Tensor> outputs;
+  auto outTensorInfo = inferOutputTensorInfo(tc, entryPoint, inputs);
+  if (outTensorInfo.size() == 0) {
+    return outputs;
+  }
+  TC_CHECK_GE(inputs.size(), 1u)
+      << "NYI: Need >= 1 input tensors to determine "
+      << "backend and prepare ATen outputs. Add an overload with just an ATen "
+      << "backend";
+  auto atenBackend = inputs[0].type().backend();
+  for (size_t i = 0; i < outTensorInfo.size(); ++i) {
+    TensorInfo info(outTensorInfo[i]);
+    auto stype = at::toScalarType(info.dtype);
+    outputs.push_back(
+        at::getType(atenBackend, stype).tensor(at::IntList(info.shape)));
+  }
+  return outputs;
+}
+}  // namespace aten
+}  // namespace tc

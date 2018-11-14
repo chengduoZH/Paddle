@@ -11,3 +11,75 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#include "paddle/contrib/tensor/tensor_compiler.h"
+
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include "paddle/contrib/tensor/tensor.h"
+#include "paddle/fluid/framework/tensor.h"
+#include "tc/core/check.h"
+#include "tc/core/compiler.h"
+#include "tc/core/tc_executor.h"
+#include "tc/core/tensor.h"
+
+namespace tc {
+namespace pten {
+template <typename Backend>
+std::unique_ptr<typename Backend::ExecutorType> compile(
+    const std::string& tc,
+    const std::string& entryPoint,
+    const std::vector<paddle::framework::Tensor>& inputs,
+    const typename Backend::MappingOptionsType& options,
+    const CompilerOptions& compilerOptions) {
+  auto inputDLTensors = makeDLConstTensors(inputs);
+  return tc::compile<Backend>(
+      tc, entryPoint, extractRawPtrs(inputDLTensors), options, compilerOptions);
+}
+
+template <typename Executor>
+void run(const Executor& executor,
+         const std::vector<paddle::framework::Tensor>& inputs,
+         std::vector<paddle::framework::Tensor>& outputs) {
+  auto inputDLTensors = makeDLConstTensors(inputs);
+  auto outputDLTensors = makeDLTensors(outputs);
+  return executor.run(extractRawPtrs(inputDLTensors),
+                      extractRawPtrs(outputDLTensors));
+}
+
+template <typename Executor>
+ProfilingInfo profile(const Executor& executor,
+                      const std::vector<paddle::framework::Tensor>& inputs,
+                      std::vector<paddle::framework::Tensor>& outputs) {
+  auto start = std::chrono::system_clock::now();
+  auto inputDLTensors = makeDLConstTensors(inputs);
+  auto outputDLTensors = makeDLTensors(outputs);
+  ProfilingInfo pi(executor.profile(extractRawPtrs(inputDLTensors),
+                                    extractRawPtrs(outputDLTensors)));
+
+  // The total CPU overhead is the total time minus the (synchronized) kernel
+  // runtime
+  Duration cpuOverhead(Duration::since(start));
+  cpuOverhead = cpuOverhead - pi.kernelRuntime;
+  return ProfilingInfo{cpuOverhead, pi.kernelRuntime};
+}
+
+template <typename Executor>
+void uncheckedRun(const Executor& executor,
+                  const std::vector<paddle::framework::Tensor>& inputs,
+                  std::vector<paddle::framework::Tensor>& outputs) {
+  TC_CHECK_GE(outputs.size(), 1u);
+  std::vector<const void*> rawInputs(inputs.size(), nullptr);
+  std::vector<void*> rawOutputs(outputs.size(), nullptr);
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    rawInputs[i] = inputs[i].data_ptr();
+  }
+  for (size_t i = 0; i < outputs.size(); ++i) {
+    rawOutputs[i] = outputs[i].data_ptr();
+  }
+  return executor.uncheckedRun(rawInputs, rawOutputs);
+}
+}  // namespace aten
+}  // namespace tc
