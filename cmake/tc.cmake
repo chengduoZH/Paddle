@@ -5,11 +5,11 @@ endif()
 set(TC_ROOT "/paddle/tc/install" CACHE PATH "TC ROOT")
 find_path(TC_INCLUDE_DIR Halide.h
     PATHS ${TC_ROOT} ${TC_ROOT}/include
-    $ENV{TC_ROOT} $ENV{TC_ROOT}/include ${CUDA_TOOLKIT_INCLUDE}
+    $ENV{TC_ROOT} $ENV{TC_ROOT}/include
     NO_DEFAULT_PATH
 )
 
-get_filename_component(__libpath_hist ${CUDA_CUDART_LIBRARY} PATH)
+#get_filename_component(__libpath_hist ${CUDA_CUDART_LIBRARY} PATH)
 
 set(TARGET_ARCH "x86_64")
 if(NOT ${CMAKE_SYSTEM_PROCESSOR})
