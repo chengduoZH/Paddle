@@ -27,7 +27,6 @@ static DLDataType getDLDataType(const std::type_index& type) {
   DLDataType dtype;
   dtype.lanes = 1;
   dtype.bits = paddle::framework::SizeOfType(type);
-
   switch (type) {
     case std::type_index(typeid(double)):
       dtype.code = DLDataTypeCode::kDLFloat;
