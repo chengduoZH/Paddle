@@ -57,12 +57,12 @@ std::vector<paddle::framework::Tensor> prepareOutputs(
       << "backend and prepare ATen outputs. Add an overload with just an ATen "
       << "backend";
   auto atenBackend = inputs[0].type().backend();
-  for (size_t i = 0; i < outTensorInfo.size(); ++i) {
-    TensorInfo info(outTensorInfo[i]);
-    auto stype = at::toScalarType(info.dtype);
-    outputs.push_back(
-        at::getType(atenBackend, stype).tensor(at::IntList(info.shape)));
-  }
+  //   for (size_t i = 0; i < outTensorInfo.size(); ++i) {
+  //     TensorInfo info(outTensorInfo[i]);
+  //     auto stype = at::toScalarType(info.dtype);
+  //     outputs.push_back(
+  //         at::getType(atenBackend, stype).tensor(at::IntList(info.shape)));
+  //   }
   return outputs;
 }
 }  // namespace aten
