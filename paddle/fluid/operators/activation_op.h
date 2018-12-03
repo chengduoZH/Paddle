@@ -751,6 +751,7 @@ struct SimplePow {
   explicit SimplePow(int factor) : factor_(factor) {
     PADDLE_ENFORCE_GE(factor_, 0, "The factor should be greater than 0.");
   }
+
   T operator(T ele) {
     T result = 1;
     for (int i = 0; i < i_factor; ++i) {
@@ -758,8 +759,10 @@ struct SimplePow {
     }
     return result;
   }
+
   const int factor_;
-}
+};
+
 // FIXME(qijun) https://github.com/PaddlePaddle/Paddle/issues/5198
 template <typename T>
 struct PowFunctor : public BaseActivationFunctor<T> {
@@ -772,7 +775,7 @@ struct PowFunctor : public BaseActivationFunctor<T> {
     int i_factor = static_cast<int>(factor);
     PADDLE_ENFORCE_EQ(factor, i_factor,
                       "Currently, the factor only can be an interger.");
-    SimplePow pow(i_factor);
+    SimplePow<T> pow(i_factor);
     out.device(d) = x.unaryExpr(pow);
   }
 };
@@ -789,7 +792,7 @@ struct PowGradFunctor : public BaseActivationFunctor<T> {
     int i_factor = static_cast<int>(static_cast<T>(factor) - static_cast<T>(1));
     PADDLE_ENFORCE_EQ(static_cast<T>(factor) - static_cast<T>(1), i_factor,
                       "Currently, the factor only can be an interger.");
-    SimplePow pow(i_factor);
+    SimplePow<T> pow(i_factor);
     dx.device(d) = dout * static_cast<T>(factor) * x.unaryExpr(pow);
   }
 };
