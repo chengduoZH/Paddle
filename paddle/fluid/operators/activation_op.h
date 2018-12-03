@@ -795,6 +795,76 @@ struct LeakyReluGradFunctor : public BaseActivationFunctor<T> {
   }
 };
 
+static HOSTDEVICE float real_exp(float x) { return expf(x); }
+static HOSTDEVICE double real_exp(double x) { return exp(x); }
+static HOSTDEVICE platform::float16 real_exp(platform::float16 x) {
+  return static_cast<platform::float16>(expf(static_cast<float>(x)));
+}
+
+template <typename T>
+struct SeluFun {
+  SeluFun(float alpha, float scale)
+      : alpha_(static_cast<T>(alpha)), scale_(static_cast<T>(scale)) {}
+
+  HOSTDEVICE T operator()(T x_ele) const {
+    if (x_ele <= static_cast<T>(0)) {
+      x_ele = alpha_ * real_exp(x_ele) - alpha_;
+    }
+    return scale_ * x_ele;
+  }
+
+  const T alpha_;
+  const T scale_;
+};
+
+template <typename T>
+struct SeluGradFun {
+  SeluGradFun(float alpha, float scale)
+      : alpha_(static_cast<T>(alpha)),
+        scale_(static_cast<T>(scale)),
+        la_(alpha_ * scale_) {}
+
+  HOSTDEVICE T operator()(T y_ele) const {
+    T tmp = scale_;
+    if (y_ele <= static_cast<T>(0)) {
+      tmp = y_ele + la_;
+    }
+    return tmp;
+  }
+
+  const T alpha_;
+  const T scale_;
+  const T la_;
+};
+
+template <typename T>
+struct SeluFunctor : public BaseActivationFunctor<T> {
+  float scale;
+  float alpha;
+  typename BaseActivationFunctor<T>::AttrPair GetAttrs() {
+    return {{"alpha", &alpha}, {"scale", &scale}};
+  }
+
+  template <typename Device, typename X, typename Out>
+  void operator()(Device d, X x, Out out) const {
+    out.device(d) = x.unaryExpr(SeluFun<T>(alpha, scale));
+  }
+};
+
+template <typename T>
+struct SeluGradFunctor : public BaseActivationFunctor<T> {
+  float scale;
+  float alpha;
+  typename BaseActivationFunctor<T>::AttrPair GetAttrs() {
+    return {{"alpha", &alpha}, {"scale", &scale}};
+  }
+  template <typename Device, typename X, typename Out, typename dOut,
+            typename dX>
+  void operator()(Device d, X x, Out out, dOut dout, dX dx) const {
+    dx.device(d) = dout * out.unaryExpr(SeluGradFun<T>(alpha, scale));
+  }
+};
+
 template <typename T>
 struct ELUFunctor : public BaseActivationFunctor<T> {
   float alpha;
@@ -1000,6 +1070,7 @@ struct SwishGradFunctor : public BaseActivationFunctor<T> {
   __macro(log, LogFunctor, LogGradFunctor);                          \
   __macro(square, SquareFunctor, SquareGradFunctor);                 \
   __macro(brelu, BReluFunctor, BReluGradFunctor);                    \
+  __macro(selu_eigen, SeluFunctor, SeluGradFunctor);                 \
   __macro(soft_relu, SoftReluFunctor, SoftReluGradFunctor);          \
   __macro(pow, PowFunctor, PowGradFunctor);                          \
   __macro(stanh, STanhFunctor, STanhGradFunctor);                    \

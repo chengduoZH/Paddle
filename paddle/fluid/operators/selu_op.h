@@ -20,7 +20,7 @@ namespace paddle {
 namespace operators {
 
 static HOSTDEVICE float real_exp(float x) { return expf(x); }
-static HOSTDEVICE float real_exp(double x) { return exp(x); }
+static HOSTDEVICE double real_exp(double x) { return exp(x); }
 
 template <typename T>
 struct SeluFunctor {
