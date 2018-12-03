@@ -752,10 +752,10 @@ struct SimplePow {
     PADDLE_ENFORCE_GE(factor_, 0, "The factor should be greater than 0.");
   }
 
-  T operator(T ele) {
+  T operator(T ele) const {
     T result = 1;
     for (int i = 0; i < i_factor; ++i) {
-      result *= i_factor;
+      result *= ele;
     }
     return result;
   }
@@ -775,7 +775,14 @@ struct PowFunctor : public BaseActivationFunctor<T> {
     int i_factor = static_cast<int>(factor);
     PADDLE_ENFORCE_EQ(factor, i_factor,
                       "Currently, the factor only can be an interger.");
-    SimplePow<T> pow(i_factor);
+    //    SimplePow<T> pow(i_factor);
+    auto pow = [i_factor](T ele) {
+      T result = 1;
+      for (int i = 0; i < i_factor; ++i) {
+        result *= ele;
+      }
+      return result;
+    };
     out.device(d) = x.unaryExpr(pow);
   }
 };
@@ -792,7 +799,14 @@ struct PowGradFunctor : public BaseActivationFunctor<T> {
     int i_factor = static_cast<int>(static_cast<T>(factor) - static_cast<T>(1));
     PADDLE_ENFORCE_EQ(static_cast<T>(factor) - static_cast<T>(1), i_factor,
                       "Currently, the factor only can be an interger.");
-    SimplePow<T> pow(i_factor);
+    //    SimplePow<T> pow(i_factor);
+    auto pow = [i_factor](T ele) {
+      T result = 1;
+      for (int i = 0; i < i_factor; ++i) {
+        result *= ele;
+      }
+      return result;
+    };
     dx.device(d) = dout * static_cast<T>(factor) * x.unaryExpr(pow);
   }
 };
