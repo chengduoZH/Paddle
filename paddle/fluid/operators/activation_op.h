@@ -754,6 +754,7 @@ struct SeluGradFun {
   const float scale_;
   const float la_;
 };
+
 template <typename T>
 struct SeluFunctor : public BaseActivationFunctor<T> {
   float scale;
@@ -987,6 +988,7 @@ struct SwishGradFunctor : public BaseActivationFunctor<T> {
   __macro(log, LogFunctor, LogGradFunctor);                          \
   __macro(square, SquareFunctor, SquareGradFunctor);                 \
   __macro(brelu, BReluFunctor, BReluGradFunctor);                    \
+  __macro(selu1, SeluFunctor, SeluGradFunctor);                      \
   __macro(soft_relu, SoftReluFunctor, SoftReluGradFunctor);          \
   __macro(pow, PowFunctor, PowGradFunctor);                          \
   __macro(stanh, STanhFunctor, STanhGradFunctor);                    \

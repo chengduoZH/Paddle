@@ -331,6 +331,40 @@ $out = \max(\min(x, t_{min}), t_{max})$
   }
 };
 
+class SeluOpMaker : public framework::OpProtoAndCheckerMaker {
+ public:
+  void Make() override {
+    AddInput("X", "Input of Selu operator");
+    AddOutput("Out", "Output of Selu operator");
+    AddAttr<float>("scale",
+                   "(float) the default value is 1.0507~. For more "
+                   "information about this value, please refer to:"
+                   "https://arxiv.org/abs/1706.02515.")
+        .SetDefault(1.0507009873554804934193349852946);
+    AddAttr<float>("alpha",
+                   "(float) the default value is 1.6732~. For more "
+                   "information about this value, please refer to:"
+                   "https://arxiv.org/abs/1706.02515.")
+        .SetDefault(1.6732632423543772848170429916717);
+    AddComment(R"DOC(
+Selu Operator.
+
+The equation is:
+$$
+f(x) =\lambda*
+\begin{cases}
+ \quad \quad   x,  \quad \quad \quad \text{if} \ x > 0 \\
+ \alpha * e^x - \alpha,  \qquad  \text{if} \ x <= 0
+\end{cases}
+$$
+
+The input `X` can carry the LoD (Level of Details) information,
+or not. And the output shares the LoD information with input `X`.
+
+)DOC");
+  }
+};
+
 class SoftReluOpMaker : public framework::OpProtoAndCheckerMaker {
  public:
   void Make() override {
@@ -536,6 +570,7 @@ namespace ops = paddle::operators;
   __macro(Square, square);           \
   __macro(Gelu, gelu);               \
   __macro(BRelu, brelu);             \
+  __macro(Selu, selu1);              \
   __macro(Pow, pow);                 \
   __macro(STanh, stanh);             \
   __macro(Softplus, softplus);       \
