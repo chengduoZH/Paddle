@@ -724,35 +724,38 @@ static HOSTDEVICE platform::float16 real_exp(platform::float16 x) {
 
 template <typename T>
 struct SeluFun {
-  SeluFun(float alpha, float scale) : alpha_(alpha), scale_(scale) {}
+  SeluFun(float alpha, float scale)
+      : alpha_(static_cast<T>(alpha)), scale_(static_cast<T>(scale)) {}
 
   HOSTDEVICE T operator()(T x_ele) const {
-    if (x_ele <= 0) {
+    if (x_ele <= static_cast<T>(0)) {
       x_ele = alpha_ * real_exp(x_ele) - alpha_;
     }
     return scale_ * x_ele;
   }
 
-  const float alpha_;
-  const float scale_;
+  const T alpha_;
+  const T scale_;
 };
 
 template <typename T>
 struct SeluGradFun {
   SeluGradFun(float alpha, float scale)
-      : alpha_(alpha), scale_(scale), la_(alpha * scale) {}
+      : alpha_(static_cast<T>(alpha)),
+        scale_(static_cast<T>(scale)),
+        la_(alpha_ * scale_) {}
 
   HOSTDEVICE T operator()(T y_ele) const {
     float tmp = scale_;
-    if (y_ele <= 0) {
+    if (y_ele <= static_cast<T>(0)) {
       tmp = y_ele + la_;
     }
     return tmp;
   }
 
-  const float alpha_;
-  const float scale_;
-  const float la_;
+  const T alpha_;
+  const T scale_;
+  const T la_;
 };
 
 template <typename T>
