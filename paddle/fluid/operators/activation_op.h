@@ -806,11 +806,12 @@ struct SeluFun {
   SeluFun(float alpha, float scale)
       : alpha_(static_cast<T>(alpha)), scale_(static_cast<T>(scale)) {}
 
-  HOSTDEVICE T operator()(T x_ele) const {
-    if (x_ele <= static_cast<T>(0)) {
-      x_ele = alpha_ * real_exp(x_ele) - alpha_;
+  HOSTDEVICE T operator()(const T& x_ele) const {
+    T x = x_ele;
+    if (x <= static_cast<T>(0)) {
+      x = alpha_ * real_exp(x_ele) - alpha_;
     }
-    return scale_ * x_ele;
+    return scale_ * x;
   }
 
   const T alpha_;
@@ -824,7 +825,7 @@ struct SeluGradFun {
         scale_(static_cast<T>(scale)),
         la_(alpha_ * scale_) {}
 
-  HOSTDEVICE T operator()(T y_ele) const {
+  HOSTDEVICE T operator()(const T& y_ele) const {
     T tmp = scale_;
     if (y_ele <= static_cast<T>(0)) {
       tmp = y_ele + la_;
