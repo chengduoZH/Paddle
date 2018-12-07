@@ -64,3 +64,12 @@ REGISTER_OP_CPU_KERNEL(
     ops::ElementwiseMulGradKernel<paddle::platform::CPUDeviceContext, double>,
     ops::ElementwiseMulGradKernel<paddle::platform::CPUDeviceContext, int>,
     ops::ElementwiseMulGradKernel<paddle::platform::CPUDeviceContext, int64_t>);
+
+REGISTER_OP_KERNEL_WITH_CUSTOM_TYPE(
+    elementwise_mul, CPU, ::paddle::platform::CPUPlace, SelecteRowsMulTensor,
+    ops::kSelecteRowsMulTensor,
+    ops::SelecteRowsMulTensorKernel<paddle::platform::CPUDeviceContext, float>,
+    ops::SelecteRowsMulTensorKernel<paddle::platform::CPUDeviceContext, double>,
+    ops::SelecteRowsMulTensorKernel<paddle::platform::CPUDeviceContext, int>,
+    ops::SelecteRowsMulTensorKernel<paddle::platform::CPUDeviceContext,
+                                    int64_t>);

@@ -30,3 +30,13 @@ REGISTER_OP_CUDA_KERNEL(
     ops::ElementwiseMulGradKernel<paddle::platform::CUDADeviceContext, int>,
     ops::ElementwiseMulGradKernel<paddle::platform::CUDADeviceContext,
                                   int64_t>);
+
+REGISTER_OP_KERNEL_WITH_CUSTOM_TYPE(
+    elementwise_mul, CUDA, ::paddle::platform::CPUPlace, SelecteRowsMulTensor,
+    ops::kSelecteRowsMulTensor,
+    ops::SelecteRowsMulTensorKernel<paddle::platform::CUDADeviceContext, float>,
+    ops::SelecteRowsMulTensorKernel<paddle::platform::CUDADeviceContext,
+                                    double>,
+    ops::SelecteRowsMulTensorKernel<paddle::platform::CUDADeviceContext, int>,
+    ops::SelecteRowsMulTensorKernel<paddle::platform::CUDADeviceContext,
+                                    int64_t>);
