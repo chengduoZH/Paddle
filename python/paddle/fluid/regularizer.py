@@ -324,7 +324,7 @@ class WeightDecay(object):
                 [param, grad]), framework.name_scope('weight decay'):
                 assert param.name not in self.params_name_
                 self.scaled_params_.append((param, grad, param * self.coeff_))
-                self.params_name_.append(param.name)
+                self.params_name_.add(param.name)
 
     def apply(self):
         """
