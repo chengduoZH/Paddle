@@ -15,6 +15,7 @@ limitations under the License. */
 #include <vector>
 
 #include "paddle/fluid/memory/memory.h"
+
 #ifdef PADDLE_WITH_CUDA
 #include "paddle/fluid/framework/rw_lock.h"
 #include "paddle/fluid/platform/cuda_device_guard.h"
@@ -82,6 +83,42 @@ DeviceContextPool::DeviceContextPool(
 #endif
     }
   }
+}
+
+DeviceTemporaryAllocator* DeviceTemporaryAllocator::allocators = nullptr;
+
+// #ifdef PADDLE_WITH_CUDA
+platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
+    const platform::Place& place, const cudaStream_t& stream) {
+  auto place_stream = std::make_pair(place, stream);
+  if (device_allocator_.count(place_stream)) {
+    device_allocator_[place_stream].reset(
+        new TemporaryAllocator(dev_ctx.GetPlace()));
+  }
+  return *device_allocator_.at(std::make_pair(dev_ctx.GetPlace(),
+dev_ctx.stream());
+}
+// #endif
+
+platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
+    const platform::DeviceContext& dev_ctx) {
+  if (platform::is_cpu_place(dev_ctx.GetPlace())) {
+    return cpu_allocator_;
+  } else if (platform::is_gpu_place(dev_ctx.GetPlace())) {
+#ifdef PADDLE_WITH_CUDA
+    return Get(dev_ctx.GetPlace(), dev_ctx.stream());
+#else
+    PADDLE_THROW("Not compile with cuda");
+#endif
+  } else {
+    PADDLE_THROW("Not implement");
+  }
+}
+
+platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
+    const platform::Place& place) {
+  PADDLE_ENFORCE(platform::is_cpu_place(place), "You should pass CPUPlace");
+  return cpu_allocator_;
 }
 
 CPUDeviceContext::CPUDeviceContext() {

@@ -15,6 +15,7 @@ limitations under the License. */
 #include <mutex>  // NOLINT
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include "paddle/fluid/memory/malloc.h"
 #include "paddle/fluid/platform/temporay_allocator.h"
@@ -369,6 +370,42 @@ class DeviceContextPool {
   std::map<Place, std::shared_future<std::unique_ptr<DeviceContext>>>
       device_contexts_;
   DISABLE_COPY_AND_ASSIGN(DeviceContextPool);
+};
+
+/*! \brief device temporary allocator singleton */
+class DeviceTemporaryAllocator {
+ public:
+  static DeviceTemporaryAllocator& Instance() {
+    if (allocators == nullptr) {
+      allocators = new DeviceTemporaryAllocator();
+    }
+    return *allocators;
+  }
+
+/*! \brief  Return handle of single device context. */
+#ifdef PADDLE_WITH_CUDA
+  platform::TemporaryAllocator& Get(const platform::Place& place,
+                                    const cudaStream_t& stream);
+#endif
+
+  platform::TemporaryAllocator& Get(const platform::DeviceContext& dev_ctx);
+
+  platform::TemporaryAllocator& Get(const platform::Place& place);
+
+ private:
+  DeviceTemporaryAllocator() : cpu_allocator_(platform::CPUPlace()) {}
+
+  static DeviceTemporaryAllocator* allocators;
+
+  platform::TemporaryAllocator cpu_allocator_;
+
+#ifdef PADDLE_WITH_CUDA
+  std::map<std::pair<platform::Place, cudaStream_t>,
+           std::unique_ptr<platform::TemporaryAllocator>>
+      device_allocator_;
+#endif
+
+  DISABLE_COPY_AND_ASSIGN(DeviceTemporaryAllocator);
 };
 
 }  // namespace platform
