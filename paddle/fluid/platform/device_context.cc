@@ -87,7 +87,7 @@ DeviceContextPool::DeviceContextPool(
 
 DeviceTemporaryAllocator* DeviceTemporaryAllocator::allocators = nullptr;
 
-// #ifdef PADDLE_WITH_CUDA
+#ifdef PADDLE_WITH_CUDA
 platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
     const platform::Place& place, const cudaStream_t& stream) {
   auto place_stream = std::make_pair(place, stream);
@@ -96,9 +96,9 @@ platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
         new TemporaryAllocator(dev_ctx.GetPlace()));
   }
   return *device_allocator_.at(std::make_pair(dev_ctx.GetPlace(),
-dev_ctx.stream());
+                                              dev_ctx.stream());
 }
-// #endif
+#endif
 
 platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
     const platform::DeviceContext& dev_ctx) {
