@@ -110,8 +110,7 @@ platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
 #ifdef PADDLE_WITH_CUDA
     auto place_stream = std::make_pair(place, stream);
     if (device_allocator_.count(place_stream)) {
-      return  *device_allocator_.at(std::make_pair(dev_ctx.GetPlace(),
-                                              dev_ctx.stream());
+      return *device_allocator_.at(place_stream);
     }
     return Get(dev_ctx.GetPlace(), dev_ctx.stream());
 #else
@@ -236,7 +235,7 @@ void CudnnHolder::ReallocateWorkspace(size_t required_workspace_len) {
 }
 
 CUDADeviceContext::CUDADeviceContext(CUDAPlace place)
-    : place_(place), cudnn_holder_(nullptr), allocator_(place) {
+    : place_(place), cudnn_holder_(nullptr) {
   CUDADeviceGuard guard(place_.device);
   compute_capability_ = GetCUDAComputeCapability(place_.device);
   multi_process_ = GetCUDAMultiProcessors(place_.device);
