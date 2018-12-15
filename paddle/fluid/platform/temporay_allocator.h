@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #pragma once
+#include <condition_variable>  // NOLINT
 #include <deque>
 #include <mutex>  // NOLINT
 #include "paddle/fluid/memory/allocation/allocator.h"
