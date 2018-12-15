@@ -108,7 +108,7 @@ platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
     return cpu_allocator_;
   } else if (platform::is_gpu_place(dev_ctx.GetPlace())) {
 #ifdef PADDLE_WITH_CUDA
-    auto place_stream = std::make_pair(place, stream);
+    auto place_stream = std::make_pair(dev_ctx.GetPlace(), dev_ctx.stream());
     if (device_allocator_.count(place_stream)) {
       return *device_allocator_.at(place_stream);
     }
@@ -315,10 +315,12 @@ CUDADeviceContext::~CUDADeviceContext() {
 Place CUDADeviceContext::GetPlace() const { return place_; }
 
 void CUDADeviceContext::Wait() {
-  auto allocator = DeviceTemporaryAllocator::Instance.Get(*this);
+  auto allocator = DeviceTemporaryAllocator::Instance().Get(*this);
   allocator.MoveToDeleteQueue();
+
   PADDLE_ENFORCE(cudaStreamSynchronize(stream_));
   PADDLE_ENFORCE(cudaGetLastError());
+
   allocator.Release();
 }
 
