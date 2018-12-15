@@ -94,12 +94,10 @@ platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
   if (!device_allocator_.count(place_stream)) {
     std::unique_lock<std::mutex> lock(mtx_);
     if (!device_allocator_.count(place_stream)) {
-      device_allocator_[place_stream].reset(
-          new TemporaryAllocator(dev_ctx.GetPlace()));
+      device_allocator_[place_stream].reset(new TemporaryAllocator(place));
     }
   }
-  return *device_allocator_.at(std::make_pair(dev_ctx.GetPlace(),
-                                              dev_ctx.stream());
+  return *device_allocator_.at(place_stream);
 }
 #endif
 
