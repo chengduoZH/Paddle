@@ -108,6 +108,7 @@ platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
     return cpu_allocator_;
   } else if (platform::is_gpu_place(dev_ctx.GetPlace())) {
 #ifdef PADDLE_WITH_CUDA
+    auto place_stream = std::make_pair(place, stream);
     if (device_allocator_.count(place_stream)) {
       return  *device_allocator_.at(std::make_pair(dev_ctx.GetPlace(),
                                               dev_ctx.stream());
