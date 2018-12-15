@@ -103,8 +103,9 @@ platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
 }
 #endif
 
+template <typename DeviceContext>
 platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
-    const platform::DeviceContext& dev_ctx) {
+    const DeviceContext& dev_ctx) {
   if (platform::is_cpu_place(dev_ctx.GetPlace())) {
     return cpu_allocator_;
   } else if (platform::is_gpu_place(dev_ctx.GetPlace())) {

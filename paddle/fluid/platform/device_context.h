@@ -62,8 +62,8 @@ class DeviceTemporaryAllocator {
   platform::TemporaryAllocator& Get(const platform::Place& place,
                                     const cudaStream_t& stream);
 #endif
-
-  platform::TemporaryAllocator& Get(const platform::DeviceContext& dev_ctx);
+  template <typename DeviceContext>
+  platform::TemporaryAllocator& Get(const DeviceContext& dev_ctx);
 
   platform::TemporaryAllocator& Get(const platform::Place& place);
 
