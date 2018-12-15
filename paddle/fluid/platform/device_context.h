@@ -93,7 +93,7 @@ class DeviceContext {
   virtual memory::allocation::AllocationPtr GetTemporlAllocation(
       size_t size) = 0;
 
-  virtual void Wait() {}
+  virtual void Wait() const {}
 };
 
 class CPUDeviceContext : public DeviceContext {
@@ -236,7 +236,7 @@ class CUDADeviceContext : public DeviceContext {
   virtual ~CUDADeviceContext();
 
   /*! \brief  Wait for all operations completion in the stream. */
-  void Wait() override;
+  void Wait() const override;
 
   /*! \brief  Return place in the device context. */
   Place GetPlace() const override;
