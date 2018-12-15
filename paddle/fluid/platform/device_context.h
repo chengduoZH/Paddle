@@ -91,7 +91,7 @@ class DeviceContext {
   virtual Place GetPlace() const = 0;
 
   virtual memory::allocation::AllocationPtr GetTemporlAllocation(
-      size_t size) = 0;
+      size_t size) const = 0;
 
   virtual void Wait() const {}
 };
@@ -105,7 +105,8 @@ class CPUDeviceContext : public DeviceContext {
 
   Place GetPlace() const override;
 
-  memory::allocation::AllocationPtr GetTemporlAllocation(size_t size) override {
+  memory::allocation::AllocationPtr GetTemporlAllocation(
+      size_t size) const override {
     auto& allocator =
         DeviceTemporaryAllocator::Instance().Get(this->GetPlace());
     return allocator.Allocate(size);
@@ -282,7 +283,8 @@ class CUDADeviceContext : public DeviceContext {
 
   void WaitStreamCallback() const { callback_manager_->Wait(); }
 
-  memory::allocation::AllocationPtr GetTemporlAllocation(size_t size) override {
+  memory::allocation::AllocationPtr GetTemporlAllocation(
+      size_t size) const override {
     auto& allocator = DeviceTemporaryAllocator::Instance().Get(*this);
     return allocator.Allocate(size);
   }
@@ -337,7 +339,8 @@ class CUDAPinnedDeviceContext : public DeviceContext {
 
   Eigen::DefaultDevice* eigen_device() const;
 
-  memory::allocation::AllocationPtr GetTemporlAllocation(size_t size) override {
+  memory::allocation::AllocationPtr GetTemporlAllocation(
+      size_t size) const override {
     return nullptr;
   }
 
