@@ -90,9 +90,6 @@ class DeviceContext {
   virtual ~DeviceContext() {}
   virtual Place GetPlace() const = 0;
 
-  virtual memory::allocation::AllocationPtr GetTemporlAllocation(
-      size_t size) const = 0;
-
   virtual void Wait() const {}
 };
 
@@ -282,12 +279,6 @@ class CUDADeviceContext : public DeviceContext {
   }
 
   void WaitStreamCallback() const { callback_manager_->Wait(); }
-
-  memory::allocation::AllocationPtr GetTemporlAllocation(
-      size_t size) const override {
-    auto& allocator = DeviceTemporaryAllocator::Instance().Get(*this);
-    return allocator.Allocate(size);
-  }
 
 #if CUDA_VERSION >= 9000
   /*! \brief CublasCall may need to change cublas's config,
