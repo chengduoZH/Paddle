@@ -166,7 +166,8 @@ class ConcatFunctor<platform::CUDADeviceContext, T> {
         std::min(max_blocks / grid_cols, std::max(out_row / block_rows, 1));
     dim3 grid_size = dim3(grid_cols, grid_rows, 1);
 
-    auto& allocator = DeviceTemporaryAllocator::Instance().Get(context);
+    auto& allocator =
+        platform::DeviceTemporaryAllocator::Instance().Get(context);
     auto tmp_dev_ins_data = allocator.Allocate(inputs_data.size());
     memory::Copy(boost::get<platform::CUDAPlace>(context.GetPlace()),
                  tmp_dev_ins_data->ptr(), platform::CPUPlace(),
