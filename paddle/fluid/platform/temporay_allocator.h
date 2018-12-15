@@ -33,6 +33,8 @@ class TemporaryAllocator : public memory::allocation::Allocator {
  public:
   explicit TemporaryAllocator(platform::Place place);
 
+  void MoveToDeleteQueue();
+
   void Release();
 
   bool IsAllocThreadSafe() const override;
@@ -45,8 +47,10 @@ class TemporaryAllocator : public memory::allocation::Allocator {
 
  private:
   platform::Place place_;
-  std::shared_ptr<std::deque<TemporayAllocation *>> temp_allocations_;
-  std::unique_ptr<std::mutex> mtx_;
+  std::shared_ptr<std::deque<TemporayAllocation *>> temp_memory_;
+  std::shared_ptr<std::deque<TemporayAllocation *>> wait_delete_memory_;
+  std::mutex mtx_;
+  std::condition_variable cv_;
 };
 
 }  // namespace platform
