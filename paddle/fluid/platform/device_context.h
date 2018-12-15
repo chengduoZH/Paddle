@@ -41,6 +41,50 @@ limitations under the License. */
 namespace paddle {
 namespace platform {
 
+/*! \brief device temporary allocator singleton */
+class DeviceTemporaryAllocator {
+ public:
+  static DeviceTemporaryAllocator& Instance() {
+    PADDLE_ENFORCE_NOT_NULL(allocators,
+                            "Need to Create DeviceContextPool first!");
+    return *allocators;
+  }
+
+  static DeviceTemporaryAllocator& Init() {
+    if (allocators == nullptr) {
+      allocators = new DeviceTemporaryAllocator();
+    }
+    return *allocators;
+  }
+
+/*! \brief  Return handle of single temporary allocator. */
+#ifdef PADDLE_WITH_CUDA
+  platform::TemporaryAllocator& Get(const platform::Place& place,
+                                    const cudaStream_t& stream);
+#endif
+
+  platform::TemporaryAllocator& Get(const platform::DeviceContext& dev_ctx);
+
+  platform::TemporaryAllocator& Get(const platform::Place& place);
+
+ private:
+  DeviceTemporaryAllocator() : cpu_allocator_(platform::CPUPlace()) {}
+
+  static DeviceTemporaryAllocator* allocators;
+
+  platform::TemporaryAllocator cpu_allocator_;
+
+#ifdef PADDLE_WITH_CUDA
+  std::map<std::pair<platform::Place, cudaStream_t>,
+           std::unique_ptr<platform::TemporaryAllocator>>
+      device_allocator_;
+#endif
+
+  std::mutex mtx_;
+
+  DISABLE_COPY_AND_ASSIGN(DeviceTemporaryAllocator);
+};
+
 class DeviceContext {
  public:
   virtual ~DeviceContext() {}
@@ -62,13 +106,14 @@ class CPUDeviceContext : public DeviceContext {
   Place GetPlace() const override;
 
   memory::allocation::AllocationPtr GetTemporlAllocation(size_t size) override {
-    return allocator_.Allocate(size);
+    auto& allocator =
+        DeviceTemporaryAllocator::Instance().Get(this->GetPlace());
+    return allocator.Allocate(size);
   }
 
  private:
   CPUPlace place_;
   std::unique_ptr<Eigen::DefaultDevice> eigen_device_;
-  platform::TemporaryAllocator allocator_{place_};
 };
 
 template <typename Place>
@@ -238,7 +283,8 @@ class CUDADeviceContext : public DeviceContext {
   void WaitStreamCallback() const { callback_manager_->Wait(); }
 
   memory::allocation::AllocationPtr GetTemporlAllocation(size_t size) override {
-    return allocator_.Allocate(size);
+    auto& allocator = DeviceTemporaryAllocator::Instance().Get(*this);
+    return allocator.Allocate(size);
   }
 
 #if CUDA_VERSION >= 9000
@@ -274,8 +320,6 @@ class CUDADeviceContext : public DeviceContext {
   std::unique_ptr<StreamCallbackManager> callback_manager_;
 
   mutable std::mutex cublas_mtx_;
-
-  TemporaryAllocator allocator_;
 };
 
 template <>
@@ -370,50 +414,6 @@ class DeviceContextPool {
   std::map<Place, std::shared_future<std::unique_ptr<DeviceContext>>>
       device_contexts_;
   DISABLE_COPY_AND_ASSIGN(DeviceContextPool);
-};
-
-/*! \brief device temporary allocator singleton */
-class DeviceTemporaryAllocator {
- public:
-  static DeviceTemporaryAllocator& Instance() {
-    PADDLE_ENFORCE_NOT_NULL(allocators,
-                            "Need to Create DeviceContextPool first!");
-    return *allocators;
-  }
-
-  static DeviceTemporaryAllocator& Init() {
-    if (allocators == nullptr) {
-      allocators = new DeviceTemporaryAllocator();
-    }
-    return *allocators;
-  }
-
-/*! \brief  Return handle of single temporary allocator. */
-#ifdef PADDLE_WITH_CUDA
-  platform::TemporaryAllocator& Get(const platform::Place& place,
-                                    const cudaStream_t& stream);
-#endif
-
-  platform::TemporaryAllocator& Get(const platform::DeviceContext& dev_ctx);
-
-  platform::TemporaryAllocator& Get(const platform::Place& place);
-
- private:
-  DeviceTemporaryAllocator() : cpu_allocator_(platform::CPUPlace()) {}
-
-  static DeviceTemporaryAllocator* allocators;
-
-  platform::TemporaryAllocator cpu_allocator_;
-
-#ifdef PADDLE_WITH_CUDA
-  std::map<std::pair<platform::Place, cudaStream_t>,
-           std::unique_ptr<platform::TemporaryAllocator>>
-      device_allocator_;
-#endif
-
-  std::mutex mtx_;
-
-  DISABLE_COPY_AND_ASSIGN(DeviceTemporaryAllocator);
 };
 
 }  // namespace platform

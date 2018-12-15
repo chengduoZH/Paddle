@@ -316,9 +316,11 @@ CUDADeviceContext::~CUDADeviceContext() {
 Place CUDADeviceContext::GetPlace() const { return place_; }
 
 void CUDADeviceContext::Wait() {
+  auto allocator = DeviceTemporaryAllocator::Instance.Get(*this);
+  allocator.MoveToDeleteQueue();
   PADDLE_ENFORCE(cudaStreamSynchronize(stream_));
   PADDLE_ENFORCE(cudaGetLastError());
-  allocator_.Release();
+  allocator.Release();
 }
 
 int CUDADeviceContext::GetComputeCapability() const {
