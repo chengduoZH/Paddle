@@ -166,9 +166,7 @@ class ConcatFunctor<platform::CUDADeviceContext, T> {
         std::min(max_blocks / grid_cols, std::max(out_row / block_rows, 1));
     dim3 grid_size = dim3(grid_cols, grid_rows, 1);
 
-    auto tmp_dev_ins_data =
-        const_cast<platform::CUDADeviceContext&>(context).GetTemporlAllocation(
-            inputs_data.size());
+    auto tmp_dev_ins_data = context.GetTemporlAllocation(inputs_data.size());
     memory::Copy(boost::get<platform::CUDAPlace>(context.GetPlace()),
                  tmp_dev_ins_data->ptr(), platform::CPUPlace(),
                  static_cast<void*>(inputs_data.data()), inputs_data.size(),
@@ -180,8 +178,7 @@ class ConcatFunctor<platform::CUDADeviceContext, T> {
           dev_ins_data, in_col, out_row, out_col, output->data<T>());
     } else {
       auto tmp_dev_ins_col_data =
-          const_cast<platform::CUDADeviceContext&>(context)
-              .GetTemporlAllocation(inputs_col.size() * sizeof(int));
+          context.GetTemporlAllocation(inputs_col.size() * sizeof(int));
       memory::Copy(boost::get<platform::CUDAPlace>(context.GetPlace()),
                    tmp_dev_ins_col_data->ptr(), platform::CPUPlace(),
                    static_cast<void*>(inputs_col.data()),
@@ -255,9 +252,7 @@ class SplitFunctor<platform::CUDADeviceContext, T> {
         std::min(max_blocks / grid_cols, std::max(out_row / block_rows, 1));
     dim3 grid_size = dim3(grid_cols, grid_rows, 1);
 
-    auto tmp_dev_outs_data =
-        const_cast<platform::CUDADeviceContext&>(context).GetTemporlAllocation(
-            outputs_data.size());
+    auto tmp_dev_outs_data = context.GetTemporlAllocation(outputs_data.size());
     memory::Copy(boost::get<platform::CUDAPlace>(context.GetPlace()),
                  tmp_dev_outs_data->ptr(), platform::CPUPlace(),
                  reinterpret_cast<void*>(outputs_data.data()),
@@ -269,8 +264,7 @@ class SplitFunctor<platform::CUDADeviceContext, T> {
           input.data<T>(), in_row, in_col, out0_col, dev_out_gpu_data);
     } else {
       auto tmp_dev_ins_col_data =
-          const_cast<platform::CUDADeviceContext&>(context)
-              .GetTemporlAllocation(outputs_cols.size() * sizeof(int));
+          context.GetTemporlAllocation(outputs_cols.size() * sizeof(int));
       memory::Copy(boost::get<platform::CUDAPlace>(context.GetPlace()),
                    tmp_dev_ins_col_data->ptr(), platform::CPUPlace(),
                    reinterpret_cast<void*>(outputs_cols.data()),
