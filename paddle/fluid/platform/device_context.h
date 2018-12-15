@@ -376,13 +376,19 @@ class DeviceContextPool {
 class DeviceTemporaryAllocator {
  public:
   static DeviceTemporaryAllocator& Instance() {
+    PADDLE_ENFORCE_NOT_NULL(allocators,
+                            "Need to Create DeviceContextPool first!");
+    return *allocators;
+  }
+
+  static DeviceTemporaryAllocator& Init() {
     if (allocators == nullptr) {
       allocators = new DeviceTemporaryAllocator();
     }
     return *allocators;
   }
 
-/*! \brief  Return handle of single device context. */
+/*! \brief  Return handle of single temporary allocator. */
 #ifdef PADDLE_WITH_CUDA
   platform::TemporaryAllocator& Get(const platform::Place& place,
                                     const cudaStream_t& stream);
