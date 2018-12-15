@@ -91,9 +91,12 @@ DeviceTemporaryAllocator* DeviceTemporaryAllocator::allocators = nullptr;
 platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
     const platform::Place& place, const cudaStream_t& stream) {
   auto place_stream = std::make_pair(place, stream);
-  if (device_allocator_.count(place_stream)) {
-    device_allocator_[place_stream].reset(
-        new TemporaryAllocator(dev_ctx.GetPlace()));
+  {
+    std::unique_lock<std::mutex> lock(mtx_);
+    if (device_allocator_.count(place_stream)) {
+      device_allocator_[place_stream].reset(
+          new TemporaryAllocator(dev_ctx.GetPlace()));
+    }
   }
   return *device_allocator_.at(std::make_pair(dev_ctx.GetPlace(),
                                               dev_ctx.stream());

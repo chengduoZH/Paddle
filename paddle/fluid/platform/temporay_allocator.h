@@ -33,8 +33,11 @@ class TemporaryAllocator : public memory::allocation::Allocator {
  public:
   explicit TemporaryAllocator(platform::Place place);
 
+  // Move temp_memory to wait_delete_memory
   void MoveToDeleteQueue();
 
+  // Note: This function releases wait_delete_memory, so you
+  // should call MoveToDeleteQueue first.
   void Release();
 
   bool IsAllocThreadSafe() const override;

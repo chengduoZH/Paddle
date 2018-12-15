@@ -405,6 +405,8 @@ class DeviceTemporaryAllocator {
       device_allocator_;
 #endif
 
+  std::mutex mtx_;
+
   DISABLE_COPY_AND_ASSIGN(DeviceTemporaryAllocator);
 };
 
