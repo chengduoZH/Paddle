@@ -117,7 +117,7 @@ platform::TemporaryAllocator& DeviceTemporaryAllocator::Get(
     PADDLE_THROW("Not compile with cuda");
 #endif
   } else {
-    PADDLE_THROW("Not implement");
+    PADDLE_THROW("Not implement.");
   }
 }
 
@@ -315,7 +315,8 @@ CUDADeviceContext::~CUDADeviceContext() {
 Place CUDADeviceContext::GetPlace() const { return place_; }
 
 void CUDADeviceContext::Wait() {
-  auto allocator = DeviceTemporaryAllocator::Instance().Get(*this);
+  auto& allocator =
+      DeviceTemporaryAllocator::Instance().Get<CUDADeviceContext>(*this);
   allocator.MoveToDeleteQueue();
 
   PADDLE_ENFORCE(cudaStreamSynchronize(stream_));

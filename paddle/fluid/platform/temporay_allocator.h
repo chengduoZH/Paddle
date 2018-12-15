@@ -51,8 +51,9 @@ class TemporaryAllocator : public memory::allocation::Allocator {
 
  private:
   platform::Place place_;
-  std::shared_ptr<std::deque<TemporayAllocation *>> temp_memory_;
-  std::shared_ptr<std::deque<TemporayAllocation *>> wait_delete_memory_;
+  std::shared_ptr<std::deque<TemporayAllocation *>> temp_memory_{nullptr};
+  std::shared_ptr<std::deque<TemporayAllocation *>> wait_delete_memory_{
+      nullptr};
   std::mutex mtx_;
   std::condition_variable cv_;
 };
