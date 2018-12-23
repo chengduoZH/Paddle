@@ -106,9 +106,9 @@ class OpHandleBase {
   std::vector<VarHandleBase *> outputs_;
   std::map<platform::Place, platform::DeviceContext *> dev_ctxes_;
 
-#ifdef PADDLE_WITH_CUDA
-  std::unordered_map<int, cudaEvent_t> events_;
-#endif
+//#ifdef PADDLE_WITH_CUDA
+//  std::unordered_map<int, cudaEvent_t> events_;
+//#endif
 
   DISABLE_COPY_AND_ASSIGN(OpHandleBase);
 };
@@ -116,3 +116,4 @@ class OpHandleBase {
 }  // namespace details
 }  // namespace framework
 }  // namespace paddle
+

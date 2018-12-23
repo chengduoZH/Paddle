@@ -215,9 +215,9 @@ class CUDADeviceContext : public DeviceContext {
 
   template <typename Callback>
   void RecordEvent(cudaEvent_t ev, Callback callback) {
-    std::lock_guard<std::mutex> guard(mtx_);
+    // std::lock_guard<std::mutex> guard(mtx_);
     callback();
-    PADDLE_ENFORCE(cudaEventRecord(ev, stream_));
+    // PADDLE_ENFORCE(cudaEventRecord(ev, stream_));
   }
 
   template <typename Callback>
