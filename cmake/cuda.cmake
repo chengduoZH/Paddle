@@ -182,6 +182,10 @@ if(WITH_FAST_MATH)
   # Make use of fast math library. https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html
   list(APPEND CUDA_NVCC_FLAGS "--use_fast_math")
 endif()
+if(WITH_STREAMS_CONCURRENCE)
+  # Make use of fast math library. https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html
+  list(APPEND CUDA_NVCC_FLAGS "--default-stream per-thread")
+endif()
 # in cuda9, suppress cuda warning on eigen 
 list(APPEND CUDA_NVCC_FLAGS "-w")
 # Set :expt-relaxed-constexpr to suppress Eigen warnings
