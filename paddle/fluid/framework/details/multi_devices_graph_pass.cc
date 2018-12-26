@@ -733,7 +733,7 @@ int MultiDevSSAGraphBuilder::CreateDistTrainOp(
       shared_var_device->emplace(varname, op_dev_id);
     }
   } else if (node->Op()->Type() == "concat") {
-    op_dev_id = GetVarDeviceID(*result, input_var_names[0], *shared_var_device);
+    op_dev_id = GetVarDeviceID(input_var_names[0], *shared_var_device);
     for (auto &varname : output_var_names) {
       shared_var_device->emplace(varname, op_dev_id);
     }
@@ -774,8 +774,7 @@ int MultiDevSSAGraphBuilder::CreateRPCOp(
   int op_dev_id = -1;
   if (node->Op()->Type() == "send") {
     // TODO(paddle-dev): getting the first var is not safe.
-    op_dev_id =
-        GetVarDeviceID(*result, node->inputs[0]->Name(), *shared_var_device);
+    op_dev_id = GetVarDeviceID(node->inputs[0]->Name(), *shared_var_device);
     PADDLE_ENFORCE(!ir::IsControlDepVar(*node->inputs[0]),
                    "This hack no longer holds, please fix.");
     // the variable name which contains .block means it was splited by
@@ -805,8 +804,7 @@ int MultiDevSSAGraphBuilder::CreateRPCOp(
     auto recv_param_grad = boost::get<std::vector<std::string>>(
         node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
     if (recv_param_grad.size() == 2U) {
-      op_dev_id =
-          GetVarDeviceID(*result, recv_param_grad[1], *shared_var_device);
+      op_dev_id = GetVarDeviceID(recv_param_grad[1], *shared_var_device);
       VLOG(10) << "recv param " << recv_param_grad[0]
                << " get grad place: " << recv_param_grad[1]
                << " place: " << op_dev_id;
@@ -841,8 +839,7 @@ int MultiDevSSAGraphBuilder::CreateRPCOp(
     for (ir::Node *output : node->outputs) {
       int outvar_dev_id = op_dev_id;
       if (node->Op()->Type() == "fetch_barrier") {
-        outvar_dev_id =
-            GetVarDeviceID(*result, output->Name(), *shared_var_device);
+        outvar_dev_id = GetVarDeviceID(output->Name(), *shared_var_device);
         PADDLE_ENFORCE_NE(outvar_dev_id, -1, "output name %s", output->Name());
       }
       p = places_[outvar_dev_id];
