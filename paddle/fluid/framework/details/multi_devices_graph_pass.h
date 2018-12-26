@@ -94,6 +94,11 @@ class MultiDevSSAGraphBuilder : public ir::Pass {
                                const platform::Place &p) const;
 
   std::vector<ir::Node *> SortForReduce(const ir::Graph &graph);
+  int GetOpDeviceID(
+      ir::Node *node,
+      const std::unordered_map<std::string, int> &shared_var_device,
+      std::unordered_map<std::string, std::vector<ir::Node *>> *delay_ops)
+      const;
 
   mutable std::string loss_var_name_;
   mutable std::vector<platform::Place> places_;
