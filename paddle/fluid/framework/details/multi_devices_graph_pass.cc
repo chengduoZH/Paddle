@@ -185,7 +185,6 @@ std::vector<ir::Node *> MultiDevSSAGraphBuilder::SortForReduce(
       // This op runs on all devices, and its output may have parameter's
       // gradients.
       sorted_ops.emplace_back(node);
-
       bool is_bk_op =
           static_cast<bool>(boost::get<int>(node->Op()->GetAttr(
                                 OpProtoAndCheckerMaker::OpRoleAttrName())) &
@@ -193,27 +192,28 @@ std::vector<ir::Node *> MultiDevSSAGraphBuilder::SortForReduce(
       if (!is_bk_op) continue;
       // Currently, we assume that once gradient is generated, it can be
       // broadcast, and each gradient is only broadcast once.
+      std::vector<std::string> backward_vars;
       try {
-        auto backward_vars =
+        backward_vars =
             boost::get<std::vector<std::string>>(node->Op()->GetNullableAttr(
                 OpProtoAndCheckerMaker::OpRoleVarAttrName()));
-
-        PADDLE_ENFORCE_EQ(backward_vars.size() % 2, 0);
-
-        for (size_t i = 0; i < backward_vars.size(); i += 2) {
-          auto &g_name = backward_vars[i + 1];
-
-          size_t cur_device_id = GetAppropriateDeviceID({g_name});
-          shared_var_device.emplace(g_name, cur_device_id);
-
-          if (delayed_op.count(g_name)) {
-            auto &ops = delayed_op.at(g_name);
-            sorted_ops.insert(sorted_ops.begin(), ops.begin(), ops.end());
-            delayed_op.at(g_name).clear();
-          }
-        }
       } catch (boost::bad_get e) {
       }
+      PADDLE_ENFORCE_EQ(backward_vars.size() % 2, 0);
+
+      for (size_t i = 0; i < backward_vars.size(); i += 2) {
+        auto &g_name = backward_vars[i + 1];
+
+        size_t cur_device_id = GetAppropriateDeviceID({g_name});
+        shared_var_device.emplace(g_name, cur_device_id);
+
+        if (delayed_op.count(g_name)) {
+          auto &ops = delayed_op.at(g_name);
+          sorted_ops.insert(sorted_ops.begin(), ops.begin(), ops.end());
+          delayed_op.at(g_name).clear();
+        }
+      }
+
     } else if (op_dev_id == -2) {
       // The Op on which the Op depends has not yet been generated
     }
