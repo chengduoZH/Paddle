@@ -162,11 +162,10 @@ void MultiDevSSAGraphBuilder::Init() const {
 }
 
 std::vector<ir::Node *> MultiDevSSAGraphBuilder::SortForReduce(
-    const ir::Graph &graph) {
+    const std::vector<ir::Node *> &topo_ops) const {
   std::unordered_map<std::string, int> shared_var_device;
   std::vector<ir::Node *> sorted_ops;
   std::unordered_map<std::string, std::vector<ir::Node *>> delayed_op;
-  std::vector<ir::Node *> topo_ops = ir::TopologySortOperations(graph);
 
   for (ir::Node *node : topo_ops) {
     int op_dev_id = GetOpDeviceID(node, shared_var_device, &delayed_op);
@@ -206,7 +205,6 @@ std::vector<ir::Node *> MultiDevSSAGraphBuilder::SortForReduce(
 
         size_t cur_device_id = GetAppropriateDeviceID({g_name});
         shared_var_device.emplace(g_name, cur_device_id);
-
         if (delayed_op.count(g_name)) {
           auto &ops = delayed_op.at(g_name);
           sorted_ops.insert(sorted_ops.begin(), ops.begin(), ops.end());
@@ -228,6 +226,10 @@ std::unique_ptr<ir::Graph> MultiDevSSAGraphBuilder::ApplyImpl(
   Init();
   // Give the topology sort order and rebuild the graph structure.
   std::vector<ir::Node *> sorted_ops = ir::TopologySortOperations(*graph);
+
+  if (strategy_.reduce_ == BuildStrategy::ReduceStrategy::kReduce) {
+    sorted_ops = SortForReduce(sorted_ops);
+  }
 
   auto nodes = graph->ReleaseNodes();
   ir::Graph &result = *graph;
