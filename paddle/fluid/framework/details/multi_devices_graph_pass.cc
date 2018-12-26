@@ -207,7 +207,7 @@ std::vector<ir::Node *> MultiDevSSAGraphBuilder::SortForReduce(
         shared_var_device.emplace(g_name, cur_device_id);
         if (delayed_op.count(g_name)) {
           auto &ops = delayed_op.at(g_name);
-          sorted_ops.insert(sorted_ops.begin(), ops.begin(), ops.end());
+          sorted_ops.insert(sorted_ops.end(), ops.begin(), ops.end());
           delayed_op.at(g_name).clear();
         }
       }
