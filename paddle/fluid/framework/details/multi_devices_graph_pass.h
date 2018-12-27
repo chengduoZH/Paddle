@@ -31,20 +31,19 @@ namespace framework {
 class Scope;
 namespace details {
 
-class MultiDevSSAGraphBuilder : public ir::Pass {
+class MultiDevSSAGraphBuilderBase : public ir::Pass {
  protected:
   std::unique_ptr<ir::Graph> ApplyImpl(
       std::unique_ptr<ir::Graph> graph) const override;
 
- private:
   void CreateOpHandleIOs(ir::Graph *result, ir::Node *node,
                          size_t device_id) const;
 
-  void Init() const;
+  virtual void Init() const;
 
-#if defined(PADDLE_WITH_CUDA) && !defined(_WIN32)
-  mutable platform::NCCLContextMap *nccl_ctxs_;
-#endif
+  virtual void Prepare() const;
+
+  virtual std::vector<ir::Node *> SortOperations(const ir::Graph &graph) const;
 
   int GetVarDeviceID(const std::string &varname) const;
 
@@ -78,12 +77,12 @@ class MultiDevSSAGraphBuilder : public ir::Pass {
   void CreateBroadcastOp(ir::Graph *result, const std::string &p_name,
                          size_t src_dev_id) const;
 
-  void CreateCollectionOp(ir::Graph *result, bool is_dist_train,
-                          const std::string &p_name,
-                          const std::string &g_name) const;
+  virtual void CreateCollectionOp(ir::Graph *result, bool is_dist_train,
+                                  const std::string &p_name,
+                                  const std::string &g_name) const = 0;
 
-  void PreProcess(ir::Graph *result, ir::Node *node) const;
-  bool IsPreProcessNode(ir::Node *node) const;
+  virtual bool PreProcess(ir::Graph *result, ir::Node *node) const;
+  virtual bool IsPreProcessNode(ir::Node *node) const;
 
   void CreateFusedBroadcastOp(
       ir::Graph *result,
@@ -97,12 +96,13 @@ class MultiDevSSAGraphBuilder : public ir::Pass {
   void SetCommunicationContext(OpHandleBase *op_handle,
                                const platform::Place &p) const;
 
-  std::vector<ir::Node *> SortForReduceMode(
-      const std::vector<ir::Node *> &) const;
-
   int GetOpDeviceID(ir::Node *node,
                     std::unordered_map<std::string, std::vector<ir::Node *>>
                         *delay_ops) const;
+
+#if defined(PADDLE_WITH_CUDA) && !defined(_WIN32)
+  mutable platform::NCCLContextMap *nccl_ctxs_;
+#endif
 
   mutable std::string loss_var_name_;
   mutable std::vector<platform::Place> places_;
@@ -110,10 +110,48 @@ class MultiDevSSAGraphBuilder : public ir::Pass {
 
   mutable BuildStrategy strategy_;
   mutable std::unordered_map<std::string, VarDesc *> all_vars_;
-  mutable std::vector<int64_t> balance_vars_;
 
+  mutable std::vector<int64_t> balance_vars_;
   mutable std::vector<std::unordered_set<std::string>> bcast_var_name_set_;
   mutable std::unordered_map<std::string, int> sharded_var_device_;
+};
+
+class AllReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
+ protected:
+  virtual void CreateCollectionOp(ir::Graph *result, bool is_dist_train,
+                                  const std::string &p_name,
+                                  const std::string &g_name) const;
+};
+
+class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
+ protected:
+  virtual void Init() const {
+    MultiDevSSAGraphBuilderBase::Init();
+    sharded_var_device_.clear();
+  }
+
+  virtual void Prepare() const {
+    MultiDevSSAGraphBuilderBase::Prepare();
+    sharded_var_device_.clear();
+  }
+  virtual void CreateCollectionOp(ir::Graph *result, bool is_dist_train,
+                                  const std::string &p_name,
+                                  const std::string &g_name) const;
+
+  virtual bool IsPreProcessNode(ir::Node *node) const {
+    bool flag = MultiDevSSAGraphBuilderBase::IsPreProcessNode(node);
+    flag = flag || (GetOpDeviceID(node) != -1);
+    return flag;
+  }
+
+  virtual bool PreProcess(ir::Graph *result, ir::Node *node) const;
+
+  virtual std::vector<ir::Node *> SortOperations(const ir::Graph &graph) const;
+
+  std::vector<ir::Node *> SortForReduceMode(
+      const std::vector<ir::Node *> &topo_ops) const;
+
+  //  mutable std::unordered_map<std::string, int> sharded_var_device_;
 };
 }  // namespace details
 }  // namespace framework
