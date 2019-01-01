@@ -81,6 +81,8 @@ class MultiDevSSAGraphBuilderBase : public ir::Pass {
     return false;
   }
 
+  virtual void InsertPostprocessOps(ir::Graph *result) const {}
+
   int GetOpDeviceID(ir::Node *node) const;
 
   void CreateFusedBroadcastOp(
@@ -144,16 +146,12 @@ class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
 
   virtual bool InsertPreprocessOps(ir::Graph *result, ir::Node *node) const;
 
+  virtual void InsertPostprocessOps(ir::Graph *result) const;
+
   virtual std::vector<ir::Node *> SortOperations(const ir::Graph &graph) const;
 
   std::vector<ir::Node *> SortForReduceMode(
       const std::vector<ir::Node *> &topo_ops) const;
-
-  //  virtual bool IsDistTrain(const std::vector<ir::Node *> &ops) const {
-  //    return false;
-  //  }
-
-  //  mutable std::unordered_map<std::string, int> sharded_var_device_;
 };
 
 class DistSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
@@ -168,6 +166,9 @@ class DistSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
   virtual void CreateCollectionOp(ir::Graph *result, bool is_dist_train,
                                   const std::string &p_name,
                                   const std::string &g_name) const {}
+
+  // TODO(zcd): add the Postprocess ops for distribution.
+  virtual void InsertPostprocessOps(ir::Graph *result) const;
 };
 
 }  // namespace details

@@ -268,30 +268,12 @@ std::unique_ptr<ir::Graph> MultiDevSSAGraphBuilderBase::ApplyImpl(
     }
   }
 
-  bool use_gpu = false;
-#if defined(PADDLE_WITH_CUDA) && !defined(_WIN32)
-  use_gpu = nccl_ctxs_ != nullptr;
-#endif
-
   // Insert broadcast operators principle:
   // 1. Broadcast optimized parameters in Reduce strategy;
   // 2. No need broadcast optimized parameters in AllReduce strategy because of
   //    the optimization sub-graph would be run on every GPU;
   // 3. Allways broadcast received parameters in Distribute Training.
-  if ((use_gpu &&
-       strategy_.reduce_ == BuildStrategy::ReduceStrategy::kReduce) ||
-      is_dist_train) {
-    if (strategy_.fuse_broadcast_op_) {
-      CreateFusedBroadcastOp(&result, bcast_var_name_set_);
-    } else {
-      for (size_t dev_id = 0; dev_id < bcast_var_name_set_.size(); ++dev_id) {
-        auto &to_bcast_set = bcast_var_name_set_[dev_id];
-        for (auto &bcast_name : to_bcast_set) {
-          CreateBroadcastOp(&result, bcast_name, dev_id);
-        }
-      }
-    }
-  }
+  InsertPostprocessOps(&result);
 
   /*
   Dependency graph has been constructed. However, there are still data
@@ -601,8 +583,6 @@ int MultiDevSSAGraphBuilderBase::GetOpDeviceID(ir::Node *node) const {
   return dev_id;
 }
 
-//////////////
-
 void AllReduceSSAGraphBuilder::CreateCollectionOp(
     ir::Graph *result, bool is_dist_train, const std::string &p_name,
     const std::string &g_name) const {
@@ -645,6 +625,26 @@ bool ReduceSSAGraphBuilder::InsertPreprocessOps(ir::Graph *result,
     return true;
   }
   return false;
+}
+
+void ReduceSSAGraphBuilder::InsertPostprocessOps(ir::Graph *result) const {
+  bool use_gpu = false;
+#if defined(PADDLE_WITH_CUDA) && !defined(_WIN32)
+  use_gpu = nccl_ctxs_ != nullptr;
+#endif
+
+  if (use_gpu) {
+    if (strategy_.fuse_broadcast_op_) {
+      CreateFusedBroadcastOp(result, bcast_var_name_set_);
+    } else {
+      for (size_t dev_id = 0; dev_id < bcast_var_name_set_.size(); ++dev_id) {
+        auto &to_bcast_set = bcast_var_name_set_[dev_id];
+        for (auto &bcast_name : to_bcast_set) {
+          CreateBroadcastOp(result, bcast_name, dev_id);
+        }
+      }
+    }
+  }
 }
 
 int ReduceSSAGraphBuilder::GetOpDeviceID(
@@ -915,6 +915,19 @@ int DistSSAGraphBuilder::CreateDistTrainOp(ir::Graph *result,
 
   CreateComputationalOp(result, node, op_dev_id);
   return op_dev_id;
+}
+
+void DistSSAGraphBuilder::InsertPostprocessOps(ir::Graph *result) const {
+  if (strategy_.fuse_broadcast_op_) {
+    CreateFusedBroadcastOp(result, bcast_var_name_set_);
+  } else {
+    for (size_t dev_id = 0; dev_id < bcast_var_name_set_.size(); ++dev_id) {
+      auto &to_bcast_set = bcast_var_name_set_[dev_id];
+      for (auto &bcast_name : to_bcast_set) {
+        CreateBroadcastOp(result, bcast_name, dev_id);
+      }
+    }
+  }
 }
 
 }  // namespace details
