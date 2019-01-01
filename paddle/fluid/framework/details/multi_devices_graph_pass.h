@@ -51,10 +51,6 @@ class MultiDevSSAGraphBuilderBase : public ir::Pass {
 
   bool IsScaleLossOp(ir::Node *node) const;
 
-  int CreateRPCOp(ir::Graph *result, ir::Node *node) const;
-
-  int CreateDistTrainOp(ir::Graph *result, ir::Node *node) const;
-
   void CreateComputationalOps(ir::Graph *result, ir::Node *node,
                               size_t num_places) const;
 
@@ -81,8 +77,11 @@ class MultiDevSSAGraphBuilderBase : public ir::Pass {
                                   const std::string &p_name,
                                   const std::string &g_name) const = 0;
 
-  virtual bool PreProcess(ir::Graph *result, ir::Node *node) { return false; }
+  virtual bool PreProcess(ir::Graph *result, ir::Node *node) const {
+    return false;
+  }
   virtual bool IsPreProcessNode(ir::Node *node) const { return false; }
+
   int GetOpDeviceID(ir::Node *node) const;
 
   void CreateFusedBroadcastOp(
@@ -168,6 +167,15 @@ class DistSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
  protected:
   virtual bool PreProcess(ir::Graph *result, ir::Node *node) const;
   virtual bool IsPreProcessNode(ir::Node *node) const;
+
+  int CreateRPCOp(ir::Graph *result, ir::Node *node) const;
+
+  int CreateDistTrainOp(ir::Graph *result, ir::Node *node) const;
+
+  // TODO(zcd): add the collection ops for distribution.
+  virtual void CreateCollectionOp(ir::Graph *result, bool is_dist_train,
+                                  const std::string &p_name,
+                                  const std::string &g_name) const {}
 };
 
 }  // namespace details

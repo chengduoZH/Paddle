@@ -576,155 +576,6 @@ VarHandle *MultiDevSSAGraphBuilderBase::CreateReduceOp(ir::Graph *result,
   return var;
 }
 
-int MultiDevSSAGraphBuilderBase::CreateDistTrainOp(ir::Graph *result,
-                                                   ir::Node *node) const {
-  int op_dev_id = -1;
-  std::vector<std::string> input_var_names;
-  std::vector<std::string> output_var_names;
-  for (ir::Node *input : node->inputs) {
-    input_var_names.push_back(input->Name());
-  }
-  for (ir::Node *output : node->outputs) {
-    output_var_names.push_back(output->Name());
-  }
-
-  if (node->Op()->Type() == "split_byref" ||
-      node->Op()->Type() == "split_selected_rows" ||
-      node->Op()->Type() == "split_ids") {
-    // TODO(paddle-dev): getting the first var is not safe.
-    op_dev_id = GetVarDeviceID(input_var_names[0]);
-    if (strategy_.reduce_ == BuildStrategy::ReduceStrategy::kAllReduce) {
-      op_dev_id = GetAppropriateDeviceID(input_var_names);
-      for (auto &varname : input_var_names) {
-        sharded_var_device_.emplace(varname, op_dev_id);
-      }
-    }
-    for (auto &varname : output_var_names) {
-      sharded_var_device_.emplace(varname, op_dev_id);
-    }
-  } else if (node->Op()->Type() == "concat") {
-    op_dev_id = GetVarDeviceID(input_var_names[0]);
-    for (auto &varname : output_var_names) {
-      sharded_var_device_.emplace(varname, op_dev_id);
-    }
-  } else {
-    LOG(ERROR) << "got unexpected dist op: " << node->Op()->Type();
-    PADDLE_THROW(
-        "the distribute training related op should be in [split_byref, "
-        "concat].");
-  }
-
-  PADDLE_ENFORCE(op_dev_id != -1,
-                 "can not find right place for distributed op: %s",
-                 node->Op()->Type());
-
-  CreateComputationalOp(result, node, op_dev_id);
-  return op_dev_id;
-}
-
-void SetOpInputsAllPlaces(ir::Graph *result, ir::Node *node, int num_places) {
-  auto *op_handle = result->Get<GraphOps>(kGraphOps).back();
-  for (ir::Node *input : node->inputs) {
-    VarHandle *var = nullptr;
-    for (int place_offset = 0; place_offset < num_places; ++place_offset) {
-      auto &var_holders = result->Get<GraphVars>(kGraphVars)[place_offset];
-      auto &var_holder = var_holders[input->Name()];
-      if (!var_holder.empty()) {
-        var = *var_holder.rbegin();
-        op_handle->AddInput(var);
-      }
-    }
-  }
-}
-
-// Create RPC related op handles that connects its in ops and out ops.
-int MultiDevSSAGraphBuilderBase::CreateRPCOp(ir::Graph *result,
-                                             ir::Node *node) const {
-  int op_dev_id = -1;
-  if (node->Op()->Type() == "send") {
-    // TODO(paddle-dev): getting the first var is not safe.
-    op_dev_id = GetVarDeviceID(node->inputs[0]->Name());
-    PADDLE_ENFORCE(!ir::IsControlDepVar(*node->inputs[0]),
-                   "This hack no longer holds, please fix.");
-    // the variable name which contains .block means it was splited by
-    // split_byref op
-    if (strategy_.reduce_ == BuildStrategy::ReduceStrategy::kAllReduce &&
-        node->inputs[0]->Name().find(".block") == std::string::npos) {
-      std::vector<std::string> input_var_names;
-      for (ir::Node *n : node->inputs) {
-        input_var_names.push_back(n->Name());
-      }
-      auto send_param_grad = boost::get<std::vector<std::string>>(
-          node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
-      PADDLE_ENFORCE_EQ(send_param_grad.size(), 2U);
-      op_dev_id = GetAppropriateDeviceID({send_param_grad[1]});
-      VLOG(10) << "send grad " << input_var_names[0] << " origin "
-               << send_param_grad[1] << " place: " << op_dev_id;
-      for (auto &varname : input_var_names) {
-        sharded_var_device_.emplace(varname, op_dev_id);
-      }
-      sharded_var_device_.emplace(send_param_grad[1], op_dev_id);
-    }
-  } else if (node->Op()->Type() == "recv") {
-    std::vector<std::string> output_var_names;
-    for (ir::Node *n : node->outputs) {
-      output_var_names.push_back(n->Name());
-    }
-    auto recv_param_grad = boost::get<std::vector<std::string>>(
-        node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
-    if (recv_param_grad.size() == 2U) {
-      op_dev_id = GetVarDeviceID(recv_param_grad[1]);
-      VLOG(10) << "recv param " << recv_param_grad[0]
-               << " get grad place: " << recv_param_grad[1]
-               << " place: " << op_dev_id;
-    } else {
-      op_dev_id = GetAppropriateDeviceID(output_var_names);
-    }
-    for (auto &varname : output_var_names) {
-      sharded_var_device_.emplace(varname, op_dev_id);
-    }
-  } else {
-    // send_barrier, fetch_barrier will run on place 0;
-    op_dev_id = 0;
-  }
-
-  PADDLE_ENFORCE(op_dev_id != -1, "can not find the right place for rpc op: %s",
-                 node->Op()->Type());
-  result->Get<GraphOps>(kGraphOps).emplace_back(new RPCOpHandle(
-      result->CreateOpNode(node->Op()), *node->Op(), local_scopes_[op_dev_id],
-      node->Op()->Type(), places_[op_dev_id]));
-
-  if (node->Op()->Type() == "send") {
-    CreateOpHandleIOs(result, node, op_dev_id);
-  } else {
-    // send_barrier, recv, fetch_barrier's inputs are deps var, get them from
-    // all places
-    auto p = places_[op_dev_id];
-    auto *op_handle = result->Get<GraphOps>(kGraphOps).back();
-    op_handle->SetDeviceContext(p,
-                                platform::DeviceContextPool::Instance().Get(p));
-
-    SetOpInputsAllPlaces(result, node, places_.size());
-    for (ir::Node *output : node->outputs) {
-      int outvar_dev_id = op_dev_id;
-      if (node->Op()->Type() == "fetch_barrier") {
-        outvar_dev_id = GetVarDeviceID(output->Name());
-        PADDLE_ENFORCE_NE(outvar_dev_id, -1, "output name %s", output->Name());
-      }
-      p = places_[outvar_dev_id];
-      ir::Node *new_node = nullptr;
-      if (output->Var()) {
-        new_node = result->CreateVarNode(output->Var());
-      } else {
-        new_node =
-            result->CreateEmptyNode(output->Name(), ir::Node::Type::kVariable);
-      }
-      CreateOpOutput(result, op_handle, new_node, p, outvar_dev_id);
-    }
-  }
-  return op_dev_id;
-}
-
 bool MultiDevSSAGraphBuilderBase::IsScaleLossOp(ir::Node *node) const {
   return boost::get<int>(
              node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleAttrName())) ==
@@ -919,6 +770,154 @@ bool DistSSAGraphBuilder::PreProcess(ir::Graph *result, ir::Node *node) const {
     }
   }
   return insert_op;
+}
+
+void SetOpInputsAllPlaces(ir::Graph *result, ir::Node *node, int num_places) {
+  auto *op_handle = result->Get<GraphOps>(kGraphOps).back();
+  for (ir::Node *input : node->inputs) {
+    VarHandle *var = nullptr;
+    for (int place_offset = 0; place_offset < num_places; ++place_offset) {
+      auto &var_holders = result->Get<GraphVars>(kGraphVars)[place_offset];
+      auto &var_holder = var_holders[input->Name()];
+      if (!var_holder.empty()) {
+        var = *var_holder.rbegin();
+        op_handle->AddInput(var);
+      }
+    }
+  }
+}
+
+// Create RPC related op handles that connects its in ops and out ops.
+int DistSSAGraphBuilder::CreateRPCOp(ir::Graph *result, ir::Node *node) const {
+  int op_dev_id = -1;
+  if (node->Op()->Type() == "send") {
+    // TODO(paddle-dev): getting the first var is not safe.
+    op_dev_id = GetVarDeviceID(node->inputs[0]->Name());
+    PADDLE_ENFORCE(!ir::IsControlDepVar(*node->inputs[0]),
+                   "This hack no longer holds, please fix.");
+    // the variable name which contains .block means it was splited by
+    // split_byref op
+    if (strategy_.reduce_ == BuildStrategy::ReduceStrategy::kAllReduce &&
+        node->inputs[0]->Name().find(".block") == std::string::npos) {
+      std::vector<std::string> input_var_names;
+      for (ir::Node *n : node->inputs) {
+        input_var_names.push_back(n->Name());
+      }
+      auto send_param_grad = boost::get<std::vector<std::string>>(
+          node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
+      PADDLE_ENFORCE_EQ(send_param_grad.size(), 2U);
+      op_dev_id = GetAppropriateDeviceID({send_param_grad[1]});
+      VLOG(10) << "send grad " << input_var_names[0] << " origin "
+               << send_param_grad[1] << " place: " << op_dev_id;
+      for (auto &varname : input_var_names) {
+        sharded_var_device_.emplace(varname, op_dev_id);
+      }
+      sharded_var_device_.emplace(send_param_grad[1], op_dev_id);
+    }
+  } else if (node->Op()->Type() == "recv") {
+    std::vector<std::string> output_var_names;
+    for (ir::Node *n : node->outputs) {
+      output_var_names.push_back(n->Name());
+    }
+    auto recv_param_grad = boost::get<std::vector<std::string>>(
+        node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
+    if (recv_param_grad.size() == 2U) {
+      op_dev_id = GetVarDeviceID(recv_param_grad[1]);
+      VLOG(10) << "recv param " << recv_param_grad[0]
+               << " get grad place: " << recv_param_grad[1]
+               << " place: " << op_dev_id;
+    } else {
+      op_dev_id = GetAppropriateDeviceID(output_var_names);
+    }
+    for (auto &varname : output_var_names) {
+      sharded_var_device_.emplace(varname, op_dev_id);
+    }
+  } else {
+    // send_barrier, fetch_barrier will run on place 0;
+    op_dev_id = 0;
+  }
+
+  PADDLE_ENFORCE(op_dev_id != -1, "can not find the right place for rpc op: %s",
+                 node->Op()->Type());
+  result->Get<GraphOps>(kGraphOps).emplace_back(new RPCOpHandle(
+      result->CreateOpNode(node->Op()), *node->Op(), local_scopes_[op_dev_id],
+      node->Op()->Type(), places_[op_dev_id]));
+
+  if (node->Op()->Type() == "send") {
+    CreateOpHandleIOs(result, node, op_dev_id);
+  } else {
+    // send_barrier, recv, fetch_barrier's inputs are deps var, get them from
+    // all places
+    auto p = places_[op_dev_id];
+    auto *op_handle = result->Get<GraphOps>(kGraphOps).back();
+    op_handle->SetDeviceContext(p,
+                                platform::DeviceContextPool::Instance().Get(p));
+
+    SetOpInputsAllPlaces(result, node, places_.size());
+    for (ir::Node *output : node->outputs) {
+      int outvar_dev_id = op_dev_id;
+      if (node->Op()->Type() == "fetch_barrier") {
+        outvar_dev_id = GetVarDeviceID(output->Name());
+        PADDLE_ENFORCE_NE(outvar_dev_id, -1, "output name %s", output->Name());
+      }
+      p = places_[outvar_dev_id];
+      ir::Node *new_node = nullptr;
+      if (output->Var()) {
+        new_node = result->CreateVarNode(output->Var());
+      } else {
+        new_node =
+            result->CreateEmptyNode(output->Name(), ir::Node::Type::kVariable);
+      }
+      CreateOpOutput(result, op_handle, new_node, p, outvar_dev_id);
+    }
+  }
+  return op_dev_id;
+}
+
+int DistSSAGraphBuilder::CreateDistTrainOp(ir::Graph *result,
+                                           ir::Node *node) const {
+  int op_dev_id = -1;
+  std::vector<std::string> input_var_names;
+  std::vector<std::string> output_var_names;
+  for (ir::Node *input : node->inputs) {
+    input_var_names.push_back(input->Name());
+  }
+  for (ir::Node *output : node->outputs) {
+    output_var_names.push_back(output->Name());
+  }
+
+  if (node->Op()->Type() == "split_byref" ||
+      node->Op()->Type() == "split_selected_rows" ||
+      node->Op()->Type() == "split_ids") {
+    // TODO(paddle-dev): getting the first var is not safe.
+    op_dev_id = GetVarDeviceID(input_var_names[0]);
+    if (strategy_.reduce_ == BuildStrategy::ReduceStrategy::kAllReduce) {
+      op_dev_id = GetAppropriateDeviceID(input_var_names);
+      for (auto &varname : input_var_names) {
+        sharded_var_device_.emplace(varname, op_dev_id);
+      }
+    }
+    for (auto &varname : output_var_names) {
+      sharded_var_device_.emplace(varname, op_dev_id);
+    }
+  } else if (node->Op()->Type() == "concat") {
+    op_dev_id = GetVarDeviceID(input_var_names[0]);
+    for (auto &varname : output_var_names) {
+      sharded_var_device_.emplace(varname, op_dev_id);
+    }
+  } else {
+    LOG(ERROR) << "got unexpected dist op: " << node->Op()->Type();
+    PADDLE_THROW(
+        "the distribute training related op should be in [split_byref, "
+        "concat].");
+  }
+
+  PADDLE_ENFORCE(op_dev_id != -1,
+                 "can not find right place for distributed op: %s",
+                 node->Op()->Type());
+
+  CreateComputationalOp(result, node, op_dev_id);
+  return op_dev_id;
 }
 
 }  // namespace details
