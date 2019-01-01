@@ -157,6 +157,7 @@ void MultiDevSSAGraphBuilderBase::Init() const {
                     "one place. enable_data_balance is set to False.";
     strategy_.enable_data_balance_ = false;
   }
+
   Prepare();
 }
 
@@ -524,48 +525,6 @@ void MultiDevSSAGraphBuilderBase::InsertDataBalanceOp(
   }
 }
 
-int MultiDevSSAGraphBuilderBase::GetOpDeviceID(
-    ir::Node *node,
-    std::unordered_map<std::string, std::vector<ir::Node *>> *delay_ops) const {
-  if (strategy_.reduce_ != BuildStrategy::ReduceStrategy::kReduce) {
-    return -1;
-  }
-
-  if (!OpHaveRole(*node, framework::OpRole::kOptimize)) {
-    return -1;
-  }
-
-  auto param_grad = boost::get<std::vector<std::string>>(
-      node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
-
-  PADDLE_ENFORCE_EQ(param_grad.size(), 2U);
-  int dev_id = GetVarDeviceID(param_grad[1]);
-
-  if (dev_id == -1) {
-    (*delay_ops)[param_grad[1]].push_back(node);
-    return -2;
-  }
-  return dev_id;
-}
-
-int MultiDevSSAGraphBuilderBase::GetOpDeviceID(ir::Node *node) const {
-  if (strategy_.reduce_ != BuildStrategy::ReduceStrategy::kReduce) {
-    return -1;
-  }
-
-  if (!OpHaveRole(*node, framework::OpRole::kOptimize)) {
-    return -1;
-  }
-  auto param_grad = boost::get<std::vector<std::string>>(
-      node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
-
-  PADDLE_ENFORCE_EQ(param_grad.size(), 2U);
-  int dev_id = GetVarDeviceID(param_grad[1]);
-  PADDLE_ENFORCE_NE(dev_id, -1, "dev_id should not be -1.[%s, %s, %s]",
-                    node->Op()->Type(), param_grad[0], param_grad[1]);
-  return dev_id;
-}
-
 int MultiDevSSAGraphBuilderBase::GetVarDeviceID(
     const std::string &varname) const {
   auto got = sharded_var_device_.find(varname);
@@ -791,15 +750,6 @@ int MultiDevSSAGraphBuilderBase::CreateRPCOp(ir::Graph *result,
   return op_dev_id;
 }
 
-bool MultiDevSSAGraphBuilderBase::IsSparseGradient(
-    const std::string &og) const {
-  PADDLE_ENFORCE(all_vars_.count(og) != 0);
-  if (all_vars_.at(og)->GetType() == proto::VarType::SELECTED_ROWS) {
-    return true;
-  }
-  return false;
-}
-
 bool MultiDevSSAGraphBuilderBase::IsScaleLossOp(ir::Node *node) const {
   return boost::get<int>(
              node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleAttrName())) ==
@@ -819,6 +769,14 @@ void AllReduceSSAGraphBuilder::CreateCollectionOp(
   } else {
     InsertAllReduceOp(result, g_name);
   }
+}
+
+bool AllReduceSSAGraphBuilder::IsSparseGradient(const std::string &og) const {
+  PADDLE_ENFORCE(all_vars_.count(og) != 0);
+  if (all_vars_.at(og)->GetType() == proto::VarType::SELECTED_ROWS) {
+    return true;
+  }
+  return false;
 }
 
 void ReduceSSAGraphBuilder::CreateCollectionOp(
@@ -847,6 +805,40 @@ bool ReduceSSAGraphBuilder::PreProcess(ir::Graph *result,
     }
   }
   return false;
+}
+
+int ReduceSSAGraphBuilder::GetOpDeviceID(
+    ir::Node *node,
+    std::unordered_map<std::string, std::vector<ir::Node *>> *delay_ops) const {
+  if (!OpHaveRole(*node, framework::OpRole::kOptimize)) {
+    return -1;
+  }
+
+  auto param_grad = boost::get<std::vector<std::string>>(
+      node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
+
+  PADDLE_ENFORCE_EQ(param_grad.size(), 2U);
+  int dev_id = GetVarDeviceID(param_grad[1]);
+
+  if (dev_id == -1) {
+    (*delay_ops)[param_grad[1]].push_back(node);
+    return -2;
+  }
+  return dev_id;
+}
+
+int ReduceSSAGraphBuilder::GetOpDeviceID(ir::Node *node) const {
+  if (!OpHaveRole(*node, framework::OpRole::kOptimize)) {
+    return -1;
+  }
+  auto param_grad = boost::get<std::vector<std::string>>(
+      node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
+
+  PADDLE_ENFORCE_EQ(param_grad.size(), 2U);
+  int dev_id = GetVarDeviceID(param_grad[1]);
+  PADDLE_ENFORCE_NE(dev_id, -1, "dev_id should not be -1.[%s, %s, %s]",
+                    node->Op()->Type(), param_grad[0], param_grad[1]);
+  return dev_id;
 }
 
 std::vector<ir::Node *> ReduceSSAGraphBuilder::SortOperations(
@@ -917,14 +909,6 @@ std::vector<ir::Node *> ReduceSSAGraphBuilder::SortForReduceMode(
 }  // namespace details
 }  // namespace framework
 }  // namespace paddle
-
-// REGISTER_PASS(multi_devices_pass,
-//              paddle::framework::details::MultiDevSSAGraphBuilderBase)
-//    .RequirePassAttr(paddle::framework::details::kLossVarName)
-//    .RequirePassAttr(paddle::framework::details::kPlaces)
-//    .RequirePassAttr(paddle::framework::details::kLocalScopes)
-//    .RequirePassAttr(paddle::framework::details::kStrategy)
-//    .RequirePassAttr(paddle::framework::details::kNumTrainers);
 
 #define REGISTER_MULT_DEVICES_PASS(pass_name, pass_class)        \
   REGISTER_PASS(pass_name, pass_class)                           \

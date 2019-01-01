@@ -67,8 +67,6 @@ class MultiDevSSAGraphBuilderBase : public ir::Pass {
   void CreateComputationalOp(ir::Graph *result, ir::Node *node,
                              int dev_id) const;
 
-  int GetOpDeviceID(ir::Node *node) const;
-
   void InsertAllReduceOp(ir::Graph *result, const std::string &og) const;
 
   void InsertDataBalanceOp(ir::Graph *result,
@@ -88,17 +86,11 @@ class MultiDevSSAGraphBuilderBase : public ir::Pass {
       ir::Graph *result,
       const std::vector<std::unordered_set<std::string>> &bcast_varnames) const;
 
-  bool IsSparseGradient(const std::string &og) const;
-
   size_t GetAppropriateDeviceID(
       const std::vector<std::string> &var_names) const;
 
   void SetCommunicationContext(OpHandleBase *op_handle,
                                const platform::Place &p) const;
-
-  int GetOpDeviceID(ir::Node *node,
-                    std::unordered_map<std::string, std::vector<ir::Node *>>
-                        *delay_ops) const;
 
 #if defined(PADDLE_WITH_CUDA) && !defined(_WIN32)
   mutable platform::NCCLContextMap *nccl_ctxs_;
@@ -121,6 +113,8 @@ class AllReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
   virtual void CreateCollectionOp(ir::Graph *result, bool is_dist_train,
                                   const std::string &p_name,
                                   const std::string &g_name) const;
+
+  bool IsSparseGradient(const std::string &og) const;
 };
 
 class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
@@ -137,6 +131,12 @@ class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
   virtual void CreateCollectionOp(ir::Graph *result, bool is_dist_train,
                                   const std::string &p_name,
                                   const std::string &g_name) const;
+
+  int GetOpDeviceID(ir::Node *node) const;
+
+  int GetOpDeviceID(ir::Node *node,
+                    std::unordered_map<std::string, std::vector<ir::Node *>>
+                        *delay_ops) const;
 
   virtual bool IsPreProcessNode(ir::Node *node) const {
     bool flag = MultiDevSSAGraphBuilderBase::IsPreProcessNode(node);
