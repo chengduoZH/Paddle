@@ -284,11 +284,7 @@ std::unique_ptr<ir::Graph> MultiDevSSAGraphBuilderBase::ApplyImpl(
     if (strategy_.fuse_broadcast_op_) {
       CreateFusedBroadcastOp(&result, bcast_var_name_set_);
     } else {
-      for (size_t dev_id = 0; dev_id < bcast_var_name_set_.
-
-                                       size();
-
-           ++dev_id) {
+      for (size_t dev_id = 0; dev_id < bcast_var_name_set_.size(); ++dev_id) {
         auto &to_bcast_set = bcast_var_name_set_[dev_id];
         for (auto &bcast_name : to_bcast_set) {
           CreateBroadcastOp(&result, bcast_name, dev_id);
