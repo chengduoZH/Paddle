@@ -210,7 +210,7 @@ std::unique_ptr<ir::Graph> MultiDevSSAGraphBuilderBase::ApplyImpl(
   Prepare();
 
   for (ir::Node *node : sorted_ops) {
-    if (IsPreProcessNode(node) && PreProcess(&result, node)) {
+    if (InsertPreprocessOps(&result, node)) {
       continue;
     } else {
       // This op runs on all devices
@@ -633,8 +633,8 @@ void ReduceSSAGraphBuilder::CreateCollectionOp(
   }
 }
 
-bool ReduceSSAGraphBuilder::PreProcess(ir::Graph *result,
-                                       ir::Node *node) const {
+bool ReduceSSAGraphBuilder::InsertPreprocessOps(ir::Graph *result,
+                                                ir::Node *node) const {
   int op_dev_id = MultiDevSSAGraphBuilderBase::GetOpDeviceID(node);
   if (op_dev_id != -1) {
     // This op only runs on one specific device.
@@ -732,11 +732,8 @@ std::vector<ir::Node *> ReduceSSAGraphBuilder::SortForReduceMode(
   return sorted_ops;
 }
 
-bool DistSSAGraphBuilder::IsPreProcessNode(ir::Node *node) const {
-  return OpHaveRole(*node, OpRole::kRPC) || OpHaveRole(*node, OpRole::kDist);
-}
-
-bool DistSSAGraphBuilder::PreProcess(ir::Graph *result, ir::Node *node) const {
+bool DistSSAGraphBuilder::InsertPreprocessOps(ir::Graph *result,
+                                              ir::Node *node) const {
   bool insert_op = false;
   if (OpHaveRole(*node, OpRole::kRPC)) {
     int op_dev_id = CreateRPCOp(result, node);

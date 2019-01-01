@@ -77,10 +77,9 @@ class MultiDevSSAGraphBuilderBase : public ir::Pass {
                                   const std::string &p_name,
                                   const std::string &g_name) const = 0;
 
-  virtual bool PreProcess(ir::Graph *result, ir::Node *node) const {
+  virtual bool InsertPreprocessOps(ir::Graph *result, ir::Node *node) const {
     return false;
   }
-  virtual bool IsPreProcessNode(ir::Node *node) const { return false; }
 
   int GetOpDeviceID(ir::Node *node) const;
 
@@ -143,13 +142,7 @@ class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
                     std::unordered_map<std::string, std::vector<ir::Node *>>
                         *delay_ops) const;
 
-  virtual bool IsPreProcessNode(ir::Node *node) const {
-    bool flag = MultiDevSSAGraphBuilderBase::IsPreProcessNode(node);
-    flag = flag || (MultiDevSSAGraphBuilderBase::GetOpDeviceID(node) != -1);
-    return flag;
-  }
-
-  virtual bool PreProcess(ir::Graph *result, ir::Node *node) const;
+  virtual bool InsertPreprocessOps(ir::Graph *result, ir::Node *node) const;
 
   virtual std::vector<ir::Node *> SortOperations(const ir::Graph &graph) const;
 
@@ -165,8 +158,7 @@ class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
 
 class DistSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
  protected:
-  virtual bool PreProcess(ir::Graph *result, ir::Node *node) const;
-  virtual bool IsPreProcessNode(ir::Node *node) const;
+  virtual bool InsertPreprocessOps(ir::Graph *result, ir::Node *node) const;
 
   int CreateRPCOp(ir::Graph *result, ir::Node *node) const;
 
