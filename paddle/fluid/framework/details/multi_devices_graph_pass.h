@@ -81,8 +81,9 @@ class MultiDevSSAGraphBuilderBase : public ir::Pass {
                                   const std::string &p_name,
                                   const std::string &g_name) const = 0;
 
-  virtual bool PreProcess(ir::Graph *result, ir::Node *node) const;
-  virtual bool IsPreProcessNode(ir::Node *node) const;
+  virtual bool PreProcess(ir::Graph *result, ir::Node *node) { return false; }
+  virtual bool IsPreProcessNode(ir::Node *node) const { return false; }
+  int GetOpDeviceID(ir::Node *node) const;
 
   void CreateFusedBroadcastOp(
       ir::Graph *result,
@@ -139,21 +140,15 @@ class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
                                   const std::string &p_name,
                                   const std::string &g_name) const;
 
-  int GetOpDeviceID(ir::Node *node) const;
-
   int GetOpDeviceID(ir::Node *node,
                     std::unordered_map<std::string, std::vector<ir::Node *>>
                         *delay_ops) const;
 
   virtual bool IsPreProcessNode(ir::Node *node) const {
     bool flag = MultiDevSSAGraphBuilderBase::IsPreProcessNode(node);
-    flag = flag || (GetOpDeviceID(node) != -1);
+    flag = flag || (MultiDevSSAGraphBuilderBase::GetOpDeviceID(node) != -1);
     return flag;
   }
-
-  //  virtual bool IsDistTrain(const std::vector<ir::Node *> &ops) const {
-  //    return false;
-  //  }
 
   virtual bool PreProcess(ir::Graph *result, ir::Node *node) const;
 
@@ -162,8 +157,19 @@ class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
   std::vector<ir::Node *> SortForReduceMode(
       const std::vector<ir::Node *> &topo_ops) const;
 
+  //  virtual bool IsDistTrain(const std::vector<ir::Node *> &ops) const {
+  //    return false;
+  //  }
+
   //  mutable std::unordered_map<std::string, int> sharded_var_device_;
 };
+
+class DistSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
+ protected:
+  virtual bool PreProcess(ir::Graph *result, ir::Node *node) const;
+  virtual bool IsPreProcessNode(ir::Node *node) const;
+};
+
 }  // namespace details
 }  // namespace framework
 }  // namespace paddle

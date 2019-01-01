@@ -307,37 +307,6 @@ std::unique_ptr<ir::Graph> MultiDevSSAGraphBuilderBase::ApplyImpl(
   return graph;
 }
 
-bool MultiDevSSAGraphBuilderBase::IsPreProcessNode(ir::Node *node) const {
-  return OpHaveRole(*node, OpRole::kRPC) || OpHaveRole(*node, OpRole::kDist);
-}
-
-bool MultiDevSSAGraphBuilderBase::PreProcess(ir::Graph *result,
-                                             ir::Node *node) const {
-  if (OpHaveRole(*node, OpRole::kRPC)) {
-    int op_dev_id = CreateRPCOp(result, node);
-    PADDLE_ENFORCE(op_dev_id != -1,
-                   "Can not schedule the RPC operator to the right place.");
-    if (node->Op()->Type() == "recv") {
-      auto recv_vars_attr =
-          boost::get<std::vector<std::string>>(node->Op()->GetNullableAttr(
-              OpProtoAndCheckerMaker::OpRoleVarAttrName()));
-      PADDLE_ENFORCE(recv_vars_attr.size() == 2UL);  // [parameter, gradient]
-      if (recv_vars_attr[0].find(".block") == std::string::npos) {
-        bcast_var_name_set_[op_dev_id].emplace(recv_vars_attr[0]);
-      }
-    }
-    return true;
-  } else if (OpHaveRole(*node, OpRole::kDist)) {
-    int op_dev_id = CreateDistTrainOp(result, node);
-    if (node->Op()->Type() == "concat") {
-      auto origin_param_name = node->Op()->OutputArgumentNames()[0];
-      bcast_var_name_set_[op_dev_id].emplace(origin_param_name);
-    }
-    return true;
-  }
-  return false;
-}
-
 void MultiDevSSAGraphBuilderBase::CreateOpHandleIOs(ir::Graph *result,
                                                     ir::Node *node,
                                                     size_t place_id) const {
@@ -764,6 +733,23 @@ bool MultiDevSSAGraphBuilderBase::IsScaleLossOp(ir::Node *node) const {
          !loss_var_name_.empty();  // If loss_var is empty. This is test mode
 }
 
+int MultiDevSSAGraphBuilderBase::GetOpDeviceID(ir::Node *node) const {
+  if (strategy_.reduce_ != BuildStrategy::ReduceStrategy::kReduce) {
+    return -1;
+  }
+  if (!OpHaveRole(*node, framework::OpRole::kOptimize)) {
+    return -1;
+  }
+  auto param_grad = boost::get<std::vector<std::string>>(
+      node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
+
+  PADDLE_ENFORCE_EQ(param_grad.size(), 2U);
+  int dev_id = GetVarDeviceID(param_grad[1]);
+  PADDLE_ENFORCE_NE(dev_id, -1, "dev_id should not be -1.[%s, %s, %s]",
+                    node->Op()->Type(), param_grad[0], param_grad[1]);
+  return dev_id;
+}
+
 //////////////
 
 void AllReduceSSAGraphBuilder::CreateCollectionOp(
@@ -798,17 +784,14 @@ void ReduceSSAGraphBuilder::CreateCollectionOp(
 
 bool ReduceSSAGraphBuilder::PreProcess(ir::Graph *result,
                                        ir::Node *node) const {
-  bool flag = MultiDevSSAGraphBuilderBase::PreProcess(result, node);
-  if (!flag) {
-    int op_dev_id = GetOpDeviceID(node);
-    if (op_dev_id != -1) {
-      // This op only runs on one specific device.
-      CreateComputationalOp(result, node, op_dev_id);
-      for (ir::Node *n : node->outputs) {
-        sharded_var_device_.emplace(n->Name(), op_dev_id);
-      }
-      return true;
+  int op_dev_id = MultiDevSSAGraphBuilderBase::GetOpDeviceID(node);
+  if (op_dev_id != -1) {
+    // This op only runs on one specific device.
+    CreateComputationalOp(result, node, op_dev_id);
+    for (ir::Node *n : node->outputs) {
+      sharded_var_device_.emplace(n->Name(), op_dev_id);
     }
+    return true;
   }
   return false;
 }
@@ -830,20 +813,6 @@ int ReduceSSAGraphBuilder::GetOpDeviceID(
     (*delay_ops)[param_grad[1]].push_back(node);
     return -2;
   }
-  return dev_id;
-}
-
-int ReduceSSAGraphBuilder::GetOpDeviceID(ir::Node *node) const {
-  if (!OpHaveRole(*node, framework::OpRole::kOptimize)) {
-    return -1;
-  }
-  auto param_grad = boost::get<std::vector<std::string>>(
-      node->Op()->GetAttr(OpProtoAndCheckerMaker::OpRoleVarAttrName()));
-
-  PADDLE_ENFORCE_EQ(param_grad.size(), 2U);
-  int dev_id = GetVarDeviceID(param_grad[1]);
-  PADDLE_ENFORCE_NE(dev_id, -1, "dev_id should not be -1.[%s, %s, %s]",
-                    node->Op()->Type(), param_grad[0], param_grad[1]);
   return dev_id;
 }
 
@@ -910,6 +879,46 @@ std::vector<ir::Node *> ReduceSSAGraphBuilder::SortForReduceMode(
   PADDLE_ENFORCE_EQ(sorted_ops.size(), topo_ops.size());
   sharded_var_device_.clear();
   return sorted_ops;
+}
+
+bool DistSSAGraphBuilder::IsPreProcessNode(ir::Node *node) const {
+  return OpHaveRole(*node, OpRole::kRPC) || OpHaveRole(*node, OpRole::kDist);
+}
+
+bool DistSSAGraphBuilder::PreProcess(ir::Graph *result, ir::Node *node) const {
+  bool insert_op = false;
+  if (OpHaveRole(*node, OpRole::kRPC)) {
+    int op_dev_id = CreateRPCOp(result, node);
+    PADDLE_ENFORCE(op_dev_id != -1,
+                   "Can not schedule the RPC operator to the right place.");
+    if (node->Op()->Type() == "recv") {
+      auto recv_vars_attr =
+          boost::get<std::vector<std::string>>(node->Op()->GetNullableAttr(
+              OpProtoAndCheckerMaker::OpRoleVarAttrName()));
+      PADDLE_ENFORCE(recv_vars_attr.size() == 2UL);  // [parameter, gradient]
+      if (recv_vars_attr[0].find(".block") == std::string::npos) {
+        bcast_var_name_set_[op_dev_id].emplace(recv_vars_attr[0]);
+      }
+    }
+    insert_op = true;
+  } else if (OpHaveRole(*node, OpRole::kDist)) {
+    int op_dev_id = CreateDistTrainOp(result, node);
+    if (node->Op()->Type() == "concat") {
+      auto origin_param_name = node->Op()->OutputArgumentNames()[0];
+      bcast_var_name_set_[op_dev_id].emplace(origin_param_name);
+    }
+    insert_op = true;
+  } else {
+    int op_dev_id = GetOpDeviceID(node);
+    if (op_dev_id != -1) {  // This op only runs on one specific device.
+      CreateComputationalOp(result, node, op_dev_id);
+      for (ir::Node *n : node->outputs) {
+        sharded_var_device_.emplace(n->Name(), op_dev_id);
+      }
+      insert_op = true;
+    }
+  }
+  return insert_op;
 }
 
 }  // namespace details
