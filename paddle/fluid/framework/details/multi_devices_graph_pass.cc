@@ -161,6 +161,16 @@ void MultiDevSSAGraphBuilderBase::Init() const {
   Prepare();
 }
 
+bool MultiDevSSAGraphBuilderBase::IsDistTrain(
+    const std::vector<ir::Node *> &ops) const {
+  for (ir::Node *node : ops) {
+    if (OpHaveRole(*node, OpRole::kRPC)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void MultiDevSSAGraphBuilderBase::Prepare() const {
   bcast_var_name_set_.clear();
   bcast_var_name_set_.resize(places_.size());
@@ -194,7 +204,7 @@ std::unique_ptr<ir::Graph> MultiDevSSAGraphBuilderBase::ApplyImpl(
   result.Set(kGraphOps, new GraphOps);
 
   bool is_forwarding = true;
-  bool is_dist_train = false;
+  bool is_dist_train = IsDistTrain(sorted_ops);
   bool insert_collection_ops = places_.size() > 1 || Get<int>(kNumTrainers) > 1;
 
   Prepare();

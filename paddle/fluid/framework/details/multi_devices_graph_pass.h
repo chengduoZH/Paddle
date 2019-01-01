@@ -41,6 +41,8 @@ class MultiDevSSAGraphBuilderBase : public ir::Pass {
 
   virtual void Init() const;
 
+  virtual bool IsDistTrain(const std::vector<ir::Node *> &ops) const;
+
   virtual void Prepare() const;
 
   virtual std::vector<ir::Node *> SortOperations(const ir::Graph &graph) const;
@@ -115,6 +117,10 @@ class AllReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
                                   const std::string &g_name) const;
 
   bool IsSparseGradient(const std::string &og) const;
+
+  //  virtual bool IsDistTrain(const std::vector<ir::Node *> &ops) const {
+  //    return false;
+  //  }
 };
 
 class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
@@ -128,6 +134,7 @@ class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
     MultiDevSSAGraphBuilderBase::Prepare();
     sharded_var_device_.clear();
   }
+
   virtual void CreateCollectionOp(ir::Graph *result, bool is_dist_train,
                                   const std::string &p_name,
                                   const std::string &g_name) const;
@@ -143,6 +150,10 @@ class ReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
     flag = flag || (GetOpDeviceID(node) != -1);
     return flag;
   }
+
+  //  virtual bool IsDistTrain(const std::vector<ir::Node *> &ops) const {
+  //    return false;
+  //  }
 
   virtual bool PreProcess(ir::Graph *result, ir::Node *node) const;
 
