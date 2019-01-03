@@ -958,16 +958,17 @@ int RegisterMultiDevSSAGraphBuilder(const std::string &builder_mode) {
 }  // namespace framework
 }  // namespace paddle
 
-#define REGISTER_MULTI_DEVICES_PASS(pass_name, pass_class)                 \
-  STATIC_ASSERT_GLOBAL_NAMESPACE(                                          \
-      _reg_ssa_graph_builder_##pass_name,                                  \
-      "REGISTER_MULTI_DEV_PASS must be called in global namespace.");      \
-  paddle::framework::details::RegisterMultiDevSSAGraphBuilder(#pass_name); \
-  REGISTER_PASS(pass_name, pass_class)                                     \
-      .RequirePassAttr(paddle::framework::details::kLossVarName)           \
-      .RequirePassAttr(paddle::framework::details::kPlaces)                \
-      .RequirePassAttr(paddle::framework::details::kLocalScopes)           \
-      .RequirePassAttr(paddle::framework::details::kStrategy)              \
+#define REGISTER_MULTI_DEVICES_PASS(pass_name, pass_class)                     \
+  STATIC_ASSERT_GLOBAL_NAMESPACE(                                              \
+      _reg_ssa_graph_builder_##pass_name,                                      \
+      "REGISTER_MULTI_DEVICES_PASS must be called in global namespace.");      \
+  int _reg_ssa_graph_builder_entry_##pass_name =                               \
+      paddle::framework::details::RegisterMultiDevSSAGraphBuilder(#pass_name); \
+  REGISTER_PASS(pass_name, pass_class)                                         \
+      .RequirePassAttr(paddle::framework::details::kLossVarName)               \
+      .RequirePassAttr(paddle::framework::details::kPlaces)                    \
+      .RequirePassAttr(paddle::framework::details::kLocalScopes)               \
+      .RequirePassAttr(paddle::framework::details::kStrategy)                  \
       .RequirePassAttr(paddle::framework::details::kNRanks)
 
 REGISTER_MULTI_DEVICES_PASS(reduce_mode_multi_devices_pass,
