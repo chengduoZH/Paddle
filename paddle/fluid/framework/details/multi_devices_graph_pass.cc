@@ -270,8 +270,7 @@ std::vector<ir::Node *> MultiDevSSAGraphBuilderBase::SortOperations(
 }
 
 bool MultiDevSSAGraphBuilderBase::NeedCollectionOps() const {
-  return Get<size_t>(kNRanks);
-  > 0;
+  return Get<size_t>(kNRanks) > 1;
 }
 
 void MultiDevSSAGraphBuilderBase::CreateOpHandleIOs(ir::Graph *result,
