@@ -113,6 +113,11 @@ class AllReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
     return false;
   }
 
+  //  virtual std::vector<ir::Node *> SortOperations(const ir::Graph &graph)
+  //  const;
+  //  std::vector<ir::Node *> SortForDelayAllReduceOp(
+  //      const std::vector<ir::Node *> &topo_ops) const;
+
   virtual void InsertPostprocessOps(ir::Graph *result) const {}
 };
 

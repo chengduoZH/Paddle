@@ -39,12 +39,18 @@ std::map<ir::Node *, std::unordered_set<ir::Node *>> BuildOperationAdjList(
     const Graph &graph);
 
 template <typename T>
-std::vector<T *> FilterByNodeWrapper(const Graph &graph) {
+std::vector<T *> FilterByNodeWrapper(
+    const std::unordered_set<ir::Node *> &nodes) {
   std::vector<T *> ret;
-  for (ir::Node *n : graph.Nodes()) {
+  for (ir::Node *n : nodes) {
     if (n->IsWrappedBy<T>()) ret.push_back(&n->Wrapper<T>());
   }
   return ret;
+}
+
+template <typename T>
+std::vector<T *> FilterByNodeWrapper(const Graph &graph) {
+  return FilterByNodeWrapper<T>(graph.Nodes());
 }
 
 }  // namespace ir
