@@ -23,6 +23,17 @@ import numpy
 import unittest
 import os
 import numpy as np
+import contextlib
+import paddle.fluid.profiler as profiler
+
+
+@contextlib.contextmanager
+def profile_context(profile=True):
+    if profile:
+        with profiler.profiler('All', 'total', '/tmp/profile_file2'):
+            yield
+    else:
+        yield
 
 
 def resnet_cifar10(input, depth=32):
@@ -147,12 +158,14 @@ def train(net_type, use_cuda, save_dirname, is_local):
         loss = 0.0
         for pass_id in range(PASS_NUM):
             for batch_id, data in enumerate(train_reader()):
-                exe.run(main_program, feed=feeder.feed(data))
-
+                with profile_context(profile=True):
+                    exe.run(main_program, feed=feeder.feed(data))
+                return
                 if (batch_id % 10) == 0:
                     acc_list = []
                     avg_loss_list = []
                     for tid, test_data in enumerate(test_reader()):
+
                         loss_t, acc_t = exe.run(program=test_program,
                                                 feed=feeder.feed(test_data),
                                                 fetch_list=[avg_cost, acc])
@@ -200,54 +213,6 @@ def train(net_type, use_cuda, save_dirname, is_local):
             train_loop(t.get_trainer_program())
 
 
-def infer(use_cuda, save_dirname=None):
-    if save_dirname is None:
-        return
-
-    place = fluid.CUDAPlace(0) if use_cuda else fluid.CPUPlace()
-    exe = fluid.Executor(place)
-
-    inference_scope = fluid.core.Scope()
-    with fluid.scope_guard(inference_scope):
-        # Use fluid.io.load_inference_model to obtain the inference program desc,
-        # the feed_target_names (the names of variables that will be feeded
-        # data using feed operators), and the fetch_targets (variables that
-        # we want to obtain data from using fetch operators).
-        [inference_program, feed_target_names,
-         fetch_targets] = fluid.io.load_inference_model(save_dirname, exe)
-
-        # The input's dimension of conv should be 4-D or 5-D.
-        # Use normilized image pixels as input data, which should be in the range [0, 1.0].
-        batch_size = 1
-        tensor_img = numpy.random.rand(batch_size, 3, 32, 32).astype("float32")
-
-        # Use inference_transpiler to speedup
-        inference_transpiler_program = inference_program.clone()
-        t = fluid.transpiler.InferenceTranspiler()
-        t.transpile(inference_transpiler_program, place)
-
-        # Construct feed as a dictionary of {feed_target_name: feed_target_data}
-        # and results will contain a list of data corresponding to fetch_targets.
-        results = exe.run(inference_program,
-                          feed={feed_target_names[0]: tensor_img},
-                          fetch_list=fetch_targets)
-
-        transpiler_results = exe.run(inference_transpiler_program,
-                                     feed={feed_target_names[0]: tensor_img},
-                                     fetch_list=fetch_targets)
-
-        assert len(results[0]) == len(transpiler_results[0])
-        for i in range(len(results[0])):
-            np.testing.assert_almost_equal(
-                results[0][i], transpiler_results[0][i], decimal=4)
-
-        print("infer results: ", results[0])
-
-        fluid.io.save_inference_model(save_dirname, feed_target_names,
-                                      fetch_targets, exe,
-                                      inference_transpiler_program)
-
-
 def main(net_type, use_cuda, is_local=True):
     if use_cuda and not fluid.core.is_compiled_with_cuda():
         return
@@ -256,25 +221,12 @@ def main(net_type, use_cuda, is_local=True):
     save_dirname = "image_classification_" + net_type + ".inference.model"
 
     train(net_type, use_cuda, save_dirname, is_local)
-    infer(use_cuda, save_dirname)
 
 
 class TestImageClassification(unittest.TestCase):
     def test_vgg_cuda(self):
         with self.scope_prog_guard():
             main('vgg', use_cuda=True)
-
-    def test_resnet_cuda(self):
-        with self.scope_prog_guard():
-            main('resnet', use_cuda=True)
-
-    def test_vgg_cpu(self):
-        with self.scope_prog_guard():
-            main('vgg', use_cuda=False)
-
-    def test_resnet_cpu(self):
-        with self.scope_prog_guard():
-            main('resnet', use_cuda=False)
 
     @contextlib.contextmanager
     def scope_prog_guard(self):
