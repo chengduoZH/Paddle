@@ -9,7 +9,7 @@ cc_library(rpc_op_handle SRCS rpc_op_handle.cc DEPS framework_proto scope place 
 cc_library(multi_devices_helper SRCS multi_devices_helper.cc DEPS graph graph_helper)
 cc_library(multi_devices_graph_print_pass SRCS multi_devices_graph_print_pass.cc DEPS multi_devices_helper)
 cc_library(multi_devices_graph_check_pass SRCS multi_devices_graph_check_pass.cc DEPS multi_devices_helper)
-cc_library(delay_computation_op_pass SRCS delay_computation_op_pass.cc DEPS graph graph_helper)
+cc_library(delay_computation_op_pass SRCS delay_computation_op_pass.cc DEPS graph graph_helper multi_devices_helper)
 
 cc_library(variable_visitor SRCS variable_visitor.cc DEPS lod_tensor selected_rows)
 
