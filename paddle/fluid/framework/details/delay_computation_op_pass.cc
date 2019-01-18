@@ -48,6 +48,7 @@ class DelayCompuationOpPass : public ir::Pass {
     //    for (auto& node : sorted_ops) {
     //      //      node->
     //    }
+    return std::move(graph);
   }
 };
 }  // namespace details
