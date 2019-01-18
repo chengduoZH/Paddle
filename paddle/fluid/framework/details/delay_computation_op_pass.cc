@@ -25,7 +25,7 @@ class DelayCompuationOpPass : public ir::Pass {
  protected:
   std::unique_ptr<ir::Graph> ApplyImpl(
       std::unique_ptr<ir::Graph> graph) const override {
-    std::vector<ir::Node*> sorted_ops = ir::TopologySortOperations(graph);
+    std::vector<ir::Node*> sorted_ops = ir::TopologySortOperations(*graph);
 
     auto nodes = graph->ReleaseNodes();
     std::unordered_map<ir::Node*, size_t> nodes_map;
