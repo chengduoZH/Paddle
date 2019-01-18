@@ -27,6 +27,8 @@ class DelayCompuationOpPass : public ir::Pass {
       std::unique_ptr<ir::Graph> graph) const override {
     std::vector<ir::Node*> sorted_ops = ir::TopologySortOperations(*graph);
 
+    std::vector<ir::Node*> ops;
+    std::vector<ir::Node*> vars;
     auto nodes = graph->ReleaseNodes();
     std::unordered_map<ir::Node*, size_t> nodes_map;
 
@@ -37,7 +39,7 @@ class DelayCompuationOpPass : public ir::Pass {
       if (n->IsWrappedBy<OpHandleBase>()) {
         ops.emplace_back(n);
       } else if (n->IsWrappedBy<VarHandleBase>()) {
-        var.emplace_back(n);
+        vars.emplace_back(n);
       } else {
         PADDLE_THROW("Error.");
       }
