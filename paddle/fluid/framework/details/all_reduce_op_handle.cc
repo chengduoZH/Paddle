@@ -52,6 +52,20 @@ AllReduceOpHandle::AllReduceOpHandle(ir::Node *node,
     : OpHandleBase(node), local_scopes_(local_scopes), places_(places) {}
 #endif
 
+void AllReduceOpHandle::WaitInputVarGenerated() {
+  for (auto in_var : inputs_) {
+    if (NeedWait(in_var)) {
+      auto gen_op = in_var->GeneratedOp();
+      PADDLE_ENFORCE(gen_op->is_computation_op_);
+      in_var->GeneratedOp()->RecordWaitEventOnCtx(
+          dev_ctxes_.at(gen_op->place_));
+      //    for (auto &pair : dev_ctxes_) {
+      //      in_var->GeneratedOp()->RecordWaitEventOnCtx(pair.second);
+      //    }
+    }
+  }
+}
+
 void AllReduceOpHandle::RunImpl() {
   platform::RecordEvent record_event(Name(), dev_ctxes_.cbegin()->second);
 

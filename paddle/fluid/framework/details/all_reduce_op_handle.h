@@ -39,6 +39,7 @@ struct AllReduceOpHandle : public OpHandleBase {
 #endif
   std::string Name() const override;
 
+  virtual void WaitInputVarGenerated();
   // Delay and buffer nccl_all_reduce together can significantly increase
   // performance. Disable this feature by returning false.
   bool IsMultiDeviceTransfer() override { return true; };

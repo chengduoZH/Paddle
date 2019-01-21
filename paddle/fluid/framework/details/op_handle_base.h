@@ -34,6 +34,7 @@ class OpHandleBase {
   // Owned by `node`. No need to be deleted explicitly.
   explicit OpHandleBase(ir::Node *node) : node_(node) {
     node_->WrappedBy(this);
+    is_computation_op_ = false;
   }
 
   virtual ~OpHandleBase();
@@ -111,6 +112,10 @@ class OpHandleBase {
 #endif
 
   DISABLE_COPY_AND_ASSIGN(OpHandleBase);
+
+ public:
+  platform::Place place_;
+  bool is_computation_op_;
 };
 
 }  // namespace details

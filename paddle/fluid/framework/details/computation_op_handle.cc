@@ -25,8 +25,10 @@ ComputationOpHandle::ComputationOpHandle(ir::Node *node, Scope *scope,
     : OpHandleBase(node),
       op_(framework::OpRegistry::CreateOp(*node->Op())),
       scope_(scope),
-      place_(place),
-      scope_idx_(scope_idx) {}
+      scope_idx_(scope_idx) {
+  this->is_computation_op_ = true;
+  this->place_ = place;
+}
 
 void ComputationOpHandle::RunImpl() {
   WaitInputVarGenerated(place_);
