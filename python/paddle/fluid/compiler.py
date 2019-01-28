@@ -186,6 +186,9 @@ class CompiledProgram(object):
                 os.environ.get('CPU_NUM', multiprocessing.cpu_count()))
             if self._build_strategy.device_count > 0:
                 cpu_num = self._build_strategy.device_count
+                os.environ['CPU_NUM'] = str(
+                    cpu_num
+                )  # The CPU_NUM is also used by feeder.decorate_reader
             self._places = [core.CPUPlace() for _ in six.moves.range(cpu_num)]
         assert self._places, "no place for execution"
 
@@ -195,9 +198,7 @@ class CompiledProgram(object):
                 # performance. Worth tunning for other models in the future.
                 self._exec_strategy.num_threads = len(self._places) * 4
             else:
-                cpu_num = int(
-                    os.environ.get('CPU_NUM', multiprocessing.cpu_count()))
-                self._exec_strategy.num_threads = cpu_num * 2
+                self._exec_strategy.num_threads = len(self._places) * 2
 
         trainers_endpoints = self._program._trainers_endpoints
         if self._build_strategy.num_trainers > 1 and trainers_endpoints:

@@ -149,6 +149,7 @@ class ParallelExecutor(object):
                 os.environ.get('CPU_NUM', multiprocessing.cpu_count()))
             if build_strategy.device_count > 0:
                 cpu_num = build_strategy.device_count
+                os.environ['CPU_NUM'] = str(cpu_num)
             self._places = [core.CPUPlace() for _ in six.moves.range(cpu_num)]
         assert self._places, "no place for execution"
 
