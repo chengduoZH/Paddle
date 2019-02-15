@@ -163,8 +163,8 @@ class OperatorBase {
   virtual void RuntimeInferShape(const Scope& scope,
                                  const platform::Place& place,
                                  const RuntimeContext& ctx) const {}
-  static std::atomic<int64_t> set_dev_time;
-  static int64_t get_switch_dev_time() { return set_dev_time; }
+  //  static std::atomic<double> set_dev_time;
+  //  static int64_t get_switch_dev_time() { return set_dev_time; }
 
  protected:
   std::string type_;
