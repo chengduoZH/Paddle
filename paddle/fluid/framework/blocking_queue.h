@@ -13,11 +13,11 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
-
 #include <condition_variable>  // NOLINT
 #include <deque>
 #include <mutex>  // NOLINT
 #include <utility>
+#include "paddle/timer/Stat.h"
 
 namespace paddle {
 namespace framework {
@@ -35,6 +35,7 @@ class BlockingQueue {
 
   template <typename U>
   void Extend(const U &items) {
+    REGISTER_TIMER("BlockQueue::Extend");
     {
       std::lock_guard<std::mutex> g(mutex_);
       for (auto &item : items) {
@@ -45,15 +46,20 @@ class BlockingQueue {
   }
 
   std::deque<T> PopAll(size_t ms, bool *timeout) {
+    REGISTER_TIMER("BlockQueue::PopAll");
     auto time =
         std::chrono::system_clock::now() + std::chrono::milliseconds(ms);
     std::unique_lock<std::mutex> lock(mutex_);
     *timeout = !cv_.wait_until(lock, time, [this] { return !q_.empty(); });
-    std::deque<T> ret;
-    if (!*timeout) {
-      std::swap(ret, q_);
+    {
+      REGISTER_TIMER("BlockQueue::PopAll--wait_until");
+      std::deque<T> ret;
+
+      if (!*timeout) {
+        std::swap(ret, q_);
+      }
+      return ret;
     }
-    return ret;
   }
 
   T Pop() {

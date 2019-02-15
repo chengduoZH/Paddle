@@ -318,6 +318,11 @@ ParallelExecutor::ParallelExecutor(
     }
   }
 
+  // add timer
+  auto name = "ParallelExecutor - end";
+  auto stat = getStat(name);
+  timer_ = new TimerOnce(stat.get(), name, 1 * 1LU);
+  StartTimer();
   if (build_strategy.enable_parallel_graph_) {
     member_->executor_.reset(new details::ParallelSSAGraphExecutor(
         exec_strategy, member_->local_scopes_, member_->places_,
@@ -408,6 +413,12 @@ void ParallelExecutor::BCastParamsToDevices(
     }
   }
 }
+void ParallelExecutor::StartTimer() {
+  timer_->timer_.start();
+  timer_->timer_.reset();
+}
+
+int64_t ParallelExecutor::EndTimer() { return timer_->timer_.stop(); }
 
 void ParallelExecutor::Run(const std::vector<std::string> &fetch_tensors,
                            const std::string &fetched_var_name) {
@@ -458,6 +469,7 @@ void ParallelExecutor::FeedAndSplitTensorIntoLocalScopes(
       t->set_lod(lod_tensors[j].lod());
     }
   }
+  StartTimer();
 }
 
 bool ParallelExecutor::EnableParallelGraphExecution(

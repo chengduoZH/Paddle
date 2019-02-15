@@ -119,7 +119,7 @@ cc_library(shape_inference SRCS shape_inference.cc DEPS ddim attribute device_co
 cc_library(transfer_scope_cache SRCS transfer_scope_cache.cc DEPS scope framework_proto device_context)
 cc_library(op_kernel_type SRCS op_kernel_type.cc DEPS device_context place)
 cc_library(operator SRCS operator.cc DEPS op_info device_context tensor scope glog
-    shape_inference data_transform lod_tensor profiler transfer_scope_cache op_kernel_type)
+    shape_inference data_transform lod_tensor profiler transfer_scope_cache op_kernel_type Stat)
 
 cc_test(operator_test SRCS operator_test.cc DEPS operator op_registry device_context)
 
@@ -179,7 +179,7 @@ target_link_libraries(executor garbage_collector)
 cc_library(parallel_executor SRCS parallel_executor.cc DEPS
         threaded_ssa_graph_executor scope_buffered_ssa_graph_executor parallel_ssa_graph_executor
         graph build_strategy
-        fast_threaded_ssa_graph_executor variable_helper)
+        fast_threaded_ssa_graph_executor variable_helper Stat)
 
 if(WITH_PSLIB)
     cc_library(async_executor SRCS async_executor.cc data_feed.cc data_feed_factory.cc executor_thread_worker.cc DEPS op_registry device_context scope framework_proto glog lod_rank_table feed_fetch_method graph_to_program_pass async_executor_proto variable_helper pslib_brpc pslib timer)

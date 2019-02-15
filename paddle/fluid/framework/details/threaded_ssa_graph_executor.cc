@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "paddle/fluid/framework/details/threaded_ssa_graph_executor.h"
+#include "paddle/timer/Stat.h"
 
 #include "paddle/fluid/framework/details/multi_devices_helper.h"
 #include "paddle/fluid/framework/ir/graph_helper.h"
@@ -42,29 +43,37 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   std::unordered_set<VarHandleBase *> pending_vars;
   auto ready_vars = std::make_shared<BlockingQueue<VarHandleBase *>>();
   std::unordered_set<OpHandleBase *> ready_ops;
+  int continue_count = 0;
+  int loop_count = 0;
   // For ops (e.g. nccl_all_reduce) that need to coordinate multiple
   // streams from multiple GPUs, it's faster to buffer them and schedule
   // together since we currently cannot overlap computation and memcpy streams.
   // Should revisit it if overlapping is available.
   std::unordered_set<OpHandleBase *> delayed_ops;
+  {
+    auto name = "ThreadedSSAGraphExecutor::Run::pending_ops & pending_vars";
+    auto stat = getStat(name);
+    TimerOnce timer(stat.get(), name, 1 * 1LU);
 
-  // Transform SSAGraph to pending_ops & pending_vars
-  for (auto &var_map : graph_->Get<details::GraphVars>(details::kGraphVars)) {
-    for (auto &name_pair : var_map) {
-      for (auto &version_pair : name_pair.second) {
-        InsertPendingVar(&pending_vars, ready_vars.get(), version_pair);
+    // Transform SSAGraph to pending_ops & pending_vars
+    for (auto &var_map : graph_->Get<details::GraphVars>(details::kGraphVars)) {
+      for (auto &name_pair : var_map) {
+        for (auto &version_pair : name_pair.second) {
+          InsertPendingVar(&pending_vars, ready_vars.get(), version_pair);
+        }
       }
     }
-  }
-  for (auto &var : graph_->Get<details::GraphDepVars>(details::kGraphDepVars)) {
-    InsertPendingVar(&pending_vars, ready_vars.get(), var);
-  }
+    for (auto &var :
+         graph_->Get<details::GraphDepVars>(details::kGraphDepVars)) {
+      InsertPendingVar(&pending_vars, ready_vars.get(), var);
+    }
 
-  for (auto &op : ir::FilterByNodeWrapper<OpHandleBase>(*graph_)) {
-    if (op->Inputs().empty()) {  // Special case, Op has no input.
-      ready_ops.insert(op);
-    } else {
-      InsertPendingOp(&pending_ops, op);
+    for (auto &op : ir::FilterByNodeWrapper<OpHandleBase>(*graph_)) {
+      if (op->Inputs().empty()) {  // Special case, Op has no input.
+        ready_ops.insert(op);
+      } else {
+        InsertPendingOp(&pending_ops, op);
+      }
     }
   }
 
@@ -73,8 +82,13 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   std::unordered_set<VarHandleBase *> fetch_dependencies;
   FeedFetchList fetch_data(fetch_tensors.size());
 
-  InsertFetchOps(fetch_tensors, &fetch_ops, &fetch_dependencies, &pending_ops,
-                 &pending_vars, ready_vars.get(), &fetch_data);
+  {
+    auto name = "ThreadedSSAGraphExecutor::Run::Insert FetchOps";
+    auto stat = getStat(name);
+    TimerOnce timer(stat.get(), name, 1 * 1LU);
+    InsertFetchOps(fetch_tensors, &fetch_ops, &fetch_dependencies, &pending_ops,
+                   &pending_vars, ready_vars.get(), &fetch_data);
+  }
 
   auto run_all_ops = [&](std::unordered_set<OpHandleBase *> &set) {
     for (auto *op : set) {
@@ -84,12 +98,25 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     set.clear();
   };
 
+  auto name = "ThreadedSSAGraphExecutor::Run::Execution_step";
+  std::vector<TimerOnce> step_timers;
+  for (int i = 0; i < 3; ++i) {
+    step_timers.emplace_back(TimerOnce(getStat(name).get(), name, 1 * 1LU));
+  }
+
   // Clean run context
   run_op_futures_.clear();
   exception_holder_.Clear();
   event.reset(nullptr);
+
+  {
+    auto name = "ThreadedSSAGraphExecutor::Run::Execution";
+    auto stat = getStat(name);
+    TimerOnce timer(stat.get(), name, 1 * 1LU);
+  }
   // Step 3. Execution
   while (!pending_vars.empty()) {
+    step_timers[0].timer_.start();
     // 1. Run All Ready ops
     // Keep loop until all vars are ready.
     //
@@ -100,8 +127,9 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     } else {
       run_all_ops(ready_ops);
     }
-
+    step_timers[0].timer_.stop();
     // 2. Find ready variable
+    step_timers[1].timer_.start();
     bool timeout;
     auto cur_ready_vars = ready_vars->PopAll(1, &timeout);
 
@@ -113,11 +141,13 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         ClearFetchOp(graph_.get(), &fetch_ops);
         exception_holder_.ReThrow();
       } else {
-        continue;
+        run_all_ops(ready_ops);
       }
     }
+    step_timers[1].timer_.stop();
     // 3. Remove the dependency of ready_var.
     // Find the ready_ops after the ready_var.
+    step_timers[2].timer_.start();
     for (auto ready_var : cur_ready_vars) {
       pending_vars.erase(ready_var);
       for (auto *op : ready_var->PendingOps()) {
@@ -132,10 +162,24 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         }
       }
     }
+    step_timers[2].timer_.stop();
   }
-  PADDLE_ENFORCE(ready_ops.empty());
-  // Wait FetchOps.
-  ClearFetchOp(graph_.get(), &fetch_ops);
+
+  for (size_t i = 0; i < step_timers.size(); ++i) {
+    int64_t time = step_timers[i].timer_.get();
+    LOG(INFO) << "ParallelExecutor::Run_step  " << i << ": " << time / 1000
+              << "ms" << time % 1000 << "us";
+  }
+  LOG(INFO) << "ParallelExecutor::Run::Continue_count " << continue_count
+            << " loop_count " << loop_count;
+  {
+    auto name = "ThreadedSSAGraphExecutor::Run::Wait FetchOps.";
+    auto stat = getStat(name);
+    TimerOnce timer(stat.get(), name, 1 * 1LU);
+    PADDLE_ENFORCE(ready_ops.empty());
+    // Wait FetchOps.
+    ClearFetchOp(graph_.get(), &fetch_ops);
+  }
 
   return fetch_data;
 }

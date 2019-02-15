@@ -73,7 +73,7 @@ cc_test(memory_optimize_helper_test SRCS memory_optimize_helper_test.cc memory_o
 cc_library(ssa_graph_executor SRCS ssa_graph_executor.cc DEPS ${SSA_GRAPH_EXECUTOR_DEPS})
 
 cc_library(threaded_ssa_graph_executor SRCS threaded_ssa_graph_executor.cc DEPS fetch_op_handle ssa_graph_executor scope
-        simple_threadpool device_context)
+        simple_threadpool device_context Stat)
 
 cc_library(parallel_ssa_graph_executor SRCS parallel_ssa_graph_executor.cc DEPS threaded_ssa_graph_executor)
 

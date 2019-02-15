@@ -21,6 +21,8 @@ limitations under the License. */
 #include <unordered_map>
 #include <vector>
 
+#include "paddle/timer/Stat.h"
+
 #include "glog/logging.h"  // For VLOG
 #include "paddle/fluid/framework/attribute.h"
 #include "paddle/fluid/framework/block_desc.h"
@@ -161,6 +163,8 @@ class OperatorBase {
   virtual void RuntimeInferShape(const Scope& scope,
                                  const platform::Place& place,
                                  const RuntimeContext& ctx) const {}
+  static std::atomic<int64_t> set_dev_time;
+  static int64_t get_switch_dev_time() { return set_dev_time; }
 
  protected:
   std::string type_;

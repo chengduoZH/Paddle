@@ -159,6 +159,7 @@ RuntimeContext::RuntimeContext(const VariableNameMap& innames,
     }
   }
 }
+std::atomic<int64_t> OperatorBase::set_dev_time = 0;
 
 void OperatorBase::Run(const Scope& scope, const platform::Place& place) {
   try {
@@ -167,8 +168,14 @@ void OperatorBase::Run(const Scope& scope, const platform::Place& place) {
 #ifndef PADDLE_WITH_CUDA
       PADDLE_THROW("Cannot run operator on place %s", place);
 #else
-      auto dev_id = boost::get<platform::CUDAPlace>(place).device;
-      platform::SetDeviceId(dev_id);
+      {
+        auto name = "OperatorBase::Run::TimerOnce";
+        auto stat = getStat(name);
+        TimerOnce timer(stat.get(), name, 1 * 1LU);
+        auto dev_id = boost::get<platform::CUDAPlace>(place).device;
+        platform::SetDeviceId(dev_id);
+        set_dev_time += timer.timer_.stop();
+      }
 #endif
     }
 

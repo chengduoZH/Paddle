@@ -32,6 +32,7 @@ limitations under the License. */
 #include "paddle/fluid/platform/nccl_helper.h"
 #endif
 
+#include "paddle/timer/Stat.h"
 namespace paddle {
 namespace framework {
 
@@ -75,6 +76,12 @@ class ParallelExecutor {
                                     const ExecutionStrategy &exec_strategy,
                                     const BuildStrategy &build_strategy) const;
 
+  void StartTimer();
+
+  int64_t EndTimer();
+
+ private:
+  TimerOnce *timer_;
   ParallelExecutorPrivate *member_;
 #if defined(PADDLE_WITH_CUDA) && !defined(_WIN32)
   std::unique_ptr<ncclUniqueId> local_nccl_id_;
