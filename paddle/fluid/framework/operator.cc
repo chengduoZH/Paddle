@@ -899,6 +899,40 @@ static void CheckTensorNANOrInf(const std::string& name,
                  "Tensor %s contains NAN", name);
 }
 
+template <typename T>
+std::string get_value(const framework::Tensor& tensor,
+                      const platform::DeviceContext& dev_ctx) {
+  std::vector<T> outv;
+  std::stringstream out;
+  framework::TensorToVector(tensor, dev_ctx, &outv);
+  T total02 = 0.0;
+  for (auto v : outv) {
+    total02 += v;
+    out << v << ", ";
+  }
+  out << "Sum :" << total02;
+  return out.str();
+}
+
+std::string GetValue(const framework::Tensor& tensor,
+                     const platform::DeviceContext& dev_ctx) {
+  if (tensor.memory_size() == 0) {
+    return "Empty";
+  }
+  if (tensor.type() != proto::VarType::FP32 &&
+      tensor.type() != proto::VarType::FP64) {
+    return "Empty";
+  }
+
+  if (tensor.type() == proto::VarType::FP32) {
+    return get_value<float>(tensor, dev_ctx);
+  } else if (tensor.type() == proto::VarType::FP64) {
+    return get_value<double>(tensor, dev_ctx);
+  }
+
+  return "Empty";
+}
+
 void OperatorWithKernel::RuntimeInferShape(const Scope& scope,
                                            const platform::Place& place,
                                            const RuntimeContext& ctx) const {
@@ -965,6 +999,29 @@ void OperatorWithKernel::RunImpl(const Scope& scope,
     // there is inplace variable has been transfered.
     TransferInplaceVarsBack(scope, transfered_inplace_vars, *transfer_scope);
   }
+  //
+  //  {
+  //    for (auto& in : Inputs()) {
+  //      auto var = exec_scope.FindVar(in.second[0]);
+  //      if (var && var->IsType<framework::LoDTensor>()) {
+  //        auto tensor = var->Get<framework::LoDTensor>();
+  //        std::string values = GetValue(tensor, *dev_ctx);
+  //        VLOG(1) << place << ", " << in.second[0] << ", " << values;
+  //      } else {
+  //        VLOG(1) << place << ", " << in.second[0] << " Empty ";
+  //      }
+  //    }
+  //    for (auto& in : Outputs()) {
+  //      auto var = exec_scope.FindVar(in.second[0]);
+  //      if (var && var->IsType<framework::LoDTensor>()) {
+  //        auto tensor = var->Get<framework::LoDTensor>();
+  //        std::string values = GetValue(tensor, *dev_ctx);
+  //        VLOG(1) << place << ", " << in.second[0] << ", " << values;
+  //      } else {
+  //        VLOG(1) << place << ", " << in.second[0] << " Empty ";
+  //      }
+  //    }
+  //  }
 
   /*For profiling/benchmark only*/
   if (FLAGS_benchmark) {

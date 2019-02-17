@@ -90,7 +90,14 @@ class TestFuseAdamOps(TestParallelExecutorBase):
             use_cuda=use_cuda,
             fuse_all_optimizer_ops=False,
             memory_opt=False,
-            optimizer=optimizer)
+            optimizer=optimizer,
+            fetch=[
+                "fc_2.b_0", "fc_2.w_0", "batch_norm_1.b_0", "batch_norm_1.w_0",
+                "fc_1.b_0", "fc_1.w_0", "batch_norm_0.b_0", "batch_norm_0.w_0",
+                "fc_0.b_0", "fc_0.w_0", "fc_2.b_0@GRAD", "fc_2.w_0@GRAD",
+                "fc_1.b_0@GRAD", "fc_1.w_0@GRAD", "fc_0.b_0@GRAD",
+                "fc_0.w_0@GRAD"
+            ])
         fuse_op_first_loss, fuse_op_last_loss = self.check_network_convergence(
             model,
             feed_dict={"image": img,
@@ -98,39 +105,23 @@ class TestFuseAdamOps(TestParallelExecutorBase):
             use_cuda=use_cuda,
             fuse_all_optimizer_ops=True,
             memory_opt=False,
-            optimizer=optimizer)
+            optimizer=optimizer,
+            fetch=[
+                "fc_5.b_0", "fc_5.w_0", "batch_norm_3.b_0", "batch_norm_3.w_0",
+                "fc_4.b_0", "fc_4.w_0", "batch_norm_2.b_0", "batch_norm_2.w_0",
+                "fc_3.b_0", "fc_3.w_0", "fc_5.b_0@GRAD", "fc_5.w_0@GRAD",
+                "fc_4.b_0@GRAD", "fc_4.w_0@GRAD", "fc_3.b_0@GRAD",
+                "fc_3.w_0@GRAD"
+            ])
 
         for loss in zip(not_fuse_op_first_loss, fuse_op_first_loss):
             self.assertAlmostEquals(loss[0], loss[1], delta=1e-6)
         for loss in zip(not_fuse_op_last_loss, fuse_op_last_loss):
             self.assertAlmostEquals(loss[0], loss[1], delta=1e-6)
 
-    def test_simple_fc_with_fuse_op(self):
-        self._compare_fuse_all_reduce_ops(simple_fc_net, True)
-        self._compare_fuse_all_reduce_ops(simple_fc_net, False)
-
     def test_batchnorm_fc_with_fuse_op(self):
         self._compare_fuse_all_reduce_ops(fc_with_batchnorm, True)
         self._compare_fuse_all_reduce_ops(fc_with_batchnorm, False)
-
-
-class TestFuseSGDOps(TestFuseAdamOps):
-    def sgd_optimizer(self, learning_rate=1e-6):
-        return fluid.optimizer.SGD(
-            learning_rate=learning_rate,
-            regularization=fluid.regularizer.L2Decay(1e-6))
-
-    def test_simple_fc_with_fuse_op(self):
-        self._compare_fuse_all_reduce_ops(
-            simple_fc_net, True, optimizer=self.sgd_optimizer)
-        self._compare_fuse_all_reduce_ops(
-            simple_fc_net, False, optimizer=self.sgd_optimizer)
-
-    def test_batchnorm_fc_with_fuse_op(self):
-        self._compare_fuse_all_reduce_ops(
-            fc_with_batchnorm, True, optimizer=self.sgd_optimizer)
-        self._compare_fuse_all_reduce_ops(
-            fc_with_batchnorm, False, optimizer=self.sgd_optimizer)
 
 
 if __name__ == '__main__':

@@ -80,6 +80,10 @@ class BatchNormKernel<platform::CUDADeviceContext, T>
     auto *y = ctx.Output<Tensor>("Y");
     y->mutable_data<T>(ctx.GetPlace());
 
+    auto &dev_ctx = ctx.template device_context<platform::CUDADeviceContext>();
+    math::SetConstant<platform::CUDADeviceContext, T> set_zero;
+    set_zero(dev_ctx, y, static_cast<T>(0));
+
     // ------------------- cudnn descriptors ---------------------
     cudnnTensorDescriptor_t data_desc_;
     cudnnTensorDescriptor_t bn_param_desc_;
@@ -120,8 +124,6 @@ class BatchNormKernel<platform::CUDADeviceContext, T>
 
     const auto *scale = ctx.Input<Tensor>("Scale");
     const auto *bias = ctx.Input<Tensor>("Bias");
-
-    auto &dev_ctx = ctx.template device_context<platform::CUDADeviceContext>();
 
     auto handle = dev_ctx.cudnn_handle();
 
@@ -187,12 +189,91 @@ class BatchNormKernel<platform::CUDADeviceContext, T>
             saved_variance->template mutable_data<BatchNormParamType<T>>(
                 ctx.GetPlace())));
       }
+
+      {
+        std::vector<T> outv;
+        framework::TensorToVector(*mean_out, ctx.device_context(), &outv);
+        T total02 = 0.0;
+        for (T v : outv) {
+          total02 += v > 0 ? v : -v;
+        }
+        VLOG(10) << ctx.GetPlace() << ctx.Outputs("MeanOut")[0]
+                 << " sum: " << static_cast<double>(total02)
+                 << ",  Address: " << mean_out->data<void>() << ", "
+                 << mean_out->dims();
+      }
+      {
+        std::vector<T> outv;
+        framework::TensorToVector(*saved_variance, ctx.device_context(), &outv);
+        T total02 = 0.0;
+        for (T v : outv) {
+          total02 += v > 0 ? v : -v;
+        }
+        VLOG(10) << ctx.GetPlace() << ctx.Outputs("VarianceOut")[0]
+                 << " sum: " << static_cast<double>(total02)
+                 << ",  Address: " << saved_variance->data<void>() << ", "
+                 << saved_variance->dims();
+      }
     }
 
     // clean when exit.
     CUDNN_ENFORCE(platform::dynload::cudnnDestroyTensorDescriptor(data_desc_));
     CUDNN_ENFORCE(
         platform::dynload::cudnnDestroyTensorDescriptor(bn_param_desc_));
+
+    {
+      std::vector<T> outv;
+      framework::TensorToVector(*scale, ctx.device_context(), &outv);
+      T total02 = 0.0;
+      for (T v : outv) {
+        total02 += v > 0 ? v : -v;
+      }
+      VLOG(10) << ctx.GetPlace() << ctx.Inputs("Scale")[0]
+               << " sum: " << static_cast<double>(total02)
+               << ",  Address: " << scale->data<void>() << ", "
+               << scale->dims();
+      std::stringstream out;
+      for (auto &v : outv) {
+        out << v << ", ";
+      }
+      VLOG(10) << ctx.GetPlace() << ctx.Inputs("Scale")[0] << out.str();
+    }
+    {
+      std::vector<T> outv;
+      framework::TensorToVector(*bias, ctx.device_context(), &outv);
+      T total02 = 0.0;
+      for (T v : outv) {
+        total02 += v > 0 ? v : -v;
+      }
+      VLOG(10) << ctx.GetPlace() << ctx.Inputs("Bias")[0]
+               << " sum: " << static_cast<double>(total02)
+               << ",  Address: " << bias->data<void>() << ", " << bias->dims();
+      std::stringstream out;
+      for (auto &v : outv) {
+        out << v << ", ";
+      }
+      VLOG(10) << ctx.GetPlace() << ctx.Inputs("Scale")[0] << out.str();
+    }
+    {
+      std::vector<T> outv;
+      framework::TensorToVector(*x, ctx.device_context(), &outv);
+      T total02 = 0.0;
+      for (T v : outv) {
+        total02 += v;
+      }
+      VLOG(10) << ctx.GetPlace() << ctx.Inputs("X")[0]
+               << " sum: " << static_cast<double>(total02);
+    }
+    {
+      std::vector<T> outv;
+      framework::TensorToVector(*y, ctx.device_context(), &outv);
+      T total02 = 0.0;
+      for (T v : outv) {
+        total02 += v;
+      }
+      VLOG(10) << ctx.GetPlace() << ctx.Outputs("Y")[0]
+               << " sum: " << static_cast<double>(total02);
+    }
   }
 };
 
@@ -410,11 +491,9 @@ class BatchNormGradKernel<platform::CUDADeviceContext, T>
 
 namespace ops = paddle::operators;
 namespace plat = paddle::platform;
-REGISTER_OP_CUDA_KERNEL(
-    batch_norm, ops::BatchNormKernel<plat::CUDADeviceContext, float>,
-    ops::BatchNormKernel<plat::CUDADeviceContext, double>,
-    ops::BatchNormKernel<plat::CUDADeviceContext, plat::float16>);
+REGISTER_OP_CUDA_KERNEL(batch_norm,
+                        ops::BatchNormKernel<plat::CUDADeviceContext, float>,
+                        ops::BatchNormKernel<plat::CUDADeviceContext, double>);
 REGISTER_OP_CUDA_KERNEL(
     batch_norm_grad, ops::BatchNormGradKernel<plat::CUDADeviceContext, float>,
-    ops::BatchNormGradKernel<plat::CUDADeviceContext, double>,
-    ops::BatchNormGradKernel<plat::CUDADeviceContext, plat::float16>);
+    ops::BatchNormGradKernel<plat::CUDADeviceContext, double>);

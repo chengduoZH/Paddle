@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
-
+#include <vector>
 #include "paddle/fluid/framework/op_registry.h"
 #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/operators/math/math_function.h"
@@ -52,6 +52,40 @@ class MulKernel : public framework::OpKernel<T> {
     blas.MatMul(x_matrix, y_matrix, z);
     if (z_dim.size() != 2) {
       z->Resize(z_dim);
+    }
+
+    {
+      std::vector<T> outv;
+      framework::TensorToVector(*x, context.device_context(), &outv);
+      T total02 = 0.0;
+      for (T v : outv) {
+        total02 += v;
+      }
+      VLOG(10) << context.GetPlace() << context.Inputs("X")[0]
+               << " sum: " << static_cast<double>(total02)
+               << "Address: " << x->data<void>();
+    }
+
+    {
+      std::vector<T> outv;
+      framework::TensorToVector(*y, context.device_context(), &outv);
+      T total02 = 0.0;
+      for (T v : outv) {
+        total02 += v;
+      }
+      VLOG(10) << context.GetPlace() << context.Inputs("Y")[0]
+               << " sum: " << static_cast<double>(total02)
+               << "Address: " << y->data<void>();
+    }
+    {
+      std::vector<T> outv;
+      framework::TensorToVector(*z, context.device_context(), &outv);
+      T total02 = 0.0;
+      for (T v : outv) {
+        total02 += v;
+      }
+      VLOG(10) << context.GetPlace() << context.Outputs("Out")[0]
+               << " sum: " << static_cast<double>(total02);
     }
   }
 };
@@ -97,6 +131,17 @@ class MulGradKernel : public framework::OpKernel<T> {
 
       // dx = dout * y'. dx: M x K, dout : M x N, y : K x N
       blas.MatMul(dout_mat, false, y_matrix, true, &dx_matrix);
+      {
+        std::vector<T> outv;
+        framework::TensorToVector(*dx, ctx.device_context(), &outv);
+        T total02 = 0.0;
+        for (T v : outv) {
+          total02 += v;
+        }
+        VLOG(10) << ctx.GetPlace()
+                 << ctx.Outputs(framework::GradVarName("X"))[0]
+                 << " sum: " << static_cast<double>(total02);
+      }
     }
     if (dy) {
       dy->mutable_data<T>(ctx.GetPlace());
@@ -105,6 +150,17 @@ class MulGradKernel : public framework::OpKernel<T> {
                              : *dy;
       // dy = x' * dout. dy K x N, dout : M x N, x : M x K
       blas.MatMul(x_matrix, true, dout_mat, false, &dy_matrix);
+      {
+        std::vector<T> outv;
+        framework::TensorToVector(*dy, ctx.device_context(), &outv);
+        T total02 = 0.0;
+        for (T v : outv) {
+          total02 += v;
+        }
+        VLOG(10) << ctx.GetPlace()
+                 << ctx.Outputs(framework::GradVarName("Y"))[0]
+                 << " sum: " << static_cast<double>(total02);
+      }
     }
   }
 };

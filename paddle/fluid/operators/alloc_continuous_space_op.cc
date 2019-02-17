@@ -62,6 +62,17 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
         offset += len;
         framework::TensorCopy(*out_tensors[i], context.GetPlace(), dev_ctx,
                               &sub_tensor);
+        {
+          std::vector<T> outv;
+          framework::TensorToVector(*out_tensors[i], context.device_context(),
+                                    &outv);
+          T total02 = 0.0;
+          for (T v : outv) {
+            total02 += v;
+          }
+          VLOG(10) << in_var_names[i]
+                   << " sum: " << static_cast<double>(total02);
+        }
       }
     } else {
       math::SetConstant<DeviceContext, T> set_constant;

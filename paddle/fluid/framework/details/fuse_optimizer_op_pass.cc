@@ -88,6 +88,11 @@ std::unique_ptr<ir::Graph> FuseOptimizerOpPass::ApplyImpl(
     AppendAllocContinuousSpace(aux_var_set.at(var_name),
                                fused_vars_name.at(var_name), true,
                                global_block);
+    std::stringstream out;
+    for (auto &var : aux_var_set.at(var_name)) {
+      out << var << " ";
+    }
+    VLOG(10) << var_name << ": " << out.str();
   }
 
   // Step 5: Get the fused Gradient's name
@@ -117,20 +122,20 @@ void FuseOptimizerOpPass::SortVarsName(
 
   std::vector<size_t> param_sort_idx;
   param_sort_idx.reserve(param_vec.size());
-  for (size_t i = 0; i < param_vec.size(); ++i) {
-    param_sort_idx.emplace_back(i);
-  }
-  std::sort(param_sort_idx.begin(), param_sort_idx.end(),
-            [&param_vec](size_t a, size_t b) -> bool {
-              return param_vec[a] < param_vec[b];
-            });
-
-  //  for (auto &p_g : params_grads) {
-  //    auto iter = std::find(param_vec.begin(), param_vec.end(), p_g.first);
-  //    PADDLE_ENFORCE(iter != param_vec.end());
-  //    auto idx = std::distance(param_vec.begin(), iter);
-  //    param_sort_idx.emplace_back(idx);
+  //  for (size_t i = 0; i < param_vec.size(); ++i) {
+  //    param_sort_idx.emplace_back(i);
   //  }
+  //  std::sort(param_sort_idx.begin(), param_sort_idx.end(),
+  //            [&param_vec](size_t a, size_t b) -> bool {
+  //              return param_vec[a] < param_vec[b];
+  //            });
+
+  for (auto &p_g : params_grads) {
+    auto iter = std::find(param_vec.begin(), param_vec.end(), p_g.first);
+    PADDLE_ENFORCE(iter != param_vec.end());
+    auto idx = std::distance(param_vec.begin(), iter);
+    param_sort_idx.emplace_back(idx);
+  }
 
   for (auto &aux_vars : *aux_vars_set) {
     std::vector<std::string> sorted_vars;

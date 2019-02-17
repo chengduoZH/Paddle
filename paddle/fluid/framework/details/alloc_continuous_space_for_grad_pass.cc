@@ -58,6 +58,7 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
     auto& group_params_grads =
         result.Get<GroupGradsAndParams>(kGroupGradsAndParams);
     RecordGroupGradsAndParams(params_grads, &group_params_grads);
+
     // Set Gradients as Persistable to prevent this var becoming reusable.
     auto dtype = static_cast<proto::VarType::Type>(0);
     for (auto& p_g : params_grads) {
@@ -77,14 +78,18 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
       PADDLE_ENFORCE_EQ(ele_dtype, dtype);
     }
 
-    std::vector<std::string> grads_name;
-    std::vector<std::string> params_name;
-    grads_name.reserve(params_grads.size());
-    params_name.reserve(params_grads.size());
+    std::vector<std::string> grad_names;
+    std::vector<std::string> param_names;
+    grad_names.reserve(params_grads.size());
+    param_names.reserve(params_grads.size());
+
+    std::stringstream out;
     for (auto& p_g : params_grads) {
-      params_name.emplace_back(p_g.first);
-      grads_name.emplace_back(p_g.second);
+      param_names.emplace_back(p_g.first);
+      grad_names.emplace_back(p_g.second);
+      out << "[" << p_g.first << "," << p_g.second << "]; ";
     }
+    VLOG(10) << out.str();
 
     // Create the fused variable name.
     const std::string prefix(kFusedVarNamePrefix);
@@ -104,7 +109,7 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
         result.Get<RunOnlyOnceProgram>(kRunOnlyOnceProgram).back();
     auto* global_block = program_desc.MutableBlock(0);
 
-    AppendAllocSpaceForVarsOp(params_name, grads_name, fused_var_name,
+    AppendAllocSpaceForVarsOp(param_names, grad_names, fused_var_name,
                               global_block);
 
     return std::move(graph);
@@ -165,14 +170,14 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
     return type == proto::VarType::LOD_TENSOR;
   }
 
-  void AppendAllocSpaceForVarsOp(const std::vector<std::string>& params_name,
-                                 const std::vector<std::string>& grads_name,
+  void AppendAllocSpaceForVarsOp(const std::vector<std::string>& param_names,
+                                 const std::vector<std::string>& grad_names,
                                  const std::string& fused_var_name,
                                  BlockDesc* global_block) const {
     auto op_desc = global_block->AppendOp();
     op_desc->SetType("alloc_continuous_space_for_grad");
-    op_desc->SetInput("Parameters", params_name);
-    op_desc->SetOutput("Gradients", grads_name);
+    op_desc->SetInput("Parameters", param_names);
+    op_desc->SetOutput("Gradients", grad_names);
     op_desc->SetOutput("FusedOutput", {fused_var_name});
   }
 
