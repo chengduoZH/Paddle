@@ -117,7 +117,6 @@ void FuseOptimizerOpPass::SortVarsName(
 
   std::vector<size_t> param_sort_idx;
   param_sort_idx.reserve(param_vec.size());
-
   for (auto &p_g : params_grads) {
     auto iter = std::find(param_vec.begin(), param_vec.end(), p_g.first);
     PADDLE_ENFORCE(iter != param_vec.end());

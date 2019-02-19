@@ -48,11 +48,13 @@ class TestParallelExecutorBase(unittest.TestCase):
                                   fuse_relu_depthwise_conv=False,
                                   optimizer=fluid.optimizer.Adam,
                                   use_fast_executor=False,
-                                  enable_sequential_execution=False):
+                                  enable_sequential_execution=False,
+                                  fetch=None):
         def run_executor(exe, binary, feed, fetch_list):
             res = exe.run(binary, feed=feed, fetch_list=fetch_list)
             return res
 
+        fetch = []
         main = fluid.Program()
         startup = fluid.Program()
         startup.random_seed = 1  # Fix random seed
@@ -81,13 +83,17 @@ class TestParallelExecutorBase(unittest.TestCase):
             if use_reduce else fluid.BuildStrategy.ReduceStrategy.AllReduce
         build_strategy.fuse_elewise_add_act_ops = fuse_elewise_add_act_ops
         build_strategy.fuse_relu_depthwise_conv = fuse_relu_depthwise_conv
-        build_strategy.memory_optimize = False if memory_opt else use_ir_memory_optimize
+        build_strategy.memory_optimize = use_ir_memory_optimize
         build_strategy.fuse_all_reduce_ops = fuse_all_reduce_ops
         build_strategy.fuse_all_optimizer_ops = fuse_all_optimizer_ops
+        build_strategy.debug_graphviz_path = "./graph"
         # python memory optimization is conflict with inplace pass.
         # Use ir graph memory optimization after inplace pass is the correct way.
         build_strategy.enable_inplace = False if memory_opt else enable_inplace
         build_strategy.enable_sequential_execution = enable_sequential_execution
+
+        with open("./program.txt", 'w') as f:
+            f.write(str(main))
 
         if use_cuda and core.is_compiled_with_cuda():
             build_strategy.remove_unnecessary_lock = True
@@ -104,11 +110,24 @@ class TestParallelExecutorBase(unittest.TestCase):
             ) if use_cuda else int(
                 os.environ.get('CPU_NUM', multiprocessing.cpu_count()))
         begin = time.time()
-        first_loss, = run_executor(
-            exe=exe, binary=binary, feed=feed_dict, fetch_list=[loss.name])
+        result = run_executor(
+            exe=exe,
+            binary=binary,
+            feed=feed_dict,
+            fetch_list=[loss.name] + fetch)
+        result_list = []
+        for ele in result:
+            result_list.append(np.sum(ele))
+        print(result_list)
+        first_loss = result[0]
 
         for i in range(iter):
-            run_executor(exe=exe, binary=binary, feed=feed_dict, fetch_list=[])
+            result = run_executor(
+                exe=exe, binary=binary, feed=feed_dict, fetch_list=fetch)
+            result_list = []
+            for ele in result:
+                result_list.append(np.sum(ele))
+            print(result_list)
 
         last_loss, = run_executor(
             exe=exe, binary=binary, feed=feed_dict, fetch_list=[loss.name])
