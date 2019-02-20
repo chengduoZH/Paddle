@@ -907,6 +907,45 @@ void OperatorWithKernel::RuntimeInferShape(const Scope& scope,
   this->InferShape(&infer_shape_ctx);
 }
 
+template <typename T>
+std::string get_value(const framework::Tensor& tensor,
+                      const platform::DeviceContext& dev_ctx) {
+  std::vector<T> outv;
+  std::stringstream out;
+  framework::TensorToVector(tensor, dev_ctx, &outv);
+  double total02 = 0.0;
+  int i = 0;
+  for (auto v : outv) {
+    total02 += static_cast<double>(v);
+    if (i < 100) {
+      out << string::Sprintf("%0.10f, ", v);
+      ++i;
+    }
+  }
+  out << "...  Sum :" << string::Sprintf("%0.10f, ", total02)
+      << ", number :" << outv.size();
+  return out.str();
+}
+
+std::string GetValue(const framework::Tensor& tensor,
+                     const platform::DeviceContext& dev_ctx) {
+  if (tensor.memory_size() == 0) {
+    return "Empty";
+  }
+  if (tensor.type() != proto::VarType::FP32 &&
+      tensor.type() != proto::VarType::FP64) {
+    return "Empty";
+  }
+
+  if (tensor.type() == proto::VarType::FP32) {
+    return get_value<float>(tensor, dev_ctx);
+  } else if (tensor.type() == proto::VarType::FP64) {
+    return get_value<double>(tensor, dev_ctx);
+  }
+
+  return "Empty";
+}
+
 void OperatorWithKernel::RunImpl(const Scope& scope,
                                  const platform::Place& place) const {
   RuntimeContext ctx(Inputs(), Outputs(), scope);
@@ -965,6 +1004,36 @@ void OperatorWithKernel::RunImpl(const Scope& scope,
   if (!transfered_inplace_vars.empty()) {
     // there is inplace variable has been transfered.
     TransferInplaceVarsBack(scope, transfered_inplace_vars, *transfer_scope);
+  }
+
+  {
+    VLOG(1) << type_;
+    for (auto& in : Inputs()) {
+      if (in.second.size() == 0) continue;
+      for (auto arg : in.second) {
+        auto var = exec_scope.FindVar(arg);
+        if (var && var->IsType<framework::LoDTensor>()) {
+          auto tensor = exec_scope.FindVar(arg)->Get<framework::LoDTensor>();
+          std::string values = GetValue(tensor, *dev_ctx);
+          VLOG(1) << "Input " << place << ", " << arg << ", " << values;
+        } else {
+          VLOG(1) << "Input " << place << ", " << arg << " Empty ";
+        }
+      }
+    }
+    for (auto& in : Outputs()) {
+      if (in.second.size() == 0) continue;
+      for (auto arg : in.second) {
+        auto var = exec_scope.FindVar(arg);
+        if (var && var->IsType<framework::LoDTensor>()) {
+          auto tensor = exec_scope.FindVar(arg)->Get<framework::LoDTensor>();
+          std::string values = GetValue(tensor, *dev_ctx);
+          VLOG(1) << "Output " << place << ", " << arg << ", " << values;
+        } else {
+          VLOG(1) << "Output " << place << ", " << arg << " Empty ";
+        }
+      }
+    }
   }
 
   /*For profiling/benchmark only*/
