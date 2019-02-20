@@ -29,6 +29,9 @@ class MulKernel : public framework::OpKernel<T> {
   void Compute(const framework::ExecutionContext& context) const override {
     const Tensor* x = context.Input<Tensor>("X");
     const Tensor* y = context.Input<Tensor>("Y");
+    Tensor tmp_y;
+    framework::TensorCopy(*y, context.GetPlace(), context.device_context(),
+                          &tmp_y);
     Tensor* z = context.Output<Tensor>("Out");
     const Tensor x_matrix =
         x->dims().size() > 2
@@ -53,6 +56,7 @@ class MulKernel : public framework::OpKernel<T> {
     if (z_dim.size() != 2) {
       z->Resize(z_dim);
     }
+    context.device_context().Wait();
   }
 };
 
