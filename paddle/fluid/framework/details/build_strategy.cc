@@ -57,7 +57,7 @@ class ParallelExecutorPassBuilder : public ir::PassBuilder {
       AppendPass("sequential_execution_pass");
     }
 
-    if (strateg.fuse_parameters_pass_) {
+    if (strategy.fuse_parameters_pass_) {
       VLOG(10) << "Add fuse_parameters_pass";
       AppendPass("fuse_parameters_pass");
     }
