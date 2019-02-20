@@ -28,10 +28,11 @@ class MulKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& context) const override {
     const Tensor* x = context.Input<Tensor>("X");
-    const Tensor* y = context.Input<Tensor>("Y");
+    const Tensor* origin_y = context.Input<Tensor>("Y");
     Tensor tmp_y;
-    framework::TensorCopy(*y, context.GetPlace(), context.device_context(),
-                          &tmp_y);
+    framework::TensorCopy(*origin_y, context.GetPlace(),
+                          context.device_context(), &tmp_y);
+    const Tensor* y = &tmp_y;
     Tensor* z = context.Output<Tensor>("Out");
     const Tensor x_matrix =
         x->dims().size() > 2
