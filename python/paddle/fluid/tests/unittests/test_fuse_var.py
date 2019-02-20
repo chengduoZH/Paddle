@@ -24,8 +24,27 @@ import paddle.fluid as fluid
 from paddle.fluid import compiler
 
 
+def fc_with_batchnorm():
+    img = fluid.layers.data(name='image', shape=[784], dtype='float32')
+    output = []
+    hidden = img
+    for _ in range(1):
+        with fluid.name_scope("hidden"):
+            hidden = fluid.layers.fc(
+                hidden,
+                size=200,
+                act='tanh',
+                bias_attr=fluid.ParamAttr(
+                    initializer=fluid.initializer.Constant(value=1.0)))
+            output.append(hidden)
+            hidden = fluid.layers.batch_norm(input=hidden)
+            output.append(hidden)
+    return output
+
+
 def simple_fc_net():
     img = fluid.layers.data(name='image', shape=[784], dtype='float32')
+    output = []
     fc_result = fluid.layers.fc(
         img,
         size=200,
@@ -53,23 +72,24 @@ class TestMNIST(unittest.TestCase):
         startup.random_seed = 1  # Fix random seed
         main.random_seed = 1
         with fluid.program_guard(main, startup):
-            fc_output = model()
+            output = model()
 
+        fetch_list = [out.name for out in output]
         place = fluid.CUDAPlace(0) if use_cuda else fluid.CPUPlace()
         exe = fluid.Executor(place)
         exe.run(startup)
 
         exec_strategy = fluid.ExecutionStrategy()
+        exec_strategy.num_threads = 1
         build_strategy = fluid.BuildStrategy()
         build_strategy.enable_inplace = False
         build_strategy.fuse_parameters_pass = fuse_parameter
+        build_strategy.enable_sequential_execution = 1
 
         mult_graph = compiler.CompiledProgram(main).with_data_parallel(
             build_strategy=build_strategy, exec_strategy=exec_strategy)
 
-        res = exe.run(mult_graph,
-                      feed={"image": img},
-                      fetch_list=[fc_output.name])
+        res = exe.run(mult_graph, feed={"image": img}, fetch_list=[fetch_list])
         return res
 
     def test_simple_fc(self):
@@ -77,17 +97,17 @@ class TestMNIST(unittest.TestCase):
         for use_cuda in [True, False]:
             if use_cuda and not core.is_compiled_with_cuda():
                 continue
-            output = self.fun(simple_fc_net,
+            output = self.fun(fc_with_batchnorm,
                               use_cuda,
                               img,
                               fuse_parameter=False)
-            output2 = self.fun(simple_fc_net,
+            output2 = self.fun(fc_with_batchnorm,
                                use_cuda,
                                img,
                                fuse_parameter=True)
 
-            for loss in zip(output, output2):
-                self.assertAlmostEqual(loss[0], loss[1], delta=1e-6)
+            for output in zip(output, output2):
+                assert (output[0] == output[1]).all()
 
 
 if __name__ == '__main__':
