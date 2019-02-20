@@ -47,9 +47,24 @@ std::unique_ptr<ir::Graph> FuseAdamOpPass::ApplyImpl(
     VLOG(10) << p;
   }
 
+  // Step 2: Insert fused_var_name to FusedVars, and the FusedVars need be
+  // initialized in scopes before execution.
+  const std::string fuse_op_type = "adam";
+  if (!result.Has(kFusedVars)) {
+    result.Set(kFusedVars, new FusedVars);
+  }
+  std::unordered_map<std::string, std::string> fused_vars_name;
+  fused_vars_name.reserve(aux_var_names.size() + 1);
+  const std::string prefix(kFusedVarNamePrefix);
+  for (auto &var_name : aux_var_names) {
+    auto fused_var_name = prefix + "_" + fuse_op_type + "_" + var_name;
+    fused_vars_name.emplace(var_name, fused_var_name);
+    result.Get<FusedVars>(kFusedVars).emplace_back(fused_var_name);
+  }
+
   // Fuse the space of Gradient
   // Fuse Scale Op
-  //  FuseAdamOps(aux_var_set,adam_ops, &result);
+  //  FuseAdamOps(aux_var_set, fused_vars_name, adam_ops, graph);
   FuseScaleOps(aux_var_set.at("Beta1Pow"), adam_ops, &result);
   FuseScaleOps(aux_var_set.at("Beta2Pow"), adam_ops, &result);
 
@@ -63,14 +78,16 @@ std::unique_ptr<ir::Graph> FuseAdamOpPass::ApplyImpl(
       result.Get<RunOnlyOnceProgram>(kRunOnlyOnceProgram).back();
   auto *global_block = program_desc.MutableBlock(0);
 
-  AppendAllocContinuousSpace(aux_var_set.at("Beta1Pow"), true /*copy_data*/,
+  AppendAllocContinuousSpace(aux_var_set.at("Beta1Pow"),
+                             fused_vars_name.at("Beta1Pow"), true,
                              global_block);
-  AppendAllocContinuousSpace(aux_var_set.at("Beta2Pow"), true /*copy_data*/,
+  AppendAllocContinuousSpace(aux_var_set.at("Beta2Pow"),
+                             fused_vars_name.at("Beta2Pow"), true,
                              global_block);
-  AppendAllocContinuousSpace(aux_var_set.at("Moment1"), true /*copy_data*/,
-                             global_block);
-  AppendAllocContinuousSpace(aux_var_set.at("Moment2"), true /*copy_data*/,
-                             global_block);
+  AppendAllocContinuousSpace(aux_var_set.at("Moment1"),
+                             fused_vars_name.at("Moment1"), true, global_block);
+  AppendAllocContinuousSpace(aux_var_set.at("Moment2"),
+                             fused_vars_name.at("Moment2"), true, global_block);
 
   VLOG(10) << "FuseAdamOpPass Over ";
   return std::move(graph);
@@ -239,15 +256,15 @@ void FuseAdamOpPass::FuseScaleOps(const std::vector<std::string> &beta_1_pow,
   }
 }
 
-void FuseAdamOpPass::AppendAllocContinuousSpace(
-    const std::vector<std::string> &args, bool copy_data,
-    BlockDesc *global_block) const {
+void FuseOptimizerOpPass::AppendAllocContinuousSpace(
+    const std::vector<std::string> &args, const std::string &out_arg,
+    bool copy_data, BlockDesc *global_block) const {
   auto op_desc = global_block->AppendOp();
   op_desc->SetType("alloc_continuous_space");
   op_desc->SetInput("Input", args);
   op_desc->SetOutput("Output", args);
+  op_desc->SetOutput("FusedOutput", {out_arg});
   op_desc->SetAttr("copy_data", copy_data);
-  //  op_desc->SetAttr("constant", static_cast<float >(0));
 }
 
 }  // namespace details

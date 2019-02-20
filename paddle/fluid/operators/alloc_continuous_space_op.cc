@@ -30,8 +30,9 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
   void Compute(const framework::ExecutionContext &context) const override {
     auto &in_var_names = context.Inputs("Input");
     auto &out_var_names = context.Outputs("Output");
+
     auto &in_vars = context.MultiInputVar("Input");
-    PADDLE_ENFORCE_GT(in_var_names.size(), 0);
+    PADDLE_ENFORCE_GT(in_var_names.size(), static_cast<size_t>(0));
     PADDLE_ENFORCE_EQ(in_var_names.size(), out_var_names.size());
 
     for (size_t i = 0; i < in_var_names.size(); ++i) {
@@ -39,6 +40,7 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
       // Only support LoDTensor,
       PADDLE_ENFORCE(in_vars[i]->IsType<framework::LoDTensor>());
     }
+
     auto out_tensors = context.MultiOutput<framework::LoDTensor>("Output");
     PADDLE_ENFORCE_EQ(in_var_names.size(), out_tensors.size());
 
@@ -46,8 +48,8 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
     auto dtype = kDefaultDtype;
     GetMemSizeAndDtype(out_tensors, out_var_names, &mem_size, &dtype);
 
-    framework::LoDTensor out_tensor;
-    out_tensor.Resize(framework::make_ddim({static_cast<int64_t>(mem_size)}))
+    auto fused_tensor = context.Output<framework::LoDTensor>("FusedOutput");
+    fused_tensor->Resize(framework::make_ddim({static_cast<int64_t>(mem_size)}))
         .mutable_data(context.GetPlace(), dtype);
 
     auto &dev_ctx = context.template device_context<DeviceContext>();
@@ -56,14 +58,14 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
     if (context.Attr<bool>("copy_data")) {
       for (size_t i = 0; i < in_var_names.size(); ++i) {
         int64_t len = out_tensors[i]->numel();
-        auto sub_tensor = out_tensor.Slice(offset, offset + len);
+        auto sub_tensor = fused_tensor->Slice(offset, offset + len);
         offset += len;
         framework::TensorCopy(*out_tensors[i], context.GetPlace(), dev_ctx,
                               &sub_tensor);
       }
     } else {
       math::SetConstant<DeviceContext, T> set_constant;
-      set_constant(dev_ctx, &out_tensor,
+      set_constant(dev_ctx, fused_tensor,
                    static_cast<T>(context.Attr<float>("constant")));
     }
 
@@ -72,7 +74,7 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
       int64_t len = out_tensors[i]->numel();
       auto dim = out_tensors[i]->dims();
       out_tensors[i]
-          ->ShareDataWith(out_tensor.Slice(offset, offset + len))
+          ->ShareDataWith(fused_tensor->Slice(offset, offset + len))
           .Resize(dim);
       offset += len;
       VLOG(10) << "alloc_space_for_vars: output(" << in_var_names[i]
@@ -88,11 +90,10 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
     PADDLE_ENFORCE_EQ(lod_tensors.size(), var_names.size());
     *mem_size = 0;
     for (size_t i = 0; i < var_names.size(); ++i) {
-      auto tensor = lod_tensors[i];
-      PADDLE_ENFORCE(tensor->IsInitialized(), "%s is not initialized.",
+      PADDLE_ENFORCE(lod_tensors[i]->IsInitialized(), "%s is not initialized.",
                      var_names[i]);
 
-      auto p_dtype = tensor->type();
+      auto p_dtype = lod_tensors[i]->type();
       if (*dtype == kDefaultDtype) {
         PADDLE_ENFORCE_NE(p_dtype, kDefaultDtype, "%s's type should not be %s.",
                           var_names[i], kDefaultDtype);
@@ -100,10 +101,10 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
       }
       PADDLE_ENFORCE_EQ(p_dtype, *dtype, "Input vars is not equal.");
 
-      auto size = tensor->numel();
+      auto size = lod_tensors[i]->numel();
       PADDLE_ENFORCE_GT(size, 0);
       VLOG(10) << "alloc_space_for_vars: input(" << var_names[i] << ") ,dim:("
-               << tensor->dims() << ")";
+               << lod_tensors[i]->dims() << ")";
       *mem_size += size;
     }
   }
@@ -120,6 +121,7 @@ class AllocContinuousSpaceOpMaker : public framework::OpProtoAndCheckerMaker {
   void Make() override {
     AddInput("Input", "A set of variables.").AsDuplicable();
     AddOutput("Output", "A set of variables.").AsDuplicable();
+    AddOutput("FusedOutput", "");
     AddAttr<bool>("copy_data", ".").SetDefault(false);
     AddAttr<float>("constant", ".").SetDefault(0.0);
     AddComment(R"DOC(

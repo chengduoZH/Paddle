@@ -45,6 +45,10 @@ constexpr char kGraphVars[] = "vars";
 typedef std::unordered_set<VarHandleBase*> GraphDepVars;
 constexpr char kGraphDepVars[] = "dep_vars";
 
+typedef std::vector<std::string> FusedVars;
+constexpr char kFusedVars[] = "fused_vars";
+constexpr char kFusedVarNamePrefix[] = "@FUSEDVAR@";
+
 typedef std::vector<framework::ProgramDesc> RunOnlyOnceProgram;
 constexpr char kRunOnlyOnceProgram[] = "program";
 
