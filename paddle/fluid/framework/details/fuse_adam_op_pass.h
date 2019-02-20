@@ -51,12 +51,12 @@ class FuseAdamOpPass : public ir::Pass {
   void FuseScaleOps(const std::vector<std::string> &beta_name,
                     const std::string &fused_var_name,
                     const std::vector<ir::Node *> &adam_ops,
-                    ir::Graph *graph) const
+                    ir::Graph *graph) const;
 
-      void SortVarsName(const std::string &str,
-                        std::unordered_map<
-                            std::string, std::vector<std::string>> *aux_var_set,
-                        std::vector<ir::Node *> *ops) const;
+  void SortVarsName(
+      const std::string &str,
+      std::unordered_map<std::string, std::vector<std::string>> *aux_var_set,
+      std::vector<ir::Node *> *ops) const;
 
   void AppendAllocContinuousSpace(const std::vector<std::string> &args,
                                   const std::string &out_arg, bool copy_data,
