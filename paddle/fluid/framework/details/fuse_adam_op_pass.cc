@@ -43,7 +43,7 @@ std::unique_ptr<ir::Graph> FuseAdamOpPass::ApplyImpl(
 
   // Sort the parameters
   //  SortVarsName(aux_var_names[0], &aux_var_set, &adam_ops);
-  for (auto &p : aux_var_names[0]) {
+  for (auto &p : aux_var_set["Param"]) {
     VLOG(10) << p;
   }
 
