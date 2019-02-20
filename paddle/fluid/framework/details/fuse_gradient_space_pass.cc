@@ -53,6 +53,7 @@ std::unique_ptr<ir::Graph> FuseGradientSpacePass::ApplyImpl(
   //               const std::pair<std::string, std::string>& b) -> bool {
   //              return a.first < b.first;
   //            });
+  VLOG(10) << params_grads.size();
   for (auto& p_g : params_grads) {
     VLOG(10) << p_g.first << ", " << p_g.second;
   }

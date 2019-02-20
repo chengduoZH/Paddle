@@ -89,6 +89,8 @@ class ParallelExecutorPassBuilder : public ir::PassBuilder {
     }
 
     if (strategy.fuse_all_adam_ops_) {
+      VLOG(10) << "Add fuse_gradient_space_pass";
+      AppendPass("fuse_gradient_space_pass");
       VLOG(10) << "Add fuse_adam_op_pass";
       AppendPass("fuse_adam_op_pass");
     }
