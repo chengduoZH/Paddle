@@ -31,18 +31,21 @@ std::unique_ptr<ir::Graph> FuseAdamOpPass::ApplyImpl(
 
   std::unordered_map<std::string, std::vector<std::string>> aux_var_set;
   std::vector<ir::Node *> adam_ops;
-  for (ir::Node *node : result.Nodes()) {
-    if (node->IsOp()) {
-      GetSpecifiedOpsAndVars(fuse_op, aux_var_names, node, &adam_ops,
-                             &aux_var_set);
-    }
+
+  std::vector<ir::Node *> topo_nodes = ir::TopologySortOperations(result);
+  for (ir::Node *node : topo_nodes) {
+    GetSpecifiedOpsAndVars(fuse_op, aux_var_names, node, &adam_ops,
+                           &aux_var_set);
   }
 
   PADDLE_ENFORCE_NE(adam_ops.size(), 0, "Not found %s", fuse_op);
   VLOG(10) << "Find adam: " << adam_ops.size();
 
   // Sort the parameters
-  SortVarsName(aux_var_names[0], &aux_var_set, &adam_ops);
+  //  SortVarsName(aux_var_names[0], &aux_var_set, &adam_ops);
+  for (auto &p : aux_var_names[0]) {
+    VLOG(10) << p;
+  }
 
   // Fuse the space of Gradient
   // Fuse Scale Op

@@ -39,18 +39,23 @@ std::unique_ptr<ir::Graph> FuseGradientSpacePass::ApplyImpl(
         // is the input of operator and it also is the output of optimizer;
         vars.emplace(var_name, node);
       }
-    } else {
-      GetTrainingGradVarName(node, &ops, &result);
     }
+  }
+  std::vector<ir::Node*> topo_nodes = ir::TopologySortOperations(result);
+  for (ir::Node* node : topo_nodes) {
+    GetTrainingGradVarName(node, &ops, &result);
   }
 
   auto& params_grads = result.Get<ParamsAndGrads>(kParamsAndGrads);
   // Note: The sort of parameter is impotant
-  std::sort(params_grads.begin(), params_grads.end(),
-            [](const std::pair<std::string, std::string>& a,
-               const std::pair<std::string, std::string>& b) -> bool {
-              return a.first < b.first;
-            });
+  //  std::sort(params_grads.begin(), params_grads.end(),
+  //            [](const std::pair<std::string, std::string>& a,
+  //               const std::pair<std::string, std::string>& b) -> bool {
+  //              return a.first < b.first;
+  //            });
+  for (auto& p_g : params_grads) {
+    VLOG(10) << p_g.first << ", " << p_g.second;
+  }
 
   // Set Gradients as Persistable
   auto dtype = static_cast<proto::VarType::Type>(0);
