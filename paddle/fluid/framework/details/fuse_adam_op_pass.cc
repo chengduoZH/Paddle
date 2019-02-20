@@ -256,7 +256,7 @@ void FuseAdamOpPass::FuseScaleOps(const std::vector<std::string> &beta_1_pow,
   }
 }
 
-void FuseOptimizerOpPass::AppendAllocContinuousSpace(
+void FuseAdamOpPass::AppendAllocContinuousSpace(
     const std::vector<std::string> &args, const std::string &out_arg,
     bool copy_data, BlockDesc *global_block) const {
   auto op_desc = global_block->AppendOp();
