@@ -238,6 +238,21 @@ std::unique_ptr<ir::Graph> MultiDevSSAGraphBuilderBase::ApplyImpl(
    */
   AddOutputToLeafOps(&result);
 
+  /*
+ * Init Gradients and FusedVars
+ */
+  if (graph->Has(kFusedVars)) {
+    VLOG(10) << "Init FusedVars.";
+    auto &fused_vars = result.Get<FusedVars>(kFusedVars);
+    for (size_t i = 0; i < local_scopes_.size(); ++i) {
+      for (auto &var : fused_vars) {
+        auto iter = all_vars_.find(var);
+        PADDLE_ENFORCE(iter == all_vars_.end());
+        local_scopes_[i]->Var(var)->GetMutable<framework::LoDTensor>();
+      }
+    }
+  }
+
   if (graph->Has(kParamsAndGrads)) {
     VLOG(10) << "Init gradients";
     auto &params_grads = graph->Get<ParamsAndGrads>(kParamsAndGrads);
