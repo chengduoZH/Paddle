@@ -33,7 +33,6 @@ class FuseParametersPass : public ir::Pass {
     ir::Graph &result = *graph;
 
     // Step 1: Find Parameters
-    std::vector<ir::Node *> topo_nodes = ir::TopologySortOperations(result);
     std::vector<ir::Node *> param_nodes;
     std::vector<std::string> param_names;
     for (auto &node : result.Nodes()) {
@@ -59,11 +58,7 @@ class FuseParametersPass : public ir::Pass {
     auto &program_desc =
         result.Get<RunOnlyOnceProgram>(kRunOnlyOnceProgram).back();
     auto *global_block = program_desc.MutableBlock(0);
-
-    for (auto &var_name : aux_var_names) {
-      AppendAllocContinuousSpace(param_names, fused_var_name, true,
-                                 global_block);
-    }
+    AppendAllocContinuousSpace(param_names, fused_var_name, true, global_block);
     return std::move(graph);
   }
 
