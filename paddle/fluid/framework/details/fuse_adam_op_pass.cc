@@ -69,8 +69,6 @@ std::unique_ptr<ir::Graph> FuseAdamOpPass::ApplyImpl(
                adam_ops, &result);
   FuseScaleOps(aux_var_set.at("Beta2Pow"), fused_vars_name.at("Beta2Pow"),
                adam_ops, &result);
-  //  FuseScaleOps(aux_var_set.at("Beta1Pow"), adam_ops, &result);
-  //  FuseScaleOps(aux_var_set.at("Beta2Pow"), adam_ops, &result);
 
   // Fuse the space of "Moment1", "Moment2", "Beta1Pow", "Beta2Pow"
   // alloc_continuous_space
@@ -82,16 +80,11 @@ std::unique_ptr<ir::Graph> FuseAdamOpPass::ApplyImpl(
       result.Get<RunOnlyOnceProgram>(kRunOnlyOnceProgram).back();
   auto *global_block = program_desc.MutableBlock(0);
 
-  AppendAllocContinuousSpace(aux_var_set.at("Beta1Pow"),
-                             fused_vars_name.at("Beta1Pow"), true,
-                             global_block);
-  AppendAllocContinuousSpace(aux_var_set.at("Beta2Pow"),
-                             fused_vars_name.at("Beta2Pow"), true,
-                             global_block);
-  AppendAllocContinuousSpace(aux_var_set.at("Moment1"),
-                             fused_vars_name.at("Moment1"), true, global_block);
-  AppendAllocContinuousSpace(aux_var_set.at("Moment2"),
-                             fused_vars_name.at("Moment2"), true, global_block);
+  for (auto &var_name : aux_var_names) {
+    AppendAllocContinuousSpace(aux_var_set.at(var_name),
+                               fused_vars_name.at(var_name), true,
+                               global_block);
+  }
 
   VLOG(10) << "FuseAdamOpPass Over ";
   return std::move(graph);
