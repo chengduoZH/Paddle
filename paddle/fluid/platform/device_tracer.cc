@@ -214,19 +214,27 @@ void CUPTIAPI bufferCompleted(CUcontext ctx, uint32_t streamId, uint8_t *buffer,
           }
           case CUPTI_ACTIVITY_KIND_DRIVER: {
             auto *api = reinterpret_cast<const CUpti_ActivityAPI *>(record);
-            if (api->start != 0 && api->end != 0)
-              // -1 device id represents CUDA api call
-              tracer->AddCPURecords(
+            if (api->start != 0 && api->end != 0) {
+              // tracer->AddCPURecords(
+              //  DriverKind(api->cbid), api->start, api->end, -1,
+              //  GetThreadIdFromSystemThreadId(api->threadId));
+              // -1 device id represents ActiveKind api call
+              tracer->AddActiveKindRecords(
                   DriverKind(api->cbid), api->start, api->end, -1,
-                  GetThreadIdFromSystemThreadId(api->threadId));
+                  GetThreadIdFromSystemThreadId(api->threadId),
+                  api->correlationId);
+            }
             break;
           }
           case CUPTI_ACTIVITY_KIND_RUNTIME: {
             auto *api = reinterpret_cast<const CUpti_ActivityAPI *>(record);
-            if (api->start != 0 && api->end != 0)
-              tracer->AddCPURecords(
+            if (api->start != 0 && api->end != 0) {
+              // -1 device id represents ActiveKind api call
+              tracer->AddActiveKindRecords(
                   RuntimeKind(api->cbid), api->start, api->end, -1,
-                  GetThreadIdFromSystemThreadId(api->threadId));
+                  GetThreadIdFromSystemThreadId(api->threadId),
+                  api->correlationId);
+            }
             break;
           }
           default: { break; }
@@ -275,6 +283,20 @@ class DeviceTracerImpl : public DeviceTracer {
     local_correlations_pairs->push_front(std::make_pair(id, event));
   }
 
+  void AddMemRecords(const std::string &name, uint64_t start_ns,
+                     uint64_t end_ns, int64_t device_id, int64_t stream_id,
+                     uint32_t correlation_id, uint64_t bytes) {
+    // 0 means timestamp information could not be collected for the kernel.
+    if (start_ns == 0 || end_ns == 0 || start_ns == end_ns) {
+      VLOG(3) << name << " cannot be traced";
+      PrintCuptiHint();
+      return;
+    }
+    // NOTE(liangdun): lock is not needed, only one thread call this function.
+    mem_records_.push_front(MemRecord{name, start_ns, end_ns, device_id,
+                                      stream_id, correlation_id, bytes});
+  }
+
   void AddCPURecords(const std::string &anno, uint64_t start_ns,
                      uint64_t end_ns, int64_t device_id, int64_t thread_id) {
     if (anno.empty()) {
@@ -291,18 +313,23 @@ class DeviceTracerImpl : public DeviceTracer {
         CPURecord{anno, start_ns, end_ns, device_id, thread_id});
   }
 
-  void AddMemRecords(const std::string &name, uint64_t start_ns,
-                     uint64_t end_ns, int64_t device_id, int64_t stream_id,
-                     uint32_t correlation_id, uint64_t bytes) {
-    // 0 means timestamp information could not be collected for the kernel.
-    if (start_ns == 0 || end_ns == 0 || start_ns == end_ns) {
-      VLOG(3) << name << " cannot be traced";
-      PrintCuptiHint();
+  void AddActiveKindRecords(const std::string &anno, uint64_t start_ns,
+                            uint64_t end_ns, int64_t device_id,
+                            int64_t thread_id, uint32_t correlation_id) {
+    if (anno.empty()) {
+      VLOG(1) << "Empty timeline annotation.";
       return;
     }
-    // NOTE(liangdun): lock is not needed, only one thread call this function.
-    mem_records_.push_front(MemRecord{name, start_ns, end_ns, device_id,
-                                      stream_id, correlation_id, bytes});
+    thread_local std::forward_list<ActiveKindRecord>
+        *local_active_kind_records = nullptr;
+    if (local_active_kind_records == nullptr) {
+      std::lock_guard<std::mutex> l(trace_mu_);
+      active_kind_records_.emplace_front();
+      local_active_kind_records = &active_kind_records_.front();
+    }
+    //  lock is not needed, only one thread call this function.
+    local_active_kind_records->push_front(ActiveKindRecord{
+        anno, start_ns, end_ns, device_id, thread_id, correlation_id});
   }
 
   void AddKernelRecords(std::string name, uint64_t start, uint64_t end,
@@ -347,6 +374,7 @@ class DeviceTracerImpl : public DeviceTracer {
     }
     const std::vector<int> cbids {
       CUPTI_RUNTIME_TRACE_CBID_cudaMemcpy_v3020,
+          CUPTI_RUNTIME_TRACE_CBID_cudaSetupArgument_v3020,
           CUPTI_RUNTIME_TRACE_CBID_cudaMemcpyAsync_v3020,
           CUPTI_RUNTIME_TRACE_CBID_cudaLaunch_v3020,
           CUPTI_RUNTIME_TRACE_CBID_cudaLaunchKernel_v7000
@@ -375,6 +403,7 @@ class DeviceTracerImpl : public DeviceTracer {
     correlations_.clear();
     for (auto &tmp : correlations_pairs) tmp.clear();
     for (auto &tmp : cpu_records_) tmp.clear();
+    for (auto &tmp : active_kind_records_) tmp.clear();
   }
 
   void GenEventKernelCudaElapsedTime() {
@@ -427,16 +456,36 @@ class DeviceTracerImpl : public DeviceTracer {
       event->set_device_id(r.device_id);
     }
     VLOG(1) << "KernelRecord event miss: " << miss << " find: " << find;
-    for (auto &tmp : cpu_records_)
-      for (const CPURecord &r : tmp) {
+    //    for (auto &tmp : cpu_records_){
+    //      for (const CPURecord &r : tmp) {
+    //        auto *event = profile_pb.add_events();
+    //        event->set_type(proto::Event::CPU);
+    //        event->set_name(r.name);
+    //        event->set_start_ns(r.start_ns);
+    //        event->set_end_ns(r.end_ns);
+    //        event->set_sub_device_id(r.thread_id);
+    //        event->set_device_id(r.device_id);
+    //      }
+    //    }
+    for (auto &tmp : active_kind_records_) {
+      for (const ActiveKindRecord &r : tmp) {
         auto *event = profile_pb.add_events();
         event->set_type(proto::Event::CPU);
-        event->set_name(r.name);
+        auto c = correlations_.find(r.correlation_id);
+        if (c != correlations_.end() && c->second != nullptr) {
+          VLOG(1) << r.name << "found op_name " << c->second->name();
+          event->set_name(c->second->name());
+          event->set_detail_info(r.name);
+        } else {
+          VLOG(1) << r.name << "not found op_name ";
+          event->set_name(r.name);
+        }
         event->set_start_ns(r.start_ns);
         event->set_end_ns(r.end_ns);
         event->set_sub_device_id(r.thread_id);
         event->set_device_id(r.device_id);
       }
+    }
     miss = find = 0;
     for (const MemRecord &r : mem_records_) {
       auto *event = profile_pb.add_events();
@@ -499,6 +548,7 @@ class DeviceTracerImpl : public DeviceTracer {
   uint64_t end_ns_;
   std::forward_list<KernelRecord> kernel_records_;
   std::forward_list<MemRecord> mem_records_;
+  std::forward_list<std::forward_list<ActiveKindRecord>> active_kind_records_;
   std::forward_list<std::forward_list<CPURecord>> cpu_records_;
   std::forward_list<std::forward_list<std::pair<uint32_t, Event *>>>
       correlations_pairs;

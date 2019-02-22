@@ -64,6 +64,14 @@ class DeviceTracer {
     uint32_t correlation_id;
     uint64_t bytes;
   };
+  struct ActiveKindRecord {
+    std::string name;
+    uint64_t start_ns;
+    uint64_t end_ns;
+    int64_t device_id;
+    int64_t thread_id;
+    uint32_t correlation_id;
+  };
 
   virtual ~DeviceTracer() {}
   // Needs to be called once before use.
@@ -86,7 +94,10 @@ class DeviceTracer {
   virtual void AddCPURecords(const std::string& anno, uint64_t start_ns,
                              uint64_t end_ns, int64_t device_id,
                              int64_t thread_id) = 0;
-
+  virtual void AddActiveKindRecords(const std::string& anno, uint64_t start_ns,
+                                    uint64_t end_ns, int64_t device_id,
+                                    int64_t thread_id,
+                                    uint32_t correlation_id) = 0;
   // Add a cuda kernel stats. `correlation_id` will be mapped to annotation
   // added before for human readability.
   virtual void AddKernelRecords(std::string name, uint64_t start, uint64_t end,
