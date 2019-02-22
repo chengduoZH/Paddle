@@ -70,9 +70,6 @@ constexpr char kLocalScopes[] = "local_scopes";
 constexpr char kStrategy[] = "strategy";
 constexpr char kNRanks[] = "nranks";
 
-typedef std::unordered_set<VarHandleBase *> GraphDepVars;
-const char kGraphDepVars[] = "dep_vars";
-
 }  // namespace details
 }  // namespace framework
 }  // namespace paddle
