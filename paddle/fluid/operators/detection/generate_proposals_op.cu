@@ -285,6 +285,7 @@ static void NMS(const platform::CUDADeviceContext &ctx, const Tensor &proposals,
     }
   }
   int *keep = keep_out->mutable_data<int>({num_to_keep}, ctx.GetPlace());
+  // There should not use 0 as stream
   memory::Copy(place, keep, platform::CPUPlace(), keep_vec.data(),
                sizeof(int) * num_to_keep, 0);
 }
@@ -328,6 +329,7 @@ static std::pair<Tensor, Tensor> ProposalForOneImage(
       keep_num_t.data<int>(), keep_index.data<int>());
   int keep_num;
   const auto gpu_place = boost::get<platform::CUDAPlace>(ctx.GetPlace());
+  // There should not use 0 as stream
   memory::Copy(platform::CPUPlace(), &keep_num, gpu_place,
                keep_num_t.data<int>(), sizeof(int), 0);
   keep_index.Resize({keep_num});
@@ -437,6 +439,7 @@ class CUDAGenerateProposalsKernel : public framework::OpKernel<T> {
       Tensor &proposals = box_score_pair.first;
       Tensor &scores = box_score_pair.second;
 
+      // There should not use 0 as stream
       memory::Copy(place, rpn_rois_data + num_proposals * 4, place,
                    proposals.data<T>(), sizeof(T) * proposals.numel(), 0);
       memory::Copy(place, rpn_roi_probs_data + num_proposals, place,

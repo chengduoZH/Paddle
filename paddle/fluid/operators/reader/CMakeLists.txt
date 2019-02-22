@@ -17,7 +17,7 @@ function(reader_library TARGET_NAME)
         PARENT_SCOPE)
 endfunction()
 
-cc_library(buffered_reader SRCS buffered_reader.cc DEPS reader simple_threadpool)
+cc_library(buffered_reader SRCS buffered_reader.cc DEPS reader simple_threadpool profiler)
 reader_library(open_files_op SRCS open_files_op.cc DEPS buffered_reader)
 reader_library(create_random_data_generator_op SRCS create_random_data_generator_op.cc)
 reader_library(create_shuffle_reader_op SRCS create_shuffle_reader_op.cc)

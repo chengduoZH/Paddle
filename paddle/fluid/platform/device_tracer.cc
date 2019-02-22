@@ -30,11 +30,11 @@ limitations under the License. */
 #include "glog/logging.h"
 #include "google/protobuf/text_format.h"
 #include "paddle/fluid/framework/block_desc.h"
-#include "paddle/fluid/platform/profiler.h"
 #include "paddle/fluid/string/printf.h"
 
 namespace paddle {
 namespace platform {
+class Event;
 namespace {
 // Tracking the nested block stacks of each thread.
 thread_local std::deque<int> block_id_stack;
@@ -215,14 +215,15 @@ void CUPTIAPI bufferCompleted(CUcontext ctx, uint32_t streamId, uint8_t *buffer,
           case CUPTI_ACTIVITY_KIND_DRIVER: {
             auto *api = reinterpret_cast<const CUpti_ActivityAPI *>(record);
             if (api->start != 0 && api->end != 0) {
-              tracer->AddCPURecords(
-                  DriverKind(api->cbid), api->start, api->end, -1,
-                  GetThreadIdFromSystemThreadId(api->threadId));
+              //              tracer->AddCPURecords(
+              //                  DriverKind(api->cbid), api->start, api->end,
+              //                  -1,
+              //                  GetThreadIdFromSystemThreadId(api->threadId));
               // -1 device id represents ActiveKind api call
-              // tracer->AddActiveKindRecords(
-              //     DriverKind(api->cbid), api->start, api->end, -1,
-              //     GetThreadIdFromSystemThreadId(api->threadId),
-              //    api->correlationId);
+              tracer->AddActiveKindRecords(
+                  DriverKind(api->cbid), api->start, api->end, -1,
+                  GetThreadIdFromSystemThreadId(api->threadId),
+                  api->correlationId);
             }
             break;
           }
@@ -230,13 +231,14 @@ void CUPTIAPI bufferCompleted(CUcontext ctx, uint32_t streamId, uint8_t *buffer,
             auto *api = reinterpret_cast<const CUpti_ActivityAPI *>(record);
             if (api->start != 0 && api->end != 0) {
               // -1 device id represents ActiveKind api call
-              tracer->AddCPURecords(
+              //              tracer->AddCPURecords(
+              //                  RuntimeKind(api->cbid), api->start, api->end,
+              //                  -1,
+              //                  GetThreadIdFromSystemThreadId(api->threadId));
+              tracer->AddActiveKindRecords(
                   RuntimeKind(api->cbid), api->start, api->end, -1,
-                  GetThreadIdFromSystemThreadId(api->threadId));
-              // tracer->AddActiveKindRecords(
-              //    RuntimeKind(api->cbid), api->start, api->end, -1,
-              //    GetThreadIdFromSystemThreadId(api->threadId),
-              //    api->correlationId);
+                  GetThreadIdFromSystemThreadId(api->threadId),
+                  api->correlationId);
             }
             break;
           }
@@ -656,6 +658,7 @@ void initCuptiCbidStr() {
   REGISTER_RUNTIME_CBID_STR(cudaUnbindTexture_v3020);
   REGISTER_RUNTIME_CBID_STR(cudaSetupArgument_v3020);
   REGISTER_RUNTIME_CBID_STR(cudaLaunch_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaDeviceGetPCIBusId_v4010);
 #if CUDA_VERSION >= 9000
   REGISTER_RUNTIME_CBID_STR(cudaLaunchCooperativeKernel_v9000);
   REGISTER_RUNTIME_CBID_STR(cudaLaunchCooperativeKernelMultiDevice_v9000);

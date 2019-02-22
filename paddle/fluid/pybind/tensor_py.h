@@ -167,7 +167,7 @@ void PyCPUTensorSetFromArray(
   }
 
   self->Resize(framework::make_ddim(dims));
-  auto *dst = self->mutable_data<T>(place);
+  auto *dst = self->mutable_data<T>(paddle::platform::CUDAPinnedPlace());
   std::memcpy(dst, array.data(), sizeof(T) * array.size());
 }
 
