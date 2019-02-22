@@ -215,14 +215,14 @@ void CUPTIAPI bufferCompleted(CUcontext ctx, uint32_t streamId, uint8_t *buffer,
           case CUPTI_ACTIVITY_KIND_DRIVER: {
             auto *api = reinterpret_cast<const CUpti_ActivityAPI *>(record);
             if (api->start != 0 && api->end != 0) {
-              // tracer->AddCPURecords(
-              //  DriverKind(api->cbid), api->start, api->end, -1,
-              //  GetThreadIdFromSystemThreadId(api->threadId));
-              // -1 device id represents ActiveKind api call
-              tracer->AddActiveKindRecords(
+              tracer->AddCPURecords(
                   DriverKind(api->cbid), api->start, api->end, -1,
-                  GetThreadIdFromSystemThreadId(api->threadId),
-                  api->correlationId);
+                  GetThreadIdFromSystemThreadId(api->threadId));
+              // -1 device id represents ActiveKind api call
+              // tracer->AddActiveKindRecords(
+              //     DriverKind(api->cbid), api->start, api->end, -1,
+              //     GetThreadIdFromSystemThreadId(api->threadId),
+              //    api->correlationId);
             }
             break;
           }
@@ -230,10 +230,13 @@ void CUPTIAPI bufferCompleted(CUcontext ctx, uint32_t streamId, uint8_t *buffer,
             auto *api = reinterpret_cast<const CUpti_ActivityAPI *>(record);
             if (api->start != 0 && api->end != 0) {
               // -1 device id represents ActiveKind api call
-              tracer->AddActiveKindRecords(
+              tracer->AddCPURecords(
                   RuntimeKind(api->cbid), api->start, api->end, -1,
-                  GetThreadIdFromSystemThreadId(api->threadId),
-                  api->correlationId);
+                  GetThreadIdFromSystemThreadId(api->threadId));
+              // tracer->AddActiveKindRecords(
+              //    RuntimeKind(api->cbid), api->start, api->end, -1,
+              //    GetThreadIdFromSystemThreadId(api->threadId),
+              //    api->correlationId);
             }
             break;
           }
@@ -456,17 +459,17 @@ class DeviceTracerImpl : public DeviceTracer {
       event->set_device_id(r.device_id);
     }
     VLOG(1) << "KernelRecord event miss: " << miss << " find: " << find;
-    //    for (auto &tmp : cpu_records_){
-    //      for (const CPURecord &r : tmp) {
-    //        auto *event = profile_pb.add_events();
-    //        event->set_type(proto::Event::CPU);
-    //        event->set_name(r.name);
-    //        event->set_start_ns(r.start_ns);
-    //        event->set_end_ns(r.end_ns);
-    //        event->set_sub_device_id(r.thread_id);
-    //        event->set_device_id(r.device_id);
-    //      }
-    //    }
+    for (auto &tmp : cpu_records_) {
+      for (const CPURecord &r : tmp) {
+        auto *event = profile_pb.add_events();
+        event->set_type(proto::Event::CPU);
+        event->set_name(r.name);
+        event->set_start_ns(r.start_ns);
+        event->set_end_ns(r.end_ns);
+        event->set_sub_device_id(r.thread_id);
+        event->set_device_id(r.device_id);
+      }
+    }
     for (auto &tmp : active_kind_records_) {
       for (const ActiveKindRecord &r : tmp) {
         auto *event = profile_pb.add_events();
