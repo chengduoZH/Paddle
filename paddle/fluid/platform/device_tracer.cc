@@ -474,15 +474,15 @@ class DeviceTracerImpl : public DeviceTracer {
       for (const ActiveKindRecord &r : tmp) {
         auto *event = profile_pb.add_events();
         event->set_type(proto::Event::CPU);
-        auto c = correlations_.find(r.correlation_id);
-        if (c != correlations_.end() && c->second != nullptr) {
-          VLOG(1) << r.name << "found op_name " << c->second->name();
-          event->set_name(c->second->name());
-          event->set_detail_info(r.name);
-        } else {
-          VLOG(1) << r.name << "not found op_name ";
-          event->set_name(r.name);
-        }
+        //        auto c = correlations_.find(r.correlation_id);
+        //        if (c != correlations_.end() && c->second != nullptr) {
+        //          VLOG(1) << r.name << "found op_name " << c->second->name();
+        //          event->set_name(c->second->name());
+        //          event->set_detail_info(r.name);
+        //        } else {
+        //          VLOG(1) << r.name << "not found op_name ";
+        event->set_name(r.name);
+        //        }
         event->set_start_ns(r.start_ns);
         event->set_end_ns(r.end_ns);
         event->set_sub_device_id(r.thread_id);
