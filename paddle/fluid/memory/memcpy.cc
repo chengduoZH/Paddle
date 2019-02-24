@@ -15,7 +15,7 @@ limitations under the License. */
 #include "paddle/fluid/memory/memcpy.h"
 
 #include <cstring>  // for memcpy
-// #include "paddle/fluid/platform/profiler.h"
+#include "paddle/fluid/platform/profiler.h"
 
 namespace paddle {
 namespace memory {
@@ -37,10 +37,10 @@ void Copy<platform::CPUPlace, platform::CUDAPlace>(
   platform::SetDeviceId(src_place.device);
 
   if (stream) {
-    // platform::RecordEvent record_event("gpu->cpu(stream)");
+    platform::RecordEvent record_event("gpu->cpu(stream)");
     platform::GpuMemcpyAsync(dst, src, num, cudaMemcpyDeviceToHost, stream);
   } else {
-    // platform::RecordEvent record_event("gpu->cpu(no_stream)");
+    platform::RecordEvent record_event("gpu->cpu(no_stream)");
     platform::GpuMemcpySync(dst, src, num, cudaMemcpyDeviceToHost);
     // FIXME(zjl): do we really need it?
     if (num <= kMaxGpuAsyncCopyBytes) {
@@ -55,10 +55,10 @@ void Copy<platform::CUDAPlace, platform::CPUPlace>(
     const void* src, size_t num, cudaStream_t stream) {
   platform::SetDeviceId(dst_place.device);
   if (stream) {
-    // platform::RecordEvent record_event("cpu->gpu(stream)");
+    platform::RecordEvent record_event("cpu->gpu(stream)");
     platform::GpuMemcpyAsync(dst, src, num, cudaMemcpyHostToDevice, stream);
   } else {
-    // platform::RecordEvent record_event("cpu->gpu(no_stream)");
+    platform::RecordEvent record_event("cpu->gpu(no_stream)");
     platform::GpuMemcpySync(dst, src, num, cudaMemcpyHostToDevice);
     // FIXME(zjl): do we really need it?
     if (num <= kMaxGpuAsyncCopyBytes) {
@@ -74,19 +74,19 @@ void Copy<platform::CUDAPlace, platform::CUDAPlace>(
   if (dst_place == src_place) {
     platform::SetDeviceId(src_place.device);
     if (stream) {
-      // platform::RecordEvent record_event("gpu->gpu_same(stream)");
+      platform::RecordEvent record_event("gpu->gpu_same(stream)");
       platform::GpuMemcpyAsync(dst, src, num, cudaMemcpyDeviceToDevice, stream);
     } else {
-      // platform::RecordEvent record_event("gpu->gpu_same(no_stream)");
+      platform::RecordEvent record_event("gpu->gpu_same(no_stream)");
       platform::GpuMemcpySync(dst, src, num, cudaMemcpyDeviceToDevice);
     }
   } else {
     if (stream) {
-      // platform::RecordEvent record_event("gpu->gpu_no_same(stream)");
+      platform::RecordEvent record_event("gpu->gpu_no_same(stream)");
       platform::GpuMemcpyPeerAsync(dst, dst_place.device, src, src_place.device,
                                    num, stream);
     } else {
-      // platform::RecordEvent record_event("gpu->gpu_no_same(no_stream)");
+      platform::RecordEvent record_event("gpu->gpu_no_same(no_stream)");
       platform::GpuMemcpyPeerSync(dst, dst_place.device, src, src_place.device,
                                   num);
     }
