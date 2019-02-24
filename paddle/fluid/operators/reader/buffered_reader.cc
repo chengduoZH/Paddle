@@ -97,20 +97,21 @@ void BufferedReader::ReadAsync(size_t i) {
         auto gpu_ptr = gpu[i].mutable_data(place_, cpu[i].type());
         auto size =
             cpu[i].numel() * paddle::framework::SizeOfType(cpu[i].type());
-        if (platform::is_cuda_pinned_place(cpu_place))
+        if (platform::is_cuda_pinned_place(cpu_place)) {
           memory::Copy(boost::get<platform::CUDAPlace>(place_), gpu_ptr,
                        boost::get<platform::CUDAPinnedPlace>(cpu_place),
                        cpu_ptr, size, stream);
-        else if ((platform::is_gpu_place(cpu_place)))
+        } else if ((platform::is_gpu_place(cpu_place))) {
           memory::Copy(boost::get<platform::CUDAPlace>(place_), gpu_ptr,
                        boost::get<platform::CUDAPlace>(cpu_place), cpu_ptr,
                        size, stream);
-        else
+        } else {
           // if cpu place is not pinned, async copy is slower than sync copy,
           // so we use sync copy instead.
           memory::Copy(boost::get<platform::CUDAPlace>(place_), gpu_ptr,
                        boost::get<platform::CPUPlace>(cpu_place), cpu_ptr, size,
-                       0);
+                       stream);
+        }
         gpu[i].set_lod(cpu[i].lod());
       }
       PADDLE_ENFORCE(cudaStreamSynchronize(stream));

@@ -137,6 +137,7 @@ struct FindRangeAbsMaxFunctor<platform::CUDADeviceContext, T> {
                  sizeof(int), 0);
     if (g_find_max) {
       int len;
+      // There should not use 0 as stream
       memory::Copy(platform::CPUPlace(), &len, gpu_place, out_size_data,
                    sizeof(int), 0);
       FindAbsMaxFunctor<platform::CUDADeviceContext, T>()(ctx, scale_arr, len,

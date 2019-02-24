@@ -149,7 +149,7 @@ void TensorCopySync(const Tensor& src, const platform::Place& dst_place,
                platform::is_gpu_place(dst_place)) {
       platform::RecordEvent record_event("cpu->gpu");
       dev_ctx = reinterpret_cast<const platform::CUDADeviceContext*>(
-          pool.Get(src_place));
+          pool.Get(dst_place));
       auto src_cpu_place = boost::get<platform::CPUPlace>(src_place);
       auto dst_gpu_place = boost::get<platform::CUDAPlace>(dst_place);
       memory::Copy(dst_gpu_place, dst_ptr, src_cpu_place, src_ptr, size,
