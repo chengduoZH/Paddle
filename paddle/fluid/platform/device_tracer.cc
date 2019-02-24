@@ -30,11 +30,11 @@ limitations under the License. */
 #include "glog/logging.h"
 #include "google/protobuf/text_format.h"
 #include "paddle/fluid/framework/block_desc.h"
-#include "paddle/fluid/platform/profiler.h"
 #include "paddle/fluid/string/printf.h"
 
 namespace paddle {
 namespace platform {
+class Event;
 namespace {
 // Tracking the nested block stacks of each thread.
 thread_local std::deque<int> block_id_stack;
