@@ -54,8 +54,8 @@ BufferedReader::BufferedReader(
     for (auto &event : events) {
       PADDLE_ENFORCE(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
     }
-    //    PADDLE_ENFORCE(cudaStreamCreateWithFlags(&stream,
-    //    cudaStreamNonBlocking));
+    //        PADDLE_ENFORCE(cudaStreamCreateWithFlags(&stream,
+    //        cudaStreamNonBlocking));
   }
 #endif
   cpu_buffer_.resize(buffer_size);

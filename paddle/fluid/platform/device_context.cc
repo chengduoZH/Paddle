@@ -240,7 +240,8 @@ CUDADeviceContext::CUDADeviceContext(CUDAPlace place)
   compute_capability_ = GetCUDAComputeCapability(place_.device);
   multi_process_ = GetCUDAMultiProcessors(place_.device);
   max_threads_per_mp_ = GetCUDAMaxThreadsPerMultiProcessor(place_.device);
-  PADDLE_ENFORCE(cudaStreamCreate(&stream_));
+  //  PADDLE_ENFORCE(cudaStreamCreate(&stream_));
+  PADDLE_ENFORCE(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
   PADDLE_ENFORCE(cudaStreamCreate(&copy_stream_));
   eigen_stream_.reset(new EigenCudaStreamDevice());
   eigen_stream_->Reinitialize(&stream_, place);
