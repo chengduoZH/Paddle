@@ -49,8 +49,9 @@ BufferedReader::BufferedReader(
                                              .Get(place_)))
             ->stream();
     events.resize(buffer_size);
-    for (auto &event : events)
+    for (auto &event : events) {
       PADDLE_ENFORCE(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+    }
     PADDLE_ENFORCE(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
   }
 #endif
@@ -83,7 +84,9 @@ void BufferedReader::ReadAsync(size_t i) {
 
 #ifdef PADDLE_WITH_CUDA
     // NOTE(liangdun): using async copy instead of TensorCopySync
-    // TensorCopySync would block other stream
+    // TensorCopySync would block other stream, because TensorCopySync
+    // issues the copying command to the default stream, it will make two
+    // commands from different streams cannot run concurrently.
     if (platform::is_gpu_place(place_)) {
       platform::SetDeviceId(boost::get<platform::CUDAPlace>(place_).device);
       PADDLE_ENFORCE(cudaStreamWaitEvent(stream, events[i], 0));
@@ -106,8 +109,6 @@ void BufferedReader::ReadAsync(size_t i) {
                        boost::get<platform::CUDAPlace>(cpu_place), cpu_ptr,
                        size, stream);
         } else {
-          // if cpu place is not pinned, async copy is slower than sync copy,
-          // so we use sync copy instead.
           memory::Copy(boost::get<platform::CUDAPlace>(place_), gpu_ptr,
                        boost::get<platform::CPUPlace>(cpu_place), cpu_ptr, size,
                        stream);

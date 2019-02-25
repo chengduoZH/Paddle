@@ -30,6 +30,12 @@ void Copy<platform::CPUPlace, platform::CPUPlace>(platform::CPUPlace, void* dst,
 #ifdef PADDLE_WITH_CUDA
 static constexpr size_t kMaxGpuAsyncCopyBytes = 64 * 1024;  // 64K
 
+// NOTE(zcd): Do not use GpuMemcpySync as much as possible.
+// because GpuMemcpySync issues the copying command to the default stream,
+// which will make two commands from different streams cannot run concurrently.
+// Reference:
+// https://devblogs.nvidia.com/gpu-pro-tip-cuda-7-streams-simplify-concurrency/
+
 template <>
 void Copy<platform::CPUPlace, platform::CUDAPlace>(
     platform::CPUPlace dst_place, void* dst, platform::CUDAPlace src_place,
