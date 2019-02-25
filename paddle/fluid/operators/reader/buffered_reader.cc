@@ -16,6 +16,7 @@
 #include <vector>
 #include "paddle/fluid/framework/data_type.h"
 
+#include "paddle/fluid/platform/profiler.h"
 namespace paddle {
 namespace operators {
 namespace reader {
@@ -92,6 +93,7 @@ void BufferedReader::ReadAsync(size_t i) {
       PADDLE_ENFORCE(cudaStreamWaitEvent(stream, events[i], 0));
       TensorVec &gpu = gpu_buffer_[i];
       gpu.resize(cpu.size());
+      platform::RecordEvent record_event("cpu->gpu(stream,buffered_reader)");
       for (size_t i = 0; i < cpu.size(); ++i) {
         gpu[i].Resize(cpu[i].dims());
         gpu[i].set_layout(cpu[i].layout());
