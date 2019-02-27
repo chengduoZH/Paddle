@@ -82,6 +82,7 @@ nv_test(device_context_test SRCS device_context_test.cu DEPS device_context gpu_
 cc_test(init_test SRCS init_test.cc DEPS device_context)
 
 nv_test(cudnn_helper_test SRCS cudnn_helper_test.cc DEPS dynload_cuda)
+nv_test(cudnn_desc_test SRCS cudnn_desc_test.cc DEPS dynload_cuda)
 nv_test(transform_test SRCS transform_test.cu DEPS memory place device_context)
 
 cc_library(timer SRCS timer.cc)
@@ -91,7 +92,7 @@ cc_library(device_tracer SRCS device_tracer.cc DEPS boost profiler_proto framewo
 if(WITH_GPU)
     nv_library(profiler SRCS profiler.cc profiler.cu DEPS device_tracer gpu_info enforce)
 else()
-    cc_library(profiler SRCS profiler.cc DEPS  device_tracer gpu_info enforce)
+    cc_library(profiler SRCS profiler.cc DEPS device_tracer enforce)
 endif()
 cc_test(profiler_test SRCS profiler_test.cc DEPS profiler)
 
