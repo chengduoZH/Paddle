@@ -15,10 +15,10 @@
 #include "paddle/fluid/framework/details/scope_buffered_ssa_graph_executor.h"
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 #include "paddle/fluid/framework/variable_helper.h"
 #include "paddle/fluid/platform/profiler.h"
-
 namespace paddle {
 namespace framework {
 namespace details {
@@ -34,9 +34,15 @@ ScopeBufferedSSAGraphExecutor::ScopeBufferedSSAGraphExecutor(
 
 FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
     const std::vector<std::string> &fetch_tensors) {
+  std::unordered_map<Variable *, std::pair<std::string, int>> var_names;
+  std::unordered_map<LoDTensor *, std::pair<std::string, int>> tensor_names;
+  std::unordered_map<void *, std::pair<std::string, int>> data_names;
+
   if (drop_scope_counter_ == 0) {
     // Create local scopes.
-    for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
+    int scope_idx = local_scopes_.size() - 1;
+    for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend();
+         ++it, --scope_idx) {
       auto &scope = *it;
       Scope &local_scope = scope->NewScope();
       *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>() =
@@ -56,7 +62,33 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
 
       std::stringstream out;
       for (auto &var : local_scope.LocalVarNames()) {
-        out << var << "(" << local_scope.FindVar(var) << "), ";
+        auto *var_ptr = local_scope.FindVar(var);
+        out << var << "(" << var_ptr << "), ";
+        if (var_names.count(var_ptr)) {
+          VLOG(10) << "Find same var: " << var << " with"
+                   << data_names[var_ptr].first << "_"
+                   << data_names[var_ptr].second;
+        }
+        var_names.emplace(var_ptr, std::make_pair(var, scope_idx));
+        if (var_ptr->IsInitialized() &&
+            var_ptr->IsType<framework::LoDTensor>()) {
+          auto *tensor = var_ptr->GetMutable<LoDTensor>();
+          if (tensor_names.count(tensor)) {
+            VLOG(10) << "Find tensor var: " << var << " with"
+                     << data_names[tensor].first << "_"
+                     << data_names[tensor].second;
+          }
+          tensor_names.emplace(tensor, std::make_pair(var, scope_idx));
+          if (tensor->IsInitialized()) {
+            void *data = tensor->data<void>();
+            if (data_names.count(data)) {
+              VLOG(10) << "Find data var: " << var << " with"
+                       << data_names[data].first << "_"
+                       << data_names[data].second;
+            }
+            data_names.emplace(data, std::make_pair(var, scope_idx));
+          }
+        }
       }
       VLOG(10) << out.str();
     }
