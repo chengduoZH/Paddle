@@ -59,38 +59,72 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           InitializeVariable(local_scope.Var(info.name_), info.type_);
         }
       }
-
-      std::stringstream out;
-      for (auto &var : local_scope.LocalVarNames()) {
-        auto *var_ptr = local_scope.FindVar(var);
-        out << var << "(" << var_ptr << "), ";
-        if (var_names.count(var_ptr)) {
-          VLOG(10) << "Find same var: " << var << " with"
-                   << data_names[var_ptr].first << "_"
-                   << data_names[var_ptr].second;
-        }
-        var_names.emplace(var_ptr, std::make_pair(var, scope_idx));
-        if (var_ptr->IsInitialized() &&
-            var_ptr->IsType<framework::LoDTensor>()) {
-          auto *tensor = var_ptr->GetMutable<LoDTensor>();
-          if (tensor_names.count(tensor)) {
-            VLOG(10) << "Find tensor var: " << var << " with"
-                     << data_names[tensor].first << "_"
-                     << data_names[tensor].second;
+      {
+        std::stringstream out;
+        for (auto &var : scope->LocalVarNames()) {
+          auto *var_ptr = scope->FindVar(var);
+          out << var << "(" << var_ptr << "), ";
+          if (var_names.count(var_ptr)) {
+            VLOG(10) << "Find same var: " << var << " with"
+                     << data_names[var_ptr].first << "_"
+                     << data_names[var_ptr].second;
           }
-          tensor_names.emplace(tensor, std::make_pair(var, scope_idx));
-          if (tensor->IsInitialized()) {
-            void *data = tensor->data<void>();
-            if (data_names.count(data)) {
-              VLOG(10) << "Find data var: " << var << " with"
-                       << data_names[data].first << "_"
-                       << data_names[data].second;
+          var_names.emplace(var_ptr, std::make_pair(var, scope_idx));
+          if (var_ptr->IsInitialized() &&
+              var_ptr->IsType<framework::LoDTensor>()) {
+            auto *tensor = var_ptr->GetMutable<LoDTensor>();
+            if (tensor_names.count(tensor)) {
+              VLOG(10) << "Find tensor var: " << var << " with"
+                       << data_names[tensor].first << "_"
+                       << data_names[tensor].second;
             }
-            data_names.emplace(data, std::make_pair(var, scope_idx));
+            tensor_names.emplace(tensor, std::make_pair(var, scope_idx));
+            if (tensor->IsInitialized()) {
+              void *data = tensor->data<void>();
+              if (data_names.count(data)) {
+                VLOG(10) << "Find data var: " << var << " with"
+                         << data_names[data].first << "_"
+                         << data_names[data].second;
+              }
+              data_names.emplace(data, std::make_pair(var, scope_idx));
+            }
           }
         }
+        VLOG(10) << out.str();
       }
-      VLOG(10) << out.str();
+      {
+        std::stringstream out;
+        for (auto &var : local_scope.LocalVarNames()) {
+          auto *var_ptr = local_scope.FindVar(var);
+          out << var << "(" << var_ptr << "), ";
+          if (var_names.count(var_ptr)) {
+            VLOG(10) << "Find same var: " << var << " with"
+                     << data_names[var_ptr].first << "_"
+                     << data_names[var_ptr].second;
+          }
+          var_names.emplace(var_ptr, std::make_pair(var, scope_idx));
+          if (var_ptr->IsInitialized() &&
+              var_ptr->IsType<framework::LoDTensor>()) {
+            auto *tensor = var_ptr->GetMutable<LoDTensor>();
+            if (tensor_names.count(tensor)) {
+              VLOG(10) << "Find tensor var: " << var << " with"
+                       << data_names[tensor].first << "_"
+                       << data_names[tensor].second;
+            }
+            tensor_names.emplace(tensor, std::make_pair(var, scope_idx));
+            if (tensor->IsInitialized()) {
+              void *data = tensor->data<void>();
+              if (data_names.count(data)) {
+                VLOG(10) << "Find data var: " << var << " with"
+                         << data_names[data].first << "_"
+                         << data_names[data].second;
+              }
+              data_names.emplace(data, std::make_pair(var, scope_idx));
+            }
+          }
+        }
+        VLOG(10) << out.str();
+      }
     }
   }
   std::vector<framework::LoDTensor> fetch_data;
