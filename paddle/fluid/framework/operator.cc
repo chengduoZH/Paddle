@@ -457,6 +457,43 @@ bool ExecutionContext::HasOutput(const std::string& name) const {
   return var != nullptr;
 }
 
+template <typename T>
+std::string get_value(const framework::Tensor& tensor,
+                      const platform::DeviceContext& dev_ctx) {
+  std::vector<T> outv;
+  std::stringstream out;
+  framework::TensorToVector(tensor, dev_ctx, &outv);
+  double total02 = 0.0;
+  int i = 0;
+  for (auto v : outv) {
+    total02 += static_cast<double>(v);
+    if (i < 100) {
+      out << string::Sprintf("%0.10f, ", v);
+      ++i;
+    }
+  }
+  out << "...  Sum :" << string::Sprintf("%0.10f, ", total02)
+      << ", number :" << outv.size();
+  return out.str();
+}
+
+std::string GetValue(const framework::Tensor& tensor,
+                     const platform::DeviceContext& dev_ctx) {
+  if (tensor.memory_size() == 0) {
+    return "Empty";
+  }
+  if (tensor.type() != proto::VarType::FP32 &&
+      tensor.type() != proto::VarType::FP64) {
+    return "Empty";
+  }
+
+  if (tensor.type() == proto::VarType::FP32) {
+    return get_value<float>(tensor, dev_ctx);
+  } else if (tensor.type() == proto::VarType::FP64) {
+    return get_value<double>(tensor, dev_ctx);
+  }
+  return "Empty";
+}
 const Variable* ExecutionContext::InputVar(const std::string& name) const {
   auto it = ctx_.inputs.find(name);
   if (it == ctx_.inputs.end()) return nullptr;
@@ -723,7 +760,8 @@ class RuntimeInferShapeContext : public InferShapeContext {
     // Workaround:
     //    Skip set_layout() when input layout is kMKLDNN
     //    This is to avoid kMKLDNN is populated wrongly into a non-MKLDNN
-    //    OPKernel. In all MKLDNN OPkernel, set_layout(kMKLDNN) should be called
+    //    OPKernel. In all MKLDNN OPkernel, set_layout(kMKLDNN) should be
+    //    called
     //    in Compute()
     if (in_tensor.layout() != DataLayout::kMKLDNN)
 #endif
@@ -973,6 +1011,36 @@ void OperatorWithKernel::RunImpl(const Scope& scope,
   kernel_iter->second(
       ExecutionContext(*this, exec_scope, *dev_ctx, ctx, kernel_configs));
 
+  {
+    VLOG(1) << type_;
+    for (auto& in : Inputs()) {
+      if (in.second.size() == 0) continue;
+      for (auto arg : in.second) {
+        auto var = exec_scope.FindVar(arg);
+        if (var && var->IsType<framework::LoDTensor>()) {
+          auto tensor = exec_scope.FindVar(arg)->Get<framework::LoDTensor>();
+          std::string values = GetValue(tensor, *dev_ctx);
+          VLOG(1) << "Input " << place << ", " << arg << ", " << values;
+        } else {
+          VLOG(1) << "Input " << place << ", " << arg << " Empty ";
+        }
+      }
+    }
+    for (auto& in : Outputs()) {
+      if (in.second.size() == 0) continue;
+      for (auto arg : in.second) {
+        auto var = exec_scope.FindVar(arg);
+        if (var && var->IsType<framework::LoDTensor>()) {
+          auto tensor = exec_scope.FindVar(arg)->Get<framework::LoDTensor>();
+          std::string values = GetValue(tensor, *dev_ctx);
+          VLOG(1) << "Output " << place << ", " << arg << ", " << values;
+        } else {
+          VLOG(1) << "Output " << place << ", " << arg << " Empty ";
+        }
+      }
+    }
+  }
+
   if (!transfered_inplace_vars.empty()) {
     // there is inplace variable has been transfered.
     TransferInplaceVarsBack(scope, transfered_inplace_vars, *transfer_scope);
@@ -1055,14 +1123,17 @@ Scope* OperatorWithKernel::PrepareData(
       // In the inference scenerio, the scopes will be reused across the
       // batches, so the `new_scope` here will result in GPU memroy explosion
       // over the  running of operators.
-      // We use a thread_local cache to fix that issue, the key in the cache is
+      // We use a thread_local cache to fix that issue, the key in the cache
+      // is
       // the combination of the `scope` argument, from_kernel_type,
       // target_kernel_type.
       // Have a discussion with @Superjomn or the inference developers if some
       // changes on this logic for this macro might not tested on the other
       // scenerios.
-      // If this op is not called by an Executor or ParallelExecutor, it should
-      // called by a NaiveExecutor, the NaiveExecutor will cache the scopes and
+      // If this op is not called by an Executor or ParallelExecutor, it
+      // should
+      // called by a NaiveExecutor, the NaiveExecutor will cache the scopes
+      // and
       // variables, that behavior a lot different.
       if (!run_by_executor_) {
         new_scope = TryCreateTransferScope(kernel_type_for_var,
