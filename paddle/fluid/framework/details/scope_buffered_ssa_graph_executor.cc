@@ -53,6 +53,12 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           InitializeVariable(local_scope.Var(info.name_), info.type_);
         }
       }
+
+      std::stringstream out;
+      for (auto &var : local_scope.LocalVarNames()) {
+        out << var << "(" << local_scope.FindVar(var) << "), ";
+      }
+      VLOG(10) << out.str();
     }
   }
   std::vector<framework::LoDTensor> fetch_data;
