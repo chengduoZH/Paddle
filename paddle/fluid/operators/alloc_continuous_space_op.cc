@@ -46,6 +46,21 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
       PADDLE_ENFORCE(out_vars[i]->IsType<framework::LoDTensor>());
     }
 
+    {
+      std::stringstream out;
+      std::stringstream out2;
+      std::stringstream out3;
+      for (size_t i = 0; i < in_var_names.size(); ++i) {
+        out << in_var_names[i] << "(" << in_vars[i] << "), ";
+        out2 << in_var_names[i] << "("
+             << &(in_vars[i]->Get<framework::LoDTensor>()) << "), ";
+        out3 << in_var_names[i] << "("
+             << (in_vars[i]->Get<framework::LoDTensor>().data<void>()) << "), ";
+      }
+      VLOG(10) << out.str();
+      VLOG(10) << out2.str();
+      VLOG(10) << out3.str();
+    }
     auto in_tensors = context.MultiInput<framework::LoDTensor>("Input");
 
     if (context.Attr<bool>("check_name")) {
@@ -101,6 +116,21 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
       VLOG(10) << "alloc_space_for_vars: output(" << out_var_names[i]
                << ") ,dim:(" << dim << ")"
                << " Address: " << out_tensors[i]->data<void>();
+    }
+    {
+      std::stringstream out;
+      std::stringstream out2;
+      std::stringstream out3;
+      for (size_t i = 0; i < in_var_names.size(); ++i) {
+        out << in_var_names[i] << "(" << in_vars[i] << "), ";
+        out2 << in_var_names[i] << "("
+             << &(in_vars[i]->Get<framework::LoDTensor>()) << "), ";
+        out3 << in_var_names[i] << "("
+             << (in_vars[i]->Get<framework::LoDTensor>().data<void>()) << "), ";
+      }
+      VLOG(10) << out.str();
+      VLOG(10) << out2.str();
+      VLOG(10) << out3.str();
     }
   }
 

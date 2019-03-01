@@ -61,6 +61,8 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
       }
       {
         std::stringstream out;
+        std::stringstream out2;
+        std::stringstream out3;
         for (auto &var : scope->LocalVarNames()) {
           auto *var_ptr = scope->FindVar(var);
           out << var << "(" << var_ptr << "), ";
@@ -78,6 +80,7 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
                        << data_names[tensor].first << "_"
                        << data_names[tensor].second;
             }
+            out2 << var << "(" << tensor << "), ";
             tensor_names.emplace(tensor, std::make_pair(var, scope_idx));
             if (tensor->IsInitialized()) {
               void *data = tensor->data<void>();
@@ -87,10 +90,13 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
                          << data_names[data].second;
               }
               data_names.emplace(data, std::make_pair(var, scope_idx));
+              out3 << var << "(" << data << "), ";
             }
           }
         }
         VLOG(10) << out.str();
+        VLOG(10) << out2.str();
+        VLOG(10) << out3.str();
       }
       {
         std::stringstream out;

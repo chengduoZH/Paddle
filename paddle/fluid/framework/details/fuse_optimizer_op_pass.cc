@@ -110,7 +110,7 @@ std::unique_ptr<ir::Graph> FuseOptimizerOpPass::ApplyImpl(
   //  for (auto &opt_op : opt_ops) {
   //    graph->RemoveNode(opt_op);
   //  }
-
+  VLOG(10) << "Finish fuse_opt.";
   return std::move(graph);
 }
 
@@ -215,8 +215,8 @@ void FuseOptimizerOpPass::AppendAllocContinuousSpace(
   op_desc->SetInput("Input", args);
   op_desc->SetOutput("Output", args);
   op_desc->SetOutput("FusedOutput", {out_arg});
-  op_desc->SetAttr("copy_data", copy_data);
-  op_desc->SetAttr("check_name", true);
+  op_desc->SetAttr("copy_data", true);
+  //  op_desc->SetAttr("check_name", true);
 }
 
 void FuseOptimizerOpPass::InserInputAndOutputForOptOps(

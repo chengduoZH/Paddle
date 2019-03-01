@@ -1018,9 +1018,10 @@ void OperatorWithKernel::RunImpl(const Scope& scope,
       for (auto arg : in.second) {
         auto var = exec_scope.FindVar(arg);
         if (var && var->IsType<framework::LoDTensor>()) {
-          auto tensor = exec_scope.FindVar(arg)->Get<framework::LoDTensor>();
+          auto tensor = var->Get<framework::LoDTensor>();
           std::string values = GetValue(tensor, *dev_ctx);
-          VLOG(1) << "Input " << place << ", " << arg << ", " << values;
+          VLOG(1) << "Input " << place << ", " << arg << "(" << var << ")["
+                  << tensor << "],[" << tensor.data<void>() << "] " << values;
         } else {
           VLOG(1) << "Input " << place << ", " << arg << " Empty ";
         }
@@ -1033,7 +1034,8 @@ void OperatorWithKernel::RunImpl(const Scope& scope,
         if (var && var->IsType<framework::LoDTensor>()) {
           auto tensor = exec_scope.FindVar(arg)->Get<framework::LoDTensor>();
           std::string values = GetValue(tensor, *dev_ctx);
-          VLOG(1) << "Output " << place << ", " << arg << ", " << values;
+          VLOG(1) << "Output " << place << ", " << arg << "(" << var << ")["
+                  << tensor << "],[" << tensor.data<void>() << "] " << values;
         } else {
           VLOG(1) << "Output " << place << ", " << arg << " Empty ";
         }

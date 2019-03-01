@@ -107,13 +107,13 @@ class TestFuseAdamOps(TestParallelExecutorBase):
         for loss in zip(not_fuse_op_last_loss, fuse_op_last_loss):
             self.assertAlmostEquals(loss[0], loss[1], delta=1e-6)
 
-    # def test_simple_fc_with_fuse_op(self):
-    #     self._compare_fused_optimizer_ops(simple_fc_net, True)
-    #     self._compare_fused_optimizer_ops(simple_fc_net, False)
+    def test_simple_fc_with_fuse_op(self):
+        self._compare_fused_optimizer_ops(simple_fc_net, True)
+        self._compare_fused_optimizer_ops(simple_fc_net, False)
 
     def test_batchnorm_fc_with_fuse_op(self):
         self._compare_fused_optimizer_ops(fc_with_batchnorm, True)
-        # self._compare_fused_optimizer_ops(fc_with_batchnorm, False)
+        self._compare_fused_optimizer_ops(fc_with_batchnorm, False)
 
     # class TestFuseSGDOps(TestFuseAdamOps):
     #     def sgd_optimizer(self, learning_rate=1e-4):
