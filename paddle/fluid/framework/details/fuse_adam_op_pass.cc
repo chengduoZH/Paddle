@@ -32,11 +32,11 @@ void FuseAdamOpPass::FuseOptimizerOps(
         &aux_var_set,
     const std::unordered_map<std::string, std::string> &fused_vars_name,
     const std::vector<ir::Node *> &adam_ops, ir::Graph *graph) const {
-  FuseAdamOps(aux_var_set, fused_vars_name, adam_ops, graph);
-  FuseScaleOps(aux_var_set.at("Beta1Pow"), fused_vars_name.at("Beta1Pow"),
-               adam_ops, graph);
-  FuseScaleOps(aux_var_set.at("Beta2Pow"), fused_vars_name.at("Beta2Pow"),
-               adam_ops, graph);
+  //  FuseAdamOps(aux_var_set, fused_vars_name, adam_ops, graph);
+  //  FuseScaleOps(aux_var_set.at("Beta1Pow"), fused_vars_name.at("Beta1Pow"),
+  //               adam_ops, graph);
+  //  FuseScaleOps(aux_var_set.at("Beta2Pow"), fused_vars_name.at("Beta2Pow"),
+  //               adam_ops, graph);
 }
 
 void FuseAdamOpPass::FuseAdamOps(

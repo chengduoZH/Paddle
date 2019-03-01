@@ -75,25 +75,28 @@ std::unique_ptr<ir::Graph> FuseOptimizerOpPass::ApplyImpl(
   }
 
   // Step 3: Get the fused Gradient's name
-  auto &params_grads = result.Get<ParamsAndGrads>(kParamsAndGrads);
-  if (!result.Has(kFusedGrads)) {
-    PADDLE_THROW(
-        "The alloc_continuous_space_for_grad_pass should be called before this "
-        "pass.");
-  }
-  auto fused_grad = result.Get<FusedGrads>(kFusedGrads);
-  auto &fused_vars = result.Get<FusedVars>(kFusedVars);
-  auto iter = std::find(fused_vars.begin(), fused_vars.end(), fused_grad);
-  VLOG(10) << fused_grad;
-  PADDLE_ENFORCE(iter != fused_vars.end(), "Not find the fused_grad.");
-  fused_vars_name.emplace("Grad", fused_grad);
-  VLOG(10) << fused_grad;
+  //  auto &params_grads = result.Get<ParamsAndGrads>(kParamsAndGrads);
+  //  if (!result.Has(kFusedGrads)) {
+  //    PADDLE_THROW(
+  //        "The alloc_continuous_space_for_grad_pass should be called before
+  //        this "
+  //        "pass.");
+  //  }
+  //  auto fused_grad = result.Get<FusedGrads>(kFusedGrads);
+  //  auto &fused_vars = result.Get<FusedVars>(kFusedVars);
+  //  auto iter = std::find(fused_vars.begin(), fused_vars.end(), fused_grad);
+  //  VLOG(10) << fused_grad;
+  //  PADDLE_ENFORCE(iter != fused_vars.end(), "Not find the fused_grad.");
+  //  fused_vars_name.emplace("Grad", fused_grad);
+  //  VLOG(10) << fused_grad;
 
   // Step 4: Sort the parameters and auxiliary variables according
   // to parameters' name to make variables' name correspond correctly.
-  PADDLE_ENFORCE(result.Has(kParamsAndGrads), "Does't find kParamsAndGrads.");
-  PADDLE_ENFORCE_EQ(params_grads.size(), aux_var_set.begin()->second.size());
-  SortParametersAndAuxVars(params_grads, &aux_var_set, &opt_ops);
+  //  PADDLE_ENFORCE(result.Has(kParamsAndGrads), "Does't find
+  //  kParamsAndGrads.");
+  //  PADDLE_ENFORCE_EQ(params_grads.size(),
+  //  aux_var_set.begin()->second.size());
+  //  SortParametersAndAuxVars(params_grads, &aux_var_set, &opt_ops);
 
   // Step 5: Alloc continuous space for Parameters and AuxiliaryVar(e.g.
   // Moment1, Moment2, Beta1Pow, Beta2Pow) of all the optimizer ops separately.
@@ -103,10 +106,10 @@ std::unique_ptr<ir::Graph> FuseOptimizerOpPass::ApplyImpl(
   // Step 6: Fuse optimizer Ops and Scale Ops
   FuseOptimizerOps(aux_var_set, fused_vars_name, opt_ops, &result);
 
-  // Step 7: Remove optimizer Ops
-  for (auto &opt_op : opt_ops) {
-    graph->RemoveNode(opt_op);
-  }
+  //  // Step 7: Remove optimizer Ops
+  //  for (auto &opt_op : opt_ops) {
+  //    graph->RemoveNode(opt_op);
+  //  }
 
   return std::move(graph);
 }
