@@ -61,46 +61,12 @@ class AllocContinuousSpace2Kernel : public framework::OpKernel<T> {
     }
 
     auto &dev_ctx = context.template device_context<DeviceContext>();
-
-    // Get numel and dtype
-    size_t numel = 0;
-    auto dtype = kDefaultDtype;
-    GetMemSizeAndDtype(in_tensors, in_var_names, &numel, &dtype);
-
-    // Alloc the continuous space
-    auto fused_tensor = context.Output<framework::LoDTensor>("FusedOutput");
-    fused_tensor->Resize(framework::make_ddim({static_cast<int64_t>(numel)}))
-        .mutable_data(context.GetPlace(), dtype);
-
     // Init the continuous space
-    int64_t offset = 0;
-    if (context.Attr<bool>("copy_data")) {
-      for (size_t i = 0; i < in_var_names.size(); ++i) {
-        int64_t len = in_tensors[i]->numel();
-        auto sub_tensor = fused_tensor->Slice(offset, offset + len);
-        offset += len;
-        framework::TensorCopy(*in_tensors[i], context.GetPlace(), dev_ctx,
-                              &sub_tensor);
-      }
-    } else if (context.Attr<bool>("set_constant")) {
-      math::SetConstant<DeviceContext, T> set_constant;
-      set_constant(dev_ctx, fused_tensor,
-                   static_cast<T>(context.Attr<float>("constant")));
-    }
-
-    // Make the outputs point to the continuous space.
     auto out_tensors = context.MultiOutput<framework::LoDTensor>("Output");
-    offset = 0;
-    for (size_t i = 0; i < out_tensors.size(); ++i) {
-      int64_t len = out_tensors[i]->numel();
-      auto dim = out_tensors[i]->dims();
-      out_tensors[i]
-          ->ShareDataWith(fused_tensor->Slice(offset, offset + len))
-          .Resize(dim);
-      offset += len;
-      VLOG(10) << "alloc_space_for_vars: output(" << out_var_names[i]
-               << ") ,dim:(" << dim << ")"
-               << " Address: " << out_tensors[i]->data<void>();
+    for (size_t i = 0; i < in_var_names.size(); ++i) {
+      framework::Tensor tmp;
+      framework::TensorCopy(*in_tensors[i], context.GetPlace(), dev_ctx, &tmp);
+      out_tensors[i]->ShareDataWith(tmp);
     }
   }
 
