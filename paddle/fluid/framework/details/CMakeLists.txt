@@ -14,8 +14,6 @@ cc_library(alloc_continuous_space_for_grad_pass SRCS alloc_continuous_space_for_
 cc_library(fuse_adam_op_pass SRCS fuse_adam_op_pass.cc fuse_optimizer_op_pass.cc DEPS graph graph_helper)
 cc_library(fuse_sgd_op_pass SRCS fuse_sgd_op_pass.cc fuse_optimizer_op_pass.cc DEPS graph graph_helper)
 
-cc_library(fuse_parameters_pass SRCS fuse_parameters_pass.cc DEPS graph graph_helper)
-
 cc_library(variable_visitor SRCS variable_visitor.cc DEPS lod_tensor selected_rows)
 
 if(WITH_DISTRIBUTE)
