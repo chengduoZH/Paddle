@@ -106,7 +106,7 @@ class FuseParametersPass : public ir::Pass {
                                   const std::string &out_arg, bool copy_data,
                                   BlockDesc *global_block) const {
     auto op_desc = global_block->AppendOp();
-    op_desc->SetType("alloc_continuous_space");
+    op_desc->SetType("alloc_continuous_space2");
     op_desc->SetInput("Input", args);
     op_desc->SetOutput("Output", args);
     op_desc->SetOutput("FusedOutput", {out_arg});
