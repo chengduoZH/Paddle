@@ -81,7 +81,9 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
         offset += len;
         framework::TensorCopy(*in_tensors[i], context.GetPlace(), dev_ctx,
                               &sub_tensor);
+        out_tensors[i]->ShareDataWith(sub_tensor);
       }
+      return;
     } else if (context.Attr<bool>("set_constant")) {
       math::SetConstant<DeviceContext, T> set_constant;
       set_constant(dev_ctx, fused_tensor,
