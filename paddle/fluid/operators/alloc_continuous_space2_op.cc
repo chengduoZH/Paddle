@@ -25,7 +25,7 @@ static framework::proto::VarType::Type kDefaultDtype =
     framework::proto::VarType::Type::VarType_Type_BOOL;
 
 template <typename DeviceContext, typename T>
-class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
+class AllocContinuousSpace2Kernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext &context) const override {
     auto &in_var_names = context.Inputs("Input");
@@ -131,29 +131,29 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
   }
 };
 
-class AllocContinuousSpaceOp : public framework::OperatorWithKernel {
+class AllocContinuousSpace2Op : public framework::OperatorWithKernel {
  public:
   using framework::OperatorWithKernel::OperatorWithKernel;
 
   void InferShape(framework::InferShapeContext *ctx) const override {}
 };
 
-class AllocContinuousSpaceOpMaker : public framework::OpProtoAndCheckerMaker {
+class AllocContinuousSpace2OpMaker : public framework::OpProtoAndCheckerMaker {
  public:
   void Make() override {
     AddInput("Input",
              "(vector<LoDTensor>) The input tensors of"
-             " alloc_continuous_space operator.")
+             " alloc_continuous_space2 operator.")
         .AsDuplicable();
     AddOutput("Output",
               "(vector<LoDTensor>) The output "
-              "tensors of alloc_continuous_space operator. And the address "
+              "tensors of alloc_continuous_space2 operator. And the address "
               "of output tensors are continuous, they are sliced from the "
               "tensor of FusedOutput.")
         .AsDuplicable();
     AddOutput("FusedOutput",
               "(LoDTensor) The output tensor "
-              "of alloc_continuous_space operator. And the tensors of"
+              "of alloc_continuous_space2 operator. And the tensors of"
               " Output is sliced from the tensor of FusedOutput.");
     AddAttr<bool>("copy_data", "Whether to copy the Input value to Output.")
         .SetDefault(false);
@@ -169,9 +169,9 @@ class AllocContinuousSpaceOpMaker : public framework::OpProtoAndCheckerMaker {
                   "they are the same separately.")
         .SetDefault(false);
     AddComment(R"DOC(
-AllocContinuousSpace Operator.
+AllocContinuousSpace2 Operator.
 
-alloc_continuous_space is used to make the address of Output
+alloc_continuous_space2 is used to make the address of Output
 continuous according to the Input. This Op will alloc a big tensor
 according to the tensors of Input, the dtype is the same with those input tensors,
 the size is the sum of those input tensors' numel, and the dim of the big
@@ -180,7 +180,7 @@ The tensors of Output are sliced from the tensor of FusedOutput.
 Note that, the dtype of Input should be the same, and the dim of Input
 and Output should equal.
 The tensors of Input and Output could be the same or different. And
-alloc_continuous_space allows copying the value of Input to Output, or
+alloc_continuous_space2 allows copying the value of Input to Output, or
 setting the Output with a constant value.
 
 )DOC");
@@ -190,22 +190,23 @@ setting the Output with a constant value.
 }  // namespace operators
 }  // namespace paddle
 
-REGISTER_OPERATOR(alloc_continuous_space,
-                  paddle::operators::AllocContinuousSpaceOp,
-                  paddle::operators::AllocContinuousSpaceOpMaker);
+REGISTER_OPERATOR(alloc_continuous_space2,
+                  paddle::operators::AllocContinuousSpace2Op,
+                  paddle::operators::AllocContinuousSpace2OpMaker);
 namespace ops = paddle::operators;
 REGISTER_OP_CPU_KERNEL(
-    alloc_continuous_space,
-    ops::AllocContinuousSpaceKernel<paddle::platform::CPUDeviceContext, int>,
-    ops::AllocContinuousSpaceKernel<paddle::platform::CPUDeviceContext, float>,
-    ops::AllocContinuousSpaceKernel<paddle::platform::CPUDeviceContext,
-                                    double>);
+    alloc_continuous_space2,
+    ops::AllocContinuousSpace2Kernel<paddle::platform::CPUDeviceContext, int>,
+    ops::AllocContinuousSpace2Kernel<paddle::platform::CPUDeviceContext, float>,
+    ops::AllocContinuousSpace2Kernel<paddle::platform::CPUDeviceContext,
+                                     double>);
 
 #ifdef PADDLE_WITH_CUDA
 REGISTER_OP_CUDA_KERNEL(
-    alloc_continuous_space,
-    ops::AllocContinuousSpaceKernel<paddle::platform::CUDADeviceContext, int>,
-    ops::AllocContinuousSpaceKernel<paddle::platform::CUDADeviceContext, float>,
-    ops::AllocContinuousSpaceKernel<paddle::platform::CUDADeviceContext,
-                                    double>);
+    alloc_continuous_space2,
+    ops::AllocContinuousSpace2Kernel<paddle::platform::CUDADeviceContext, int>,
+    ops::AllocContinuousSpace2Kernel<paddle::platform::CUDADeviceContext,
+                                     float>,
+    ops::AllocContinuousSpace2Kernel<paddle::platform::CUDADeviceContext,
+                                     double>);
 #endif
