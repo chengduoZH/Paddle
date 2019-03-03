@@ -94,9 +94,7 @@ class FuseParametersPass : public ir::Pass {
     for (size_t i = 0; i < local_scopes.size(); ++i) {
       for (auto &op_desc : global_block->AllOps()) {
         auto op = OpRegistry::CreateOp(*op_desc);
-        VLOG(4) << op->DebugStringEx(local_scopes[i]);
         op->Run(*local_scopes[i], places[i]);
-        VLOG(3) << op->DebugStringEx(local_scopes[i]);
       }
     }
   }
