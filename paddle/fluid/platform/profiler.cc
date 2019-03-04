@@ -76,27 +76,27 @@ struct EventList {
 
   template <typename... Args>
   Event* Record(Args&&... args) {
-    if (event_blocks.empty() || event_blocks.front().size() == kNumBlock) {
-      event_blocks.emplace_front();
-      event_blocks.front().reserve(kNumBlock);
+    if (event_blocks_.empty() || event_blocks_.front().size() == kNumBlock) {
+      event_blocks_.emplace_front();
+      event_blocks_.front().reserve(kNumBlock);
     }
-    event_blocks.front().emplace_back(std::forward<Args>(args)...);
-    return &event_blocks.front().back();
+    event_blocks_.front().emplace_back(std::forward<Args>(args)...);
+    return &event_blocks_.front().back();
   }
 
   std::vector<Event> Reduce() {
     std::vector<Event> result;
-    for (auto& block : event_blocks) {
+    for (auto& block : event_blocks_) {
       result.insert(result.begin(), std::make_move_iterator(block.begin()),
                     std::make_move_iterator(block.end()));
     }
-    event_blocks.clear();
+    event_blocks_.clear();
     return result;
   }
 
-  void Clear() { event_blocks.clear(); }
+  void Clear() { event_blocks_.clear(); }
 
-  std::forward_list<std::vector<Event>> event_blocks;
+  std::forward_list<std::vector<Event>> event_blocks_;
 };
 
 struct MemEventList {
@@ -110,25 +110,25 @@ struct MemEventList {
 
   template <typename... Args>
   void Record(Args&&... args) {
-    if (event_blocks.empty() || event_blocks.front().size() == kNumBlock) {
-      event_blocks.emplace_front();
-      event_blocks.front().reserve(kNumBlock);
+    if (event_blocks_.empty() || event_blocks_.front().size() == kNumBlock) {
+      event_blocks_.emplace_front();
+      event_blocks_.front().reserve(kNumBlock);
     }
-    event_blocks.front().emplace_back(std::forward<Args>(args)...);
+    event_blocks_.front().emplace_back(std::forward<Args>(args)...);
   }
 
   std::vector<MemEvent> Reduce() {
     std::vector<MemEvent> result;
-    for (auto& block : event_blocks) {
+    for (auto& block : event_blocks_) {
       result.insert(result.begin(), std::make_move_iterator(block.begin()),
                     std::make_move_iterator(block.end()));
     }
-    event_blocks.clear();
+    event_blocks_.clear();
     return result;
   }
 
-  void Clear() { event_blocks.clear(); }
-  std::forward_list<std::vector<MemEvent>> event_blocks;
+  void Clear() { event_blocks_.clear(); }
+  std::forward_list<std::vector<MemEvent>> event_blocks_;
 };
 
 inline uint64_t GetTimeInNsec() {
@@ -242,7 +242,6 @@ RecordEvent::~RecordEvent() {
 }
 
 MemEvenRecorder MemEvenRecorder::recorder;
-
 void MemEvenRecorder::PushMemRecord(const void* ptr, const Place& place,
                                     size_t size) {
   if (g_state == ProfilerState::kDisabled) return;
@@ -268,7 +267,7 @@ void MemEvenRecorder::PopMemRecord(const void* ptr, const Place& place) {
 
 MemEvenRecorder::RecordMemEvent::RecordMemEvent(const Place& place,
                                                 size_t bytes)
-    : place_(place), bytes_(bytes) {}
+    : place_(place), bytes_(bytes), start_ns_(PosixInNsec()) {}
 
 void MemEvenRecorder::RecordMemEvent::DelRecordMem() {
   DeviceTracer* tracer = GetDeviceTracer();
