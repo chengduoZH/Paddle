@@ -19,36 +19,12 @@ limitations under the License. */
 #include <vector>
 #include "paddle/fluid/platform/enforce.h"
 #include "paddle/fluid/platform/event.h"
+#include "paddle/fluid/platform/place.h"
 #ifdef PADDLE_WITH_CUDA
 #include "paddle/fluid/platform/gpu_info.h"
 #endif
 namespace paddle {
 namespace platform {
-
-class MemEvent {
- public:
-  MemEvent(EventType type, uint64_t start_ns, uint64_t end_ns, size_t bytes,
-           Place place, int64_t thread_id);
-  const EventType& type() const { return type_; }
-  uint64_t start_ns() const { return start_ns_; }
-  uint64_t end_ns() const { return end_ns_; }
-  size_t bytes() const { return bytes_; }
-  Place place() const { return place_; }
-  int64_t thread_id() const { return thread_id_; }
-
- private:
-  EventType type_;
-  uint64_t start_ns_ = 0;
-  uint64_t end_ns_ = 0;
-  size_t bytes_;
-  Place place_;
-  int64_t thread_id_;
-};
-
-void PushMemEvent(uint64_t start_ns, uint64_t end_ns, size_t bytes,
-                  Place place);
-
-void PopMemEvent(uint64_t start_ns, uint64_t end_ns, size_t bytes, Place place);
 
 enum ProfilerState {
   kDisabled,  // disabled state
@@ -59,8 +35,26 @@ enum ProfilerState {
 
 void Mark(const std::string& name);
 
-Event* PushEvent(const std::string& name);
+void PushMemEvent(uint64_t start_ns, uint64_t end_ns, size_t bytes,
+                  Place place);
+void PopMemEvent(uint64_t start_ns, uint64_t end_ns, size_t bytes, Place place);
 
+struct RecordMemEvent {
+  RecordMemEvent();
+
+  ~RecordMemEvent() {}
+
+  void InitRecordMem(size_t bytes, Place place);
+  void DelRecordMem();
+
+  bool is_enabled_;
+  uint64_t start_ns_;
+  uint64_t end_ns_;
+  size_t bytes_;
+  Place place_;
+};
+
+Event* PushEvent(const std::string& name);
 void PopEvent(const std::string& name);
 
 struct RecordEvent {
@@ -75,19 +69,6 @@ struct RecordEvent {
   // Need to distinguish name by op type, block_id, program_id and perhaps
   // different kernel invocations within an op.
   std::string full_name_;
-};
-
-struct RecordMemEvent {
-  RecordMemEvent();
-  void InitRecordMem(size_t bytes, Place place);
-  void DelRecordMem();
-  ~RecordMemEvent() {}
-
-  bool is_enabled_;
-  uint64_t start_ns_;
-  uint64_t end_ns_;
-  size_t bytes_;
-  Place place_;
 };
 
 class RecordRPCEvent {

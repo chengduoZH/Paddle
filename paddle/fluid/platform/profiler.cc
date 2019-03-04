@@ -174,15 +174,6 @@ static void ForEachDevice(std::function<void(int)> func) {
 }
 #endif
 
-MemEvent::MemEvent(EventType type, uint64_t start_ns, uint64_t end_ns,
-                   size_t bytes, Place place, int64_t thread_id)
-    : type_(type),
-      start_ns_(start_ns),
-      end_ns_(end_ns),
-      bytes_(bytes),
-      place_(place),
-      thread_id_(thread_id) {}
-
 inline MemEventList& GetMemEventList() {
   if (!g_mem_event_list) {
     std::lock_guard<std::mutex> guard(g_all_mem_event_lists_mutex);
