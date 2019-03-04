@@ -156,6 +156,24 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
     }
   }
 
+  void SetGroupAccordintToLayers(
+      const std::unordered_map<std::string, ir::Node *> &var_nodes,
+      const ParamsAndGrads &params_grads,
+      GroupGradsAndParams *group_params_grads) const {
+    std::unordered_map<std::string,
+                       std::vector<std::pair<std::string, std::string>>>
+        layer_params;
+    for (auto p_g : params_grads) {
+      auto pos = p_g.first.find_first_of(".");
+      if (pos == std::string::npos) {
+        layer_params["@EMPTY@"].emplace_back(p_g);
+      } else {
+        auto layer_name = p_g.first.substr(0, pos);
+        layer_params[layer_name].emplace_back(p_g);
+      }
+    }
+  }
+
  private:
   bool IsSupportedVarType(const proto::VarType::Type &type) const {
     // Current only support LOD_TENSOR.
