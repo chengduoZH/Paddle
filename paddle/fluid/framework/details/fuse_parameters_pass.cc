@@ -104,7 +104,9 @@ class FuseParametersPass : public ir::Pass {
                                   const std::string &out_arg, bool copy_data,
                                   BlockDesc *global_block) const {
     auto op_desc = global_block->AppendOp();
-    if (VLOG_IS_ON(1)) {
+    if (VLOG_IS_ON(3)) {
+      op_desc->SetType("alloc_continuous_space3");
+    } else if (VLOG_IS_ON(2)) {
       op_desc->SetType("alloc_continuous_space2");
     } else {
       op_desc->SetType("alloc_continuous_space");
