@@ -1238,6 +1238,10 @@ All parameter, weight, gradient are variables in Paddle.
           [](const BuildStrategy &self) { return self.memory_optimize_; },
           [](BuildStrategy &self, bool b) { self.memory_optimize_ = b; })
       .def_property(
+          "fuse_parameters_pass",
+          [](const BuildStrategy &self) { return self.fuse_parameters_pass_; },
+          [](BuildStrategy &self, bool b) { self.fuse_parameters_pass_ = b; })
+      .def_property(
           "is_distribution",
           [](const BuildStrategy &self) { return self.is_distribution_; },
           [](BuildStrategy &self, bool b) { self.is_distribution_ = b; })

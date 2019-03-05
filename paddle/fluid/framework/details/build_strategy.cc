@@ -16,7 +16,7 @@ limitations under the License. */
 
 #include <glog/logging.h>
 #include <memory>
-
+#include <utility>
 #include "paddle/fluid/framework/details/memory_optimize_helper.h"
 #include "paddle/fluid/framework/details/multi_devices_graph_pass.h"
 #include "paddle/fluid/framework/details/multi_devices_graph_print_pass.h"
@@ -45,12 +45,27 @@ class ParallelExecutorPassBuilder : public ir::PassBuilder {
  public:
   explicit ParallelExecutorPassBuilder(const BuildStrategy &strategy)
       : ir::PassBuilder(), strategy_(strategy) {
+    // Add a graph viz pass to record a graph.
+    if (!strategy_.debug_graphviz_path_.empty()) {
+      auto viz_pass = AppendPass("graph_viz_pass");
+      const std::string graph_path = string::Sprintf(
+          "%s%s", strategy_.debug_graphviz_path_.c_str(), "_original_graph");
+      viz_pass->Set<std::string>("graph_viz_path", new std::string(graph_path));
+    }
+
     if (strategy_.enable_sequential_execution_) {
+      VLOG(10) << "Add sequential_execution_pass";
       AppendPass("sequential_execution_pass");
     }
 
+    if (strategy_.fuse_parameters_pass_) {
+      VLOG(10) << "Add fuse_parameters_pass";
+      AppendPass("fuse_parameters_pass");
+    }
+
     // Add op fusion.
-    if (strategy.fuse_relu_depthwise_conv_) {
+    if (strategy_.fuse_relu_depthwise_conv_) {
+      VLOG(10) << "Add fuse_relu_depthwise_conv_pass";
       AppendPass("fuse_relu_depthwise_conv_pass");
     }
 
@@ -62,27 +77,21 @@ class ParallelExecutorPassBuilder : public ir::PassBuilder {
 
     // Add automatically inplace.
     if (strategy_.enable_inplace_) {
+      VLOG(10) << "Add inplace_pass";
       AppendPass("inplace_pass");
+    }
+
+    if (strategy_.fuse_elewise_add_act_ops_) {
+      VLOG(10) << "Add fuse_elewise_add_act_pass";
+      AppendPass("fuse_elewise_add_act_pass");
     }
 
     // Add a graph viz pass to record a graph.
     if (!strategy_.debug_graphviz_path_.empty()) {
       auto viz_pass = AppendPass("graph_viz_pass");
       const std::string graph_path = string::Sprintf(
-          "%s%s", strategy_.debug_graphviz_path_.c_str(), "_original_graph");
+          "%s%s", strategy_.debug_graphviz_path_.c_str(), "_fused_graph");
       viz_pass->Set<std::string>("graph_viz_path", new std::string(graph_path));
-    }
-
-    if (strategy.fuse_elewise_add_act_ops_) {
-      auto fuse_elewise_add_act_pass = AppendPass("fuse_elewise_add_act_pass");
-      // Add a graph viz pass to record a graph.
-      if (!strategy.debug_graphviz_path_.empty()) {
-        auto viz_pass = AppendPass("graph_viz_pass");
-        const std::string graph_path = string::Sprintf(
-            "%s%s", strategy.debug_graphviz_path_.c_str(), "_fused_graph");
-        viz_pass->Set<std::string>("graph_viz_path",
-                                   new std::string(graph_path));
-      }
     }
 
     CollectiveContext *context = CollectiveContext::GetInstance();
@@ -101,11 +110,12 @@ class ParallelExecutorPassBuilder : public ir::PassBuilder {
     // the de-fact IR, any reuse on Graph is meaningless.
     // A side-effect of that, memory optimize cannot forsee the fetched vars
     // , so fetchlist should be set persistable before call the Run interface.
-    if (strategy.memory_optimize_) {
-      auto memory_optimize_pass = AppendPass("memory_optimize_pass");
+    if (strategy_.memory_optimize_) {
+      VLOG(10) << "Add memory_optimize_pass";
+      AppendPass("memory_optimize_pass");
     }
 
-    AppendMultiDevPass(strategy);
+    AppendMultiDevPass();
 
     // Add a graph print pass to record a graph with device info.
     if (!strategy_.debug_graphviz_path_.empty()) {
@@ -122,28 +132,30 @@ class ParallelExecutorPassBuilder : public ir::PassBuilder {
     // Verify that the graph is correct for multi-device executor.
     AppendPass("multi_devices_check_pass");
 
-    if (SeqOnlyAllReduceOps(strategy)) {
+    if (SeqOnlyAllReduceOps(strategy_)) {
+      VLOG(10) << "Add all_reduce_deps_pass";
       AppendPass("all_reduce_deps_pass");
     }
 
     if (strategy_.remove_unnecessary_lock_) {
+      VLOG(10) << "Add modify_op_lock_and_record_event_pass";
       AppendPass("modify_op_lock_and_record_event_pass");
     }
   }
 
   // Convert graph to run on multi-devices.
-  void AppendMultiDevPass(const BuildStrategy &strategy) {
-    ir::Pass *multi_devices_pass;
+  void AppendMultiDevPass() {
+    ir::Pass *multi_devices_pass = nullptr;
     if (strategy_.is_distribution_) {
-      VLOG(3) << "multi device parameter server mode";
+      VLOG(10) << "Add dist_multi_devices_pass";
       multi_devices_pass = AppendPass("dist_multi_devices_pass").get();
     } else {
-      if (strategy.reduce_ == BuildStrategy::ReduceStrategy::kAllReduce) {
-        VLOG(3) << "multi devices collective mode with allreduce";
+      if (strategy_.reduce_ == BuildStrategy::ReduceStrategy::kAllReduce) {
+        VLOG(10) << "Add allreduce_mode_multi_devices_pass";
         multi_devices_pass =
             AppendPass("allreduce_mode_multi_devices_pass").get();
-      } else if (strategy.reduce_ == BuildStrategy::ReduceStrategy::kReduce) {
-        VLOG(3) << "multi deivces collective mode with reduce";
+      } else if (strategy_.reduce_ == BuildStrategy::ReduceStrategy::kReduce) {
+        VLOG(10) << "Add reduce_mode_multi_devices_pass";
         multi_devices_pass = AppendPass("reduce_mode_multi_devices_pass").get();
       } else {
         PADDLE_THROW("Unknown reduce strategy.");
@@ -200,9 +212,16 @@ std::unique_ptr<ir::Graph> BuildStrategy::Apply(
 
 #if defined(PADDLE_WITH_CUDA) && !defined(_WIN32)
       platform::NCCLContextMap *nctx = use_cuda ? nccl_ctxs : nullptr;
-      pass->Erase("nccl_ctxs");
-      pass->SetNotOwned<platform::NCCLContextMap>("nccl_ctxs", nctx);
+      pass->Erase(kNCCLCtxs);
+      pass->SetNotOwned<platform::NCCLContextMap>(kNCCLCtxs, nctx);
 #endif
+    } else if (pass->Type() == "alloc_continuous_space_for_grad_pass" ||
+               pass->Type() == "fuse_parameters_pass") {
+      pass->Erase(kPlaces);
+      pass->SetNotOwned<const std::vector<platform::Place>>(kPlaces, &places);
+      pass->Erase(kLocalScopes);
+      pass->SetNotOwned<const std::vector<Scope *>>(kLocalScopes,
+                                                    &local_scopes);
     } else if (pass->Type() == "sequential_execution_pass") {
       LOG(INFO) << "set enable_sequential_execution:"
                 << enable_sequential_execution_;
@@ -243,3 +262,4 @@ USE_PASS(modify_op_lock_and_record_event_pass);
 USE_PASS(inplace_pass);
 USE_PASS(lock_free_optimize_pass);
 USE_PASS(graph_to_program_pass);
+USE_PASS(fuse_parameters_pass);

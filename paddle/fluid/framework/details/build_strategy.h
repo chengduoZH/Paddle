@@ -14,9 +14,9 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
-
 #include "paddle/fluid/framework/ir/pass_builder.h"
 #include "paddle/fluid/framework/program_desc.h"
 #include "paddle/fluid/framework/scope.h"
@@ -75,6 +75,8 @@ struct BuildStrategy {
   bool fuse_elewise_add_act_ops_{false};
 
   bool fuse_relu_depthwise_conv_{false};
+
+  bool fuse_parameters_pass_{false};
 
   bool memory_optimize_{false};
   // TODO(dzhwinter):

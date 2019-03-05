@@ -62,45 +62,113 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
 
     auto &dev_ctx = context.template device_context<DeviceContext>();
 
-    // Get numel and dtype
-    size_t numel = 0;
-    auto dtype = kDefaultDtype;
-    GetMemSizeAndDtype(in_tensors, in_var_names, &numel, &dtype);
-
-    // Alloc the continuous space
-    auto fused_tensor = context.Output<framework::LoDTensor>("FusedOutput");
-    fused_tensor->Resize(framework::make_ddim({static_cast<int64_t>(numel)}))
-        .mutable_data(context.GetPlace(), dtype);
-
-    // Init the continuous space
-    auto out_tensors = context.MultiOutput<framework::LoDTensor>("Output");
-    int64_t offset = 0;
-    if (context.Attr<bool>("copy_data")) {
+    if (context.Attr<bool>("debug")) {
+      VLOG(3) << "alloc_continuous_space: debug";
+      // Init the continuous space
+      auto out_tensors = context.MultiOutput<framework::LoDTensor>("Output");
       for (size_t i = 0; i < in_var_names.size(); ++i) {
-        int64_t len = out_tensors[i]->numel();
-        auto sub_tensor = fused_tensor->Slice(offset, offset + len);
-        offset += len;
-        framework::TensorCopy(*out_tensors[i], context.GetPlace(), dev_ctx,
-                              &sub_tensor);
+        framework::Tensor tmp;
+        framework::TensorCopy(*in_tensors[i], context.GetPlace(), dev_ctx,
+                              &tmp);
+        out_tensors[i]->ShareDataWith(tmp);
       }
-    } else if (context.Attr<bool>("set_constant")) {
-      math::SetConstant<DeviceContext, T> set_constant;
-      set_constant(dev_ctx, fused_tensor,
-                   static_cast<T>(context.Attr<float>("constant")));
-    }
+    } else {
+      std::vector<int> name_idxs;
+      name_idxs.reserve(in_var_names.size());
+      for (int i = 0; i < in_var_names.size(); ++i) {
+        name_idxs.emplace_back(i);
+      }
 
-    // Make the outputs point to the continuous space.
-    offset = 0;
-    for (size_t i = 0; i < out_tensors.size(); ++i) {
-      int64_t len = out_tensors[i]->numel();
-      auto dim = out_tensors[i]->dims();
-      out_tensors[i]
-          ->ShareDataWith(fused_tensor->Slice(offset, offset + len))
-          .Resize(dim);
-      offset += len;
-      VLOG(10) << "alloc_space_for_vars: output(" << out_var_names[i]
-               << ") ,dim:(" << dim << ")"
-               << " Address: " << out_tensors[i]->data<void>();
+      if (context.Attr<bool>("sort_input")) {
+        VLOG(3) << "alloc_continuous_space: sort_input";
+        std::sort(name_idxs.begin(), name_idxs.end(),
+                  [&in_var_names](int i, int j) -> bool {
+                    return in_var_names[i] < in_var_names[j];
+                  });
+
+        std::stringstream out;
+        std::stringstream out2;
+        for (int i = 0; i < name_idxs.size(); ++i) {
+          out << in_var_names[i] << ", ";
+          out2 << in_var_names[name_idxs[i]] << ", ";
+        }
+        VLOG(3) << "Before: " << out.str();
+        VLOG(3) << "Now: " << out2.str();
+
+      } else if (context.Attr<bool>("group")) {
+        std::unordered_map<std::string, int> param_idx;
+        std::unordered_map<std::string, std::vector<std::string>> group_params;
+
+        for (int i = 0; i < in_var_names.size(); ++i) {
+          param_idx[in_var_names[i]] = i;
+          auto pos = in_var_names[i].find_first_of(".");
+          if (pos != std::string::npos) {
+            group_params[in_var_names[i].substr(0, pos)].emplace_back(
+                in_var_names[i]);
+          } else {
+            group_params["@NOGROUP@"].emplace_back(in_var_names[i]);
+          }
+        }
+        name_idxs.clear();
+        name_idxs.reserve(in_var_names.size());
+        for (auto &group_p : group_params) {
+          for (auto &name : group_p.second) {
+            name_idxs.emplace_back(param_idx[name]);
+          }
+        }
+        std::stringstream out;
+        std::stringstream out2;
+        for (int i = 0; i < name_idxs.size(); ++i) {
+          out << in_var_names[i] << ", ";
+          out2 << in_var_names[name_idxs[i]] << ", ";
+        }
+        VLOG(3) << "Before: " << out.str();
+        VLOG(3) << "Now: " << out2.str();
+      } else {
+        VLOG(3) << "alloc_continuous_space nomal mode.";
+      }
+
+      // Get numel and dtype
+      size_t numel = 0;
+      auto dtype = kDefaultDtype;
+      GetMemSizeAndDtype(in_tensors, in_var_names, &numel, &dtype);
+
+      // Alloc the continuous space
+      auto fused_tensor = context.Output<framework::LoDTensor>("FusedOutput");
+      fused_tensor->Resize(framework::make_ddim({static_cast<int64_t>(numel)}))
+          .mutable_data(context.GetPlace(), dtype);
+
+      // Init the continuous space
+      auto out_tensors = context.MultiOutput<framework::LoDTensor>("Output");
+
+      int64_t offset = 0;
+      if (context.Attr<bool>("copy_data")) {
+        for (size_t i = 0; i < in_var_names.size(); ++i) {
+          int64_t len = out_tensors[name_idxs[i]]->numel();
+          auto sub_tensor = fused_tensor->Slice(offset, offset + len);
+          offset += len;
+          framework::TensorCopy(*out_tensors[name_idxs[i]], context.GetPlace(),
+                                dev_ctx, &sub_tensor);
+        }
+      } else if (context.Attr<bool>("set_constant")) {
+        math::SetConstant<DeviceContext, T> set_constant;
+        set_constant(dev_ctx, fused_tensor,
+                     static_cast<T>(context.Attr<float>("constant")));
+      }
+
+      // Make the outputs point to the continuous space.
+      offset = 0;
+      for (size_t i = 0; i < out_tensors.size(); ++i) {
+        int64_t len = out_tensors[name_idxs[i]]->numel();
+        auto dim = out_tensors[name_idxs[i]]->dims();
+        out_tensors[name_idxs[i]]
+            ->ShareDataWith(fused_tensor->Slice(offset, offset + len))
+            .Resize(dim);
+        offset += len;
+        VLOG(10) << "alloc_space_for_vars: output("
+                 << out_var_names[name_idxs[i]] << ") ,dim:(" << dim << ")"
+                 << " Address: " << out_tensors[name_idxs[i]]->data<void>();
+      }
     }
   }
 
@@ -157,9 +225,13 @@ class AllocContinuousSpaceOpMaker : public framework::OpProtoAndCheckerMaker {
               " Output is sliced from the tensor of FusedOutput.");
     AddAttr<bool>("copy_data", "Whether to copy the Input value to Output.")
         .SetDefault(false);
+    AddAttr<bool>("debug", "Whether to copy the Input value to Output.")
+        .SetDefault(false);
     AddAttr<bool>("set_constant",
                   "Whether to set the Output with a constant value.")
         .SetDefault(false);
+    AddAttr<bool>("sort_input", "").SetDefault(false);
+    AddAttr<bool>("group", "").SetDefault(false);
     AddAttr<float>("constant",
                    "If set_constant is true, the constant value will be used "
                    "to set the Output.")
