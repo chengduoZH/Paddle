@@ -15,7 +15,9 @@ limitations under the License. */
 #pragma once
 #include <forward_list>
 #include <list>
+#include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "paddle/fluid/platform/enforce.h"
 #include "paddle/fluid/platform/event.h"
@@ -52,6 +54,36 @@ struct RecordMemEvent {
   uint64_t end_ns_;
   size_t bytes_;
   Place place_;
+};
+
+struct MemEvenRecorder {
+ public:
+  void PushMemRecord(const void* ptr, const Place& place, size_t size);
+  void PopMemRecord(const void* ptr, const Place& place);
+
+  static MemEvenRecorder& Instance() { return recorder; }
+
+ private:
+  struct RecordMemEvent {
+    RecordMemEvent(const Place& place, size_t bytes);
+
+    ~RecordMemEvent() {}
+
+    void DelRecordMem();
+
+    Place place_;
+    size_t bytes_;
+    uint64_t start_ns_;
+    uint64_t end_ns_;
+  };
+
+  static MemEvenRecorder recorder;
+  std::map<Place,
+           std::unordered_map<const void*, std::unique_ptr<RecordMemEvent>>>
+      address_memevent_;
+  std::mutex mtx_;
+  MemEvenRecorder() {}
+  DISABLE_COPY_AND_ASSIGN(MemEvenRecorder);
 };
 
 Event* PushEvent(const std::string& name);
