@@ -77,6 +77,7 @@ class MemEvent {
         bytes_(bytes),
         place_(place),
         thread_id_(thread_id) {}
+
   const EventType& type() const { return type_; }
   uint64_t start_ns() const { return start_ns_; }
   uint64_t end_ns() const { return end_ns_; }
