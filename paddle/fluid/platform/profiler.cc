@@ -297,7 +297,7 @@ MemEvenRecorder::RecordMemEvent::RecordMemEvent(const Place& place,
 void MemEvenRecorder::RecordMemEvent::DelRecordMem() {
   DeviceTracer* tracer = GetDeviceTracer();
   end_ns_ = PosixInNsec();
-  std::lock_guard<std::mutex> l(g_profiler_mem);
+  std::lock_guard<std::mutex> l(profiler_mem);
   PushMemEvent(start_ns_, end_ns_, bytes_, place_);
   if (tracer) {
     tracer->AddMemInfoRecord(start_ns_, end_ns_, bytes_, place_,
