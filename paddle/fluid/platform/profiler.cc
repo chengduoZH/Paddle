@@ -265,6 +265,47 @@ void RecordMemEvent::DelRecordMem() {
   PopMemEvent(start_ns_, end_ns_, bytes_, place_);
 }
 
+MemEvenRecorder MemEvenRecorder::recorder;
+
+void MemEvenRecorder::PushMemRecord(const void* ptr, const Place& place,
+                                    size_t size) {
+  if (g_state == ProfilerState::kDisabled) return;
+  std::lock_guard<std::mutex> guard(mtx_);
+  VLOG(10) << "MemEvenRecorder Alloc: " << place << ", " << size << ", " << ptr;
+  auto& events = address_memevent_[place];
+  PADDLE_ENFORCE(events.count(ptr) == 0, "");
+  events.emplace(ptr, std::unique_ptr<RecordMemEvent>(
+                          new MemEvenRecorder::RecordMemEvent(place, size)));
+}
+
+void MemEvenRecorder::PopMemRecord(const void* ptr, const Place& place) {
+  if (g_state == ProfilerState::kDisabled) return;
+  std::lock_guard<std::mutex> guard(mtx_);
+  VLOG(10) << "MemEvenRecorder Free : " << place << ", " << ptr;
+  auto& events = address_memevent_[place];
+  auto iter = events.find(ptr);
+  PADDLE_ENFORCE(iter != events.end(), "");
+  iter->second->DelRecordMem();
+  iter->second.release();
+  events.erase(iter);
+}
+
+MemEvenRecorder::RecordMemEvent::RecordMemEvent(const Place& place,
+                                                size_t bytes)
+    : place_(place), bytes_(bytes) {}
+
+void MemEvenRecorder::RecordMemEvent::DelRecordMem() {
+  DeviceTracer* tracer = GetDeviceTracer();
+  end_ns_ = PosixInNsec();
+  std::lock_guard<std::mutex> l(g_profiler_mem);
+  PushMemEvent(start_ns_, end_ns_, bytes_, place_);
+  if (tracer) {
+    tracer->AddMemInfoRecord(start_ns_, end_ns_, bytes_, place_,
+                             g_mem_thread_id);
+  }
+  PopMemEvent(start_ns_, end_ns_, bytes_, place_);
+}
+
 RecordRPCEvent::RecordRPCEvent(const std::string& name) {
   if (FLAGS_enable_rpc_profiler) {
     event_.reset(new platform::RecordEvent(name));
