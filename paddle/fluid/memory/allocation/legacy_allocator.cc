@@ -330,6 +330,7 @@ size_t Usage::operator()(const platform::CUDAPinnedPlace &cuda_pinned) const {
 
 namespace allocation {
 LegacyMemMonitor GPUMemMonitor;
+std::mutex LegacyAllocator::mem;
 
 Allocation *LegacyAllocator::AllocateImpl(size_t size, Allocator::Attr attr) {
   void *ptr = boost::apply_visitor(legacy::AllocVisitor(size), place_);
