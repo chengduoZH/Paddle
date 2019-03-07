@@ -246,7 +246,7 @@ RecordMemEvent::RecordMemEvent()
 
 void RecordMemEvent::InitRecordMem(size_t bytes, Place place) {
   if (g_state == ProfilerState::kDisabled) return;
-  VLOG(10) << "MemEvenRecorder Alloc: " << place << ", " << size;
+  VLOG(10) << "MemEvenRecorder Alloc: " << place << ", " << bytes;
   std::lock_guard<std::mutex> l(profiler_mem);
   is_enabled_ = true;
   place_ = place;
