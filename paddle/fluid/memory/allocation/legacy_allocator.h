@@ -75,11 +75,9 @@ class LegacyAllocator : public Allocator {
  protected:
   Allocation *AllocateImpl(size_t size, Allocator::Attr attr) override;
   void Free(Allocation *allocation) override;
-  std::unordered_map<Allocation *, platform::RecordMemEvent> record_mem;
 
  private:
   platform::Place place_;
-  static std::mutex mem;
 };
 
 }  // namespace allocation

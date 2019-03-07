@@ -330,43 +330,25 @@ size_t Usage::operator()(const platform::CUDAPinnedPlace &cuda_pinned) const {
 
 namespace allocation {
 LegacyMemMonitor GPUMemMonitor;
-std::mutex LegacyAllocator::mem;
 
 Allocation *LegacyAllocator::AllocateImpl(size_t size, Allocator::Attr attr) {
   void *ptr = boost::apply_visitor(legacy::AllocVisitor(size), place_);
-  if (platform::IsProfileEnabled()) {
-    //    std::lock_guard<std::mutex> guard(mem);
-    Allocation *tmp_alloc = new Allocation(ptr, size, place_);
-
-    VLOG(10) << "Alloc: " << place_ << ", " << size << ", " << tmp_alloc;
-    platform::MemEvenRecorder::Instance().PushMemRecord(
-        static_cast<void *>(tmp_alloc), place_, size);
-
-    //    platform::RecordMemEvent tmp_record;
-    //    record_mem.insert({tmp_alloc, tmp_record});
-    //    record_mem[tmp_alloc].InitRecordMem(size, place_);
-
-    return tmp_alloc;
-  } else {
-    return new Allocation(ptr, size, place_);
-  }
+  auto *tmp_alloc = new Allocation(ptr, size, place_);
+  VLOG(10) << "Alloc: " << place_ << ", " << size << ", " << tmp_alloc;
+  platform::MemEvenRecorder::Instance().PushMemRecord(
+      static_cast<void *>(tmp_alloc), place_, size);
+  return tmp_alloc;
 }
 
 void LegacyAllocator::Free(Allocation *allocation) {
   boost::apply_visitor(
       legacy::FreeVisitor(allocation->ptr(), allocation->size()),
       allocation->place());
-  if (platform::IsProfileEnabled()) {
-    //    std::lock_guard<std::mutex> guard(mem);
-    VLOG(10) << "Free : " << place_ << ", " << allocation->size() << ", "
-             << allocation;
-    platform::MemEvenRecorder::Instance().PopMemRecord(
-        static_cast<void *>(allocation), place_);
-    //    record_mem[allocation].DelRecordMem();
-    //    record_mem.erase(allocation);
-  } else {
-    delete allocation;
-  }
+  VLOG(10) << "Free : " << place_ << ", " << allocation->size() << ", "
+           << allocation;
+  platform::MemEvenRecorder::Instance().PopMemRecord(
+      static_cast<void *>(allocation), place_);
+  delete allocation;
 }
 
 bool MemInfo::Add(const size_t &size) {

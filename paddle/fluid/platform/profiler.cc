@@ -241,34 +241,7 @@ RecordEvent::~RecordEvent() {
   PopEvent(name_);
 }
 
-RecordMemEvent::RecordMemEvent()
-    : is_enabled_(false), start_ns_(PosixInNsec()) {}
-
-void RecordMemEvent::InitRecordMem(size_t bytes, Place place) {
-  if (g_state == ProfilerState::kDisabled) return;
-  VLOG(10) << "MemEvenRecorder Alloc: " << place << ", " << bytes;
-  //  std::lock_guard<std::mutex> l(profiler_mem);
-  is_enabled_ = true;
-  place_ = place;
-  bytes_ = bytes;
-}
-
-void RecordMemEvent::DelRecordMem() {
-  if (g_state == ProfilerState::kDisabled || !is_enabled_) return;
-  VLOG(10) << "MemEvenRecorder Free : " << place_ << ", " << bytes_;
-  std::lock_guard<std::mutex> l(profiler_mem);
-  DeviceTracer* tracer = GetDeviceTracer();
-  end_ns_ = PosixInNsec();
-  PushMemEvent(start_ns_, end_ns_, bytes_, place_);
-  if (tracer) {
-    tracer->AddMemInfoRecord(start_ns_, end_ns_, bytes_, place_,
-                             g_mem_thread_id);
-  }
-  PopMemEvent(start_ns_, end_ns_, bytes_, place_);
-}
-
 MemEvenRecorder MemEvenRecorder::recorder;
-
 void MemEvenRecorder::PushMemRecord(const void* ptr, const Place& place,
                                     size_t size) {
   if (g_state == ProfilerState::kDisabled) return;

@@ -41,21 +41,6 @@ void PushMemEvent(uint64_t start_ns, uint64_t end_ns, size_t bytes,
                   Place place);
 void PopMemEvent(uint64_t start_ns, uint64_t end_ns, size_t bytes, Place place);
 
-struct RecordMemEvent {
-  RecordMemEvent();
-
-  ~RecordMemEvent() {}
-
-  void InitRecordMem(size_t bytes, Place place);
-  void DelRecordMem();
-
-  bool is_enabled_;
-  uint64_t start_ns_;
-  uint64_t end_ns_;
-  size_t bytes_;
-  Place place_;
-};
-
 struct MemEvenRecorder {
  public:
   void PushMemRecord(const void* ptr, const Place& place, size_t size);
