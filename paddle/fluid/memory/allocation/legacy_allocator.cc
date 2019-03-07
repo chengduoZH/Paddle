@@ -335,7 +335,7 @@ std::mutex LegacyAllocator::mem;
 Allocation *LegacyAllocator::AllocateImpl(size_t size, Allocator::Attr attr) {
   void *ptr = boost::apply_visitor(legacy::AllocVisitor(size), place_);
   if (platform::IsProfileEnabled()) {
-    std::lock_guard<std::mutex> guard(mem);
+    //    std::lock_guard<std::mutex> guard(mem);
     Allocation *tmp_alloc = new Allocation(ptr, size, place_);
 
     VLOG(10) << "Alloc: " << place_ << ", " << size << ", " << tmp_alloc;
@@ -357,7 +357,7 @@ void LegacyAllocator::Free(Allocation *allocation) {
       legacy::FreeVisitor(allocation->ptr(), allocation->size()),
       allocation->place());
   if (platform::IsProfileEnabled()) {
-    std::lock_guard<std::mutex> guard(mem);
+    //    std::lock_guard<std::mutex> guard(mem);
     VLOG(10) << "Free : " << place_ << ", " << allocation->size() << ", "
              << allocation;
     platform::MemEvenRecorder::Instance().PopMemRecord(
