@@ -246,6 +246,7 @@ RecordMemEvent::RecordMemEvent()
 
 void RecordMemEvent::InitRecordMem(size_t bytes, Place place) {
   if (g_state == ProfilerState::kDisabled) return;
+  VLOG(10) << "MemEvenRecorder Alloc: " << place << ", " << size;
   std::lock_guard<std::mutex> l(profiler_mem);
   is_enabled_ = true;
   place_ = place;
@@ -254,6 +255,7 @@ void RecordMemEvent::InitRecordMem(size_t bytes, Place place) {
 
 void RecordMemEvent::DelRecordMem() {
   if (g_state == ProfilerState::kDisabled || !is_enabled_) return;
+  VLOG(10) << "MemEvenRecorder Free : " << place_ << ", " << bytes_;
   std::lock_guard<std::mutex> l(profiler_mem);
   DeviceTracer* tracer = GetDeviceTracer();
   end_ns_ = PosixInNsec();
@@ -271,7 +273,7 @@ void MemEvenRecorder::PushMemRecord(const void* ptr, const Place& place,
                                     size_t size) {
   if (g_state == ProfilerState::kDisabled) return;
   std::lock_guard<std::mutex> guard(mtx_);
-  VLOG(10) << "MemEvenRecorder Alloc: " << place << ", " << size << ", " << ptr;
+  VLOG(10) << "MemEvenRecorder Alloc: " << place << ", " << size;
   auto& events = address_memevent_[place];
   PADDLE_ENFORCE(events.count(ptr) == 0, "");
   events.emplace(ptr, std::unique_ptr<RecordMemEvent>(
@@ -281,7 +283,6 @@ void MemEvenRecorder::PushMemRecord(const void* ptr, const Place& place,
 void MemEvenRecorder::PopMemRecord(const void* ptr, const Place& place) {
   if (g_state == ProfilerState::kDisabled) return;
   std::lock_guard<std::mutex> guard(mtx_);
-  VLOG(10) << "MemEvenRecorder Free : " << place << ", " << ptr;
   auto& events = address_memevent_[place];
   auto iter = events.find(ptr);
   PADDLE_ENFORCE(iter != events.end(), "");
@@ -292,7 +293,7 @@ void MemEvenRecorder::PopMemRecord(const void* ptr, const Place& place) {
 
 MemEvenRecorder::RecordMemEvent::RecordMemEvent(const Place& place,
                                                 size_t bytes)
-    : place_(place), bytes_(bytes) {}
+    : place_(place), bytes_(bytes), start_ns_(PosixInNsec()) {}
 
 void MemEvenRecorder::RecordMemEvent::DelRecordMem() {
   DeviceTracer* tracer = GetDeviceTracer();

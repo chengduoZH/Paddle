@@ -337,12 +337,15 @@ Allocation *LegacyAllocator::AllocateImpl(size_t size, Allocator::Attr attr) {
   if (platform::IsProfileEnabled()) {
     std::lock_guard<std::mutex> guard(mem);
     Allocation *tmp_alloc = new Allocation(ptr, size, place_);
+
     VLOG(10) << "Alloc: " << place_ << ", " << size << ", " << tmp_alloc;
     platform::MemEvenRecorder::Instance().PushMemRecord(
         static_cast<void *>(tmp_alloc), place_, size);
+
     //    platform::RecordMemEvent tmp_record;
     //    record_mem.insert({tmp_alloc, tmp_record});
     //    record_mem[tmp_alloc].InitRecordMem(size, place_);
+
     return tmp_alloc;
   } else {
     return new Allocation(ptr, size, place_);
