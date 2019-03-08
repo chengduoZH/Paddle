@@ -344,8 +344,6 @@ void LegacyAllocator::Free(Allocation *allocation) {
   boost::apply_visitor(
       legacy::FreeVisitor(allocation->ptr(), allocation->size()),
       allocation->place());
-  VLOG(10) << "LegacyFree " << place_ << ", " << allocation << ", "
-           << allocation->size();
   platform::MemEvenRecorder::Instance().PopMemRecord(
       static_cast<void *>(allocation), place_);
   delete allocation;
