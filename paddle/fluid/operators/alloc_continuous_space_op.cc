@@ -146,6 +146,7 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
         for (size_t i = 0; i < in_var_names.size(); ++i) {
           int64_t len = out_tensors[name_idxs[i]]->numel();
           auto sub_tensor = fused_tensor->Slice(offset, offset + len);
+          len = Alignment(len);
           offset += len;
           framework::TensorCopy(*out_tensors[name_idxs[i]], context.GetPlace(),
                                 dev_ctx, &sub_tensor);
@@ -164,12 +165,20 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
         out_tensors[name_idxs[i]]
             ->ShareDataWith(fused_tensor->Slice(offset, offset + len))
             .Resize(dim);
+        len = Alignment(len);
         offset += len;
         VLOG(10) << "alloc_space_for_vars: output("
                  << out_var_names[name_idxs[i]] << ") ,dim:(" << dim << ")"
                  << " Address: " << out_tensors[name_idxs[i]]->data<void>();
       }
     }
+  }
+
+  size_t Alignment(size_t size) const {
+    if (size % 256 != 0) {
+      size = (size + 256) / 256 * 256;
+    }
+    return size;
   }
 
   void GetMemSizeAndDtype(
@@ -194,6 +203,7 @@ class AllocContinuousSpaceKernel : public framework::OpKernel<T> {
       PADDLE_ENFORCE_GT(size, 0);
       VLOG(10) << "alloc_space_for_vars: input(" << var_names[i] << ") ,dim:("
                << lod_tensors[i]->dims() << ")";
+      size = Alignment(size);
       *numel += size;
     }
   }
