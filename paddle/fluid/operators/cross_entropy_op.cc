@@ -187,6 +187,26 @@ class CrossEntropyOpInferVarType
     return std::unordered_map<std::string, std::string>{{"X", /*->*/ "Y"}};
   }
 };
+
+class CrossEntropyGradMaker : public framework::SingleGradOpDescMaker {
+ public:
+  using framework::SingleGradOpDescMaker::SingleGradOpDescMaker;
+
+ protected:
+  std::unique_ptr<framework::OpDesc> Apply() const override {
+    auto* op = new framework::OpDesc();
+    op->SetType("cross_entropy_grad");
+
+    op->SetInput("X", Input("X"));
+    op->SetInput("Label", Input("Label"));
+    op->SetInput(framework::GradVarName("Y"), OutputGrad("Y"));
+    op->SetAttrMap(Attrs());
+    op->SetOutput(framework::GradVarName("X"), InputGrad("X"));
+
+    return std::unique_ptr<framework::OpDesc>(op);
+  }
+};
+
 }  // namespace operators
 }  // namespace paddle
 
@@ -194,8 +214,7 @@ namespace ops = paddle::operators;
 using CPUCtx = paddle::platform::CPUDeviceContext;
 
 REGISTER_OPERATOR(cross_entropy, ops::CrossEntropyOp, ops::CrossEntropyOpMaker,
-                  ops::CrossEntropyOpInferVarType,
-                  paddle::framework::DefaultGradOpDescMaker<true>);
+                  ops::CrossEntropyOpInferVarType, ops::CrossEntropyGradMaker);
 REGISTER_OPERATOR(cross_entropy_grad, ops::CrossEntropyGradientOp);
 REGISTER_OP_CPU_KERNEL(cross_entropy, ops::CrossEntropyOpKernel<CPUCtx, float>,
                        ops::CrossEntropyOpKernel<CPUCtx, double>);
