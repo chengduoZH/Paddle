@@ -357,7 +357,7 @@ using CommonType2 = typename std::add_lvalue_reference<
   } while (0)
 
 #define PADDLE_ENFORCE_EQ2(__VAL0, __VAL1, ...) \
-  __PADDLE_BINARY_COMPARE(__VAL0, __VAL1, ==, !=, __VA_ARGS__)
+  __PADDLE_BINARY_COMPARE2(__VAL0, __VAL1, ==, !=, __VA_ARGS__)
 #define PADDLE_ENFORCE_EQ(__VAL0, __VAL1, ...) \
   __PADDLE_BINARY_COMPARE(__VAL0, __VAL1, ==, !=, __VA_ARGS__)
 #define PADDLE_ENFORCE_NE(__VAL0, __VAL1, ...) \
