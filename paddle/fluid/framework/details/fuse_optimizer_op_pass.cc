@@ -94,6 +94,7 @@ std::unique_ptr<ir::Graph> FuseOptimizerOpPass::ApplyImpl(
   // to parameters' name to make variables' name correspond correctly.
   PADDLE_ENFORCE(result.Has(kParamsAndGrads), "Does't find kParamsAndGrads.");
   VLOG(10) << fused_grad;
+  VLOG(10) << params_grads.size() << ", " << aux_var_set.begin()->second.size();
   PADDLE_ENFORCE_EQ(params_grads.size(), aux_var_set.begin()->second.size());
   VLOG(10) << params_grads.size() << ", " << aux_var_set.begin()->second.size();
   SortParametersAndAuxVars(params_grads, &aux_var_set, &opt_ops);
