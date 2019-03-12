@@ -210,6 +210,7 @@ void FuseOptimizerOpPass::GetSpecifiedOpsAndVars(
     auto arg_names = node->Op()->Input(var_n);
     PADDLE_ENFORCE_EQ(arg_names.size(), static_cast<size_t>(1));
     (*aux_args_name)[var_n].emplace_back(arg_names[0]);
+    VLOG(10) << var_n << ", " << arg_names[0];
   }
   ops->emplace_back(node);
 }
