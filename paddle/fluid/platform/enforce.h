@@ -345,13 +345,13 @@ using CommonType2 = typename std::add_lvalue_reference<
 
 #define __PADDLE_BINARY_COMPARE2(__VAL1, __VAL2, __CMP, __INV_CMP, ...) \
   do {                                                                  \
-    bool __is_not_error = (__val1)__CMP(__val2);                        \
+    bool __is_not_error = (__VAL1)__CMP(__VAL2);                        \
     if (UNLIKELY(!__is_not_error)) {                                    \
       PADDLE_THROW("Enforce failed. Expected %s " #__CMP                \
                    " %s, but received %s:%s " #__INV_CMP " %s:%s.\n%s", \
                    #__VAL1, #__VAL2, #__VAL1,                           \
-                   ::paddle::string::to_string(__val1), #__VAL2,        \
-                   ::paddle::string::to_string(__val2),                 \
+                   ::paddle::string::to_string(__VAL1), #__VAL2,        \
+                   ::paddle::string::to_string(__VAL2),                 \
                    ::paddle::string::Sprintf(__VA_ARGS__));             \
     }                                                                   \
   } while (0)
