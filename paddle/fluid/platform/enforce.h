@@ -347,6 +347,7 @@ using CommonType2 = typename std::add_lvalue_reference<
   do {                                                                  \
     bool __is_not_error = (__VAL1)__CMP(__VAL2);                        \
     if (UNLIKELY(!__is_not_error)) {                                    \
+      VLOG(10) << "Enforce failed. Expected ";                          \
       PADDLE_THROW("Enforce failed. Expected %s " #__CMP                \
                    " %s, but received %s:%s " #__INV_CMP " %s:%s.\n%s", \
                    #__VAL1, #__VAL2, #__VAL1,                           \
