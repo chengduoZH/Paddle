@@ -343,6 +343,21 @@ using CommonType2 = typename std::add_lvalue_reference<
     }                                                                   \
   } while (0)
 
+#define __PADDLE_BINARY_COMPARE2(__VAL1, __VAL2, __CMP, __INV_CMP, ...) \
+  do {                                                                  \
+    bool __is_not_error = (__val1)__CMP(__val2);                        \
+    if (UNLIKELY(!__is_not_error)) {                                    \
+      PADDLE_THROW("Enforce failed. Expected %s " #__CMP                \
+                   " %s, but received %s:%s " #__INV_CMP " %s:%s.\n%s", \
+                   #__VAL1, #__VAL2, #__VAL1,                           \
+                   ::paddle::string::to_string(__val1), #__VAL2,        \
+                   ::paddle::string::to_string(__val2),                 \
+                   ::paddle::string::Sprintf(__VA_ARGS__));             \
+    }                                                                   \
+  } while (0)
+
+#define PADDLE_ENFORCE_EQ2(__VAL0, __VAL1, ...) \
+  __PADDLE_BINARY_COMPARE(__VAL0, __VAL1, ==, !=, __VA_ARGS__)
 #define PADDLE_ENFORCE_EQ(__VAL0, __VAL1, ...) \
   __PADDLE_BINARY_COMPARE(__VAL0, __VAL1, ==, !=, __VA_ARGS__)
 #define PADDLE_ENFORCE_NE(__VAL0, __VAL1, ...) \
