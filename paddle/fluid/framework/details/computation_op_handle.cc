@@ -29,6 +29,7 @@ ComputationOpHandle::ComputationOpHandle(ir::Node *node, Scope *scope,
       scope_idx_(scope_idx) {}
 
 void ComputationOpHandle::RunImpl() {
+  //  InitPlaceGenerateInVars();
   WaitInputVarGenerated(place_);
 
   auto run_func = [this]() {
@@ -40,6 +41,8 @@ void ComputationOpHandle::RunImpl() {
   } else {
     this->RunAndRecordEvent(run_func);
   }
+
+  outputs_
 }
 
 bool ComputationOpHandle::NeedWait(VarHandleBase *in_var) {
@@ -47,6 +50,25 @@ bool ComputationOpHandle::NeedWait(VarHandleBase *in_var) {
       in_var && in_var->GeneratedOp() &&
       in_var->GeneratedOp()->DeviceContext(place_) != dev_ctxes_.at(place_);
   return need_wait;
+}
+
+void ComputationOpHandle::InitGenerateOutVarsPlace() {
+  for (auto &out : outputs_) {
+    generate_out_vars_place_[out] = place_;
+  }
+}
+
+void ComputationOpHandle::WaitInputVarGenerated(const platform::Place &place) {
+  std::unordered_set<OpHandleBase *> ops;
+
+  for (auto &pair : place_generate_in_vars_) {
+  }
+
+  for (auto *in : inputs_) {
+    if (NeedWait(in)) {
+      in->GeneratedOp()->RecordWaitEventOnCtx(dev_ctxes_.at(place));
+    }
+  }
 }
 
 std::string ComputationOpHandle::Name() const { return op_->Type(); }

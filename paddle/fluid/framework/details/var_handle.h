@@ -80,6 +80,12 @@ struct VarHandleBase {
 
   ir::Node* Node() { return node_; }
 
+  void SetGeneratePlace(const platform::Place& place) { place_ = place; }
+
+#ifdef PADDLE_WITH_CUDA
+  void SetGenerateEvent(const cudaEvent_t& event) { event_ = event; }
+#endif
+
  protected:
   // The operator who generate this variable. nullptr if the variable
   // is a root node.
@@ -88,6 +94,12 @@ struct VarHandleBase {
   // Operators which depend on this variable ready.
   std::unordered_set<OpHandleBase*> pending_ops_;
   ir::Node* node_;
+  // The place that generates this var.
+  platform::Place place_;
+#ifdef PADDLE_WITH_CUDA
+  // Only when this event is triggered, var is generated.
+  cudaEvent_t events_;
+#endif
 };
 
 // VarHandle is actually a single version of Runtime Variable.

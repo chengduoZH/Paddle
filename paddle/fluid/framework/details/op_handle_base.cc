@@ -40,6 +40,7 @@ OpHandleBase::~OpHandleBase() {
 }
 
 void OpHandleBase::Run(bool use_cuda) {
+  RunImpl();
 #ifdef PADDLE_WITH_CUDA
   if (events_.empty() && use_cuda) {
     for (auto &p : dev_ctxes_) {
@@ -48,12 +49,21 @@ void OpHandleBase::Run(bool use_cuda) {
       PADDLE_ENFORCE(
           cudaEventCreateWithFlags(&events_[dev_id], cudaEventDisableTiming));
     }
+    if (IsMultiDeviceTransfer()) {
+    } else {
+      PADDLE_ENFORCE_EQ(dev_ctxes_.size(), 1);
+      for (auto &var : outputs_) {
+        PADDLE_ENFORCE_NOT_NULL(var);
+        auto &place = dev_ctxes_.begin()->first;
+        var->SetGeneratePlace(place);
+        int dev_id = boost::get<platform::CUDAPlace>(place).device;
+        var->SetGenerateEvent(events_[dev_id]);
+      }
+    }
   }
 #else
   PADDLE_ENFORCE(!use_cuda);
 #endif
-
-  RunImpl();
 }
 
 void OpHandleBase::RecordWaitEventOnCtx(platform::DeviceContext *waited_ctx) {
@@ -123,38 +133,26 @@ bool OpHandleBase::NeedWait(VarHandleBase *in_var) {
 }
 
 void OpHandleBase::RunAndRecordEvent(const std::function<void()> &callback) {
+  callback();
 #ifdef PADDLE_WITH_CUDA
   if (!events_.empty()) {  // Use event
-    std::function<void()> method = callback;
-    for (auto &p : dev_ctxes_) {
-      method = [method, p, this]() {
-        static_cast<platform::CUDADeviceContext *>(p.second)->RecordEvent(
-            events_.at(boost::get<platform::CUDAPlace>(p.first).device),
-            method);
-      };
-    }
-    method();
-  } else {
-#endif
-    callback();
-#ifdef PADDLE_WITH_CUDA
+    auto &event = events_.at(boost::get<platform::CUDAPlace>(p.first).device);
+    auto stream =
+        static_cast<platform::CUDADeviceContext *>(p.second)->stream();
+    PADDLE_ENFORCE(cudaEventRecord(event, stream));
   }
 #endif
 }
 
 void OpHandleBase::RunAndRecordEvent(platform::Place p,
                                      const std::function<void()> &callback) {
-#ifdef PADDLE_WITH_CUDA
-  if (platform::is_cpu_place(p) || events_.empty()) {
-    callback();
-  } else {
-    auto *ctx = dev_ctxes_.at(p);
-    auto *cuda_ctx = static_cast<platform::CUDADeviceContext *>(ctx);
-    cuda_ctx->RecordEvent(events_.at(boost::get<platform::CUDAPlace>(p).device),
-                          callback);
-  }
-#else
   callback();
+#ifdef PADDLE_WITH_CUDA
+  if (platform::is_gpu_place(p) && events_.empty()) {
+    auto &event = events_.at(boost::get<platform::CUDAPlace>(p).device);
+    auto stream = static_cast<platform::CUDADeviceContext *>(ctx)->stream();
+    PADDLE_ENFORCE(cudaEventRecord(event, stream));
+  }
 #endif
 }
 
@@ -166,6 +164,24 @@ size_t OpHandleBase::NotReadyInputSize() const {
     }
   }
   return res.size();
+}
+
+void OpHandleBase::InitPlaceGenerateInVars() {
+  for (auto in_var : inputs_) {
+    if (in_var && in_var->GeneratedOp()) {
+      auto place = in_var->GeneratedOp()->GetGenerateOutVarPlace(in_var);
+      place_generate_in_vars_[place].emplace_back(in_var);
+    }
+  }
+}
+
+const platform::Place OpHandleBase::GetGenerateOutVarPlace(
+    VarHandleBase *out_var) {
+  PADDLE_ENFORCE_NOT_NULL(out_var);
+  auto iter = generate_out_vars_place_.find(out_var);
+  PADDLE_ENFORCE(iter != generate_out_vars_place_.end(),
+                 "%s is not found in %s.", out_var, Name());
+  return iter->second;
 }
 
 }  // namespace details
