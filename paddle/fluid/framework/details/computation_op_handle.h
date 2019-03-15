@@ -41,6 +41,8 @@ class ComputationOpHandle : public OpHandleBase {
 
   size_t GetScopeIdx() const { return scope_idx_; }
 
+  bool IsMultiDeviceTransfer() const override { return false; };
+
  protected:
   void RunImpl() override;
 
