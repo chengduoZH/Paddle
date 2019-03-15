@@ -46,10 +46,6 @@ class ComputationOpHandle : public OpHandleBase {
 
   bool NeedWait(VarHandleBase *in_var) override;
 
-  void InitGenerateOutVarsPlace() override;
-
-  void WaitInputVarGenerated(const platform::Place &place) override;
-
  private:
   std::unique_ptr<OperatorBase> op_;
   Scope *scope_;

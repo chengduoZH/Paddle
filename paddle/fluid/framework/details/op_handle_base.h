@@ -46,9 +46,8 @@ class OpHandleBase {
 
   virtual void RecordWaitEventOnCtx(platform::DeviceContext *waited_ctx);
 
-  virtual void RecordWaitEventOnCtx2(
-      const std::unordered_set<VarHandle *> &in_vars,
-      platform::DeviceContext *waited_ctx);
+  virtual void RecordWaitEventOnCtx2(const std::vector<VarHandle *> &in_vars,
+                                     platform::DeviceContext *waited_ctx);
 
   void AddInput(VarHandleBase *in);
 
@@ -106,20 +105,11 @@ class OpHandleBase {
   void RunAndRecordEvent(platform::Place p,
                          const std::function<void()> &callback);
 
-  void InitPlaceGenerateInVars();
-
-  virtual void InitGenerateOutVarsPlace() = 0;
-
-  const platform::Place GetGenerateOutVarPlace(VarHandleBase *);
-
   virtual void RunImpl() = 0;
 
   ir::Node *node_;
   std::vector<VarHandleBase *> inputs_;
   std::vector<VarHandleBase *> outputs_;
-  std::map<platform::Place, std::vector<VarHandleBase *>>
-      place_generate_in_vars_;
-  std::map<VarHandleBase *, platform::Place> generate_out_vars_place_;
   std::map<platform::Place, platform::DeviceContext *> dev_ctxes_;
 
 #ifdef PADDLE_WITH_CUDA

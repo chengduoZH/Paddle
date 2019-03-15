@@ -104,7 +104,7 @@ void OpHandleBase::RecordWaitEventOnCtx(platform::DeviceContext *waited_ctx) {
 }
 
 void OpHandleBase::RecordWaitEventOnCtx2(
-    const std::unordered_set<VarHandle *> &in_vars,
+    const std::vector<VarHandle *> &in_vars,
     platform::DeviceContext *waited_ctx) {
 #ifdef PADDLE_WITH_CUDA
   PADDLE_ENFORCE_NOT_NULL(waited_ctx);
@@ -211,25 +211,6 @@ size_t OpHandleBase::NotReadyInputSize() const {
   }
   return res.size();
 }
-
-void OpHandleBase::InitPlaceGenerateInVars() {
-  for (auto in_var : inputs_) {
-    if (in_var && in_var->GeneratedOp()) {
-      auto place = in_var->GeneratedOp()->GetGenerateOutVarPlace(in_var);
-      place_generate_in_vars_[place].emplace_back(in_var);
-    }
-  }
-}
-
-const platform::Place OpHandleBase::GetGenerateOutVarPlace(
-    VarHandleBase *out_var) {
-  PADDLE_ENFORCE_NOT_NULL(out_var);
-  auto iter = generate_out_vars_place_.find(out_var);
-  PADDLE_ENFORCE(iter != generate_out_vars_place_.end(),
-                 "%s is not found in %s.", out_var, Name());
-  return iter->second;
-}
-
 }  // namespace details
 }  // namespace framework
 }  // namespace paddle
