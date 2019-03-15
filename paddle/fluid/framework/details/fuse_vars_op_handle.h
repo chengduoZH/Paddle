@@ -16,8 +16,8 @@
 
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
-
 #include "paddle/fluid/framework/details/container_cast.h"
 #include "paddle/fluid/framework/details/op_handle_base.h"
 #include "paddle/fluid/framework/lod_tensor.h"
