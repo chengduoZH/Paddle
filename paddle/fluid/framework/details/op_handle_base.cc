@@ -197,8 +197,8 @@ void OpHandleBase::RunAndRecordEvent(platform::Place p,
   callback();
 #ifdef PADDLE_WITH_CUDA
   for (auto &p : dev_ctxes_) {
-    if (platform::is_gpu_place(p) && events_.empty()) {
-      auto &event = events_.at(boost::get<platform::CUDAPlace>(p).device);
+    if (platform::is_gpu_place(p.first) && events_.empty()) {
+      auto &event = events_.at(boost::get<platform::CUDAPlace>(p.first).device);
       auto stream = static_cast<platform::CUDADeviceContext *>(ctx)->stream();
       PADDLE_ENFORCE(cudaEventRecord(event, stream));
     }
