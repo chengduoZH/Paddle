@@ -142,7 +142,6 @@ void AllReduceOpHandle::RunImpl() {
         cudaStreamSynchronize(stream);
       }
     }
-
 #else
     PADDLE_THROW("Not compiled with CUDA");
 #endif

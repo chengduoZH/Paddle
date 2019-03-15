@@ -50,18 +50,34 @@ void OpHandleBase::Run(bool use_cuda) {
           cudaEventCreateWithFlags(&events_[dev_id], cudaEventDisableTiming));
     }
     if (IsMultiDeviceTransfer()) {
+      // TODO(zcd): Get the relationshape of output and place
+      for (auto &var : outputs_) {
+        // The DummyVarHandle is only used to represent dependencies between
+        // operators,
+        auto *var_handle = dynamic_cast<VarHandle *>(var);
+        if (var_handle == nullptr) continue;
+        auto &var_place = var_handle->place();
+        int dev_id = boost::get<platform::CUDAPlace>(var_place).device;
+        var_handle->SetGenerateEvent(events_[dev_id]);
+      }
     } else {
       PADDLE_ENFORCE_EQ(dev_ctxes_.size(), 1);
+      auto &place = dev_ctxes_.begin()->first;
+      int dev_id = boost::get<platform::CUDAPlace>(place).device;
       for (auto &var : outputs_) {
-        PADDLE_ENFORCE_NOT_NULL(var);
-        auto &place = dev_ctxes_.begin()->first;
-        var->SetGeneratePlace(place);
-        int dev_id = boost::get<platform::CUDAPlace>(place).device;
-        var->SetGenerateEvent(events_[dev_id]);
+        // The DummyVarHandle is only used to represent dependencies between
+        // operators,
+        auto *var_handle = dynamic_cast<VarHandle *>(var);
+        if (var_handle == nullptr) continue;
+        PADDLE_ENFORCE(
+            platform::is_same_place(var_handle->place(), place),
+            "The place of output VarHandle and OpHandle is not equal.");
+        var_handle->SetGenerateEvent(events_[dev_id]);
       }
     }
   }
 #else
+
   PADDLE_ENFORCE(!use_cuda);
 #endif
 }

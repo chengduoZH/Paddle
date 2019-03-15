@@ -43,6 +43,7 @@ struct VarHandleBase {
   virtual ~VarHandleBase();
 
   virtual std::string DebugString() const = 0;
+
   virtual const std::string& Name() const = 0;
 
   void AddInput(OpHandleBase* in, ir::Node* node) {
@@ -80,26 +81,13 @@ struct VarHandleBase {
 
   ir::Node* Node() { return node_; }
 
-  void SetGeneratePlace(const platform::Place& place) { place_ = place; }
-
-#ifdef PADDLE_WITH_CUDA
-  void SetGenerateEvent(const cudaEvent_t& event) { event_ = event; }
-#endif
-
  protected:
   // The operator who generate this variable. nullptr if the variable
   // is a root node.
   OpHandleBase* generated_op_{nullptr};
-
   // Operators which depend on this variable ready.
   std::unordered_set<OpHandleBase*> pending_ops_;
   ir::Node* node_;
-  // The place that generates this var.
-  platform::Place place_;
-#ifdef PADDLE_WITH_CUDA
-  // Only when this event is triggered, var is generated.
-  cudaEvent_t events_;
-#endif
 };
 
 // VarHandle is actually a single version of Runtime Variable.
@@ -108,12 +96,6 @@ struct VarHandleBase {
 //
 // NOTE: runtime variables have place.
 struct VarHandle : public VarHandleBase {
-  explicit VarHandle(ir::Node* node) : VarHandleBase(node) {}
-
-  virtual ~VarHandle();
-
-  std::string DebugString() const override;
-
   VarHandle(ir::Node* node, size_t version, size_t scope_index,
             std::string name, platform::Place place)
       : VarHandleBase(node),
@@ -122,6 +104,29 @@ struct VarHandle : public VarHandleBase {
         name_(std::move(name)),
         place_(std::move(place)) {}
 
+  virtual ~VarHandle();
+
+  std::string DebugString() const override;
+
+  bool IsTheSameVar(const VarHandle& o) const {
+    return o.generated_op_ == generated_op_ && o.name_ == name_ &&
+           o.scope_idx_ == scope_idx_;
+  }
+
+  size_t version() const { return version_; }
+
+  size_t scope_idx() const { return scope_idx_; }
+
+  const std::string& Name() const override { return name_; }
+
+  const std::string& name() const { return name_; }
+
+  const platform::Place& place() const { return place_; }
+
+#ifdef PADDLE_WITH_CUDA
+  void SetGenerateEvent(const cudaEvent_t& event) { event_ = event; }
+#endif
+
   // version field currently is not used, however, just store the version to
   // debug easily.
  private:
@@ -129,18 +134,10 @@ struct VarHandle : public VarHandleBase {
   size_t scope_idx_;
   std::string name_;
   platform::Place place_;
-
- public:
-  bool IsTheSameVar(const VarHandle& o) const {
-    return o.generated_op_ == generated_op_ && o.name_ == name_ &&
-           o.scope_idx_ == scope_idx_;
-  }
-
-  size_t version() const { return version_; }
-  size_t scope_idx() const { return scope_idx_; }
-  const std::string& Name() const override { return name_; }
-  const std::string& name() const { return name_; }
-  const platform::Place& place() const { return place_; }
+#ifdef PADDLE_WITH_CUDA
+  // Only when this event is triggered, var is generated.
+  cudaEvent_t events_;
+#endif
 };
 
 // Dummy Variable. It is used to represent dependencies between operators
@@ -151,8 +148,9 @@ struct DummyVarHandle : public VarHandleBase {
 
   std::string DebugString() const override;
 
- public:
   const std::string& Name() const override { return name_; }
+
+ private:
   std::string name_{"DummyVar"};
 };
 

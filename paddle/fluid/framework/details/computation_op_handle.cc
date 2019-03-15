@@ -41,8 +41,6 @@ void ComputationOpHandle::RunImpl() {
   } else {
     this->RunAndRecordEvent(run_func);
   }
-
-  outputs_
 }
 
 bool ComputationOpHandle::NeedWait(VarHandleBase *in_var) {
