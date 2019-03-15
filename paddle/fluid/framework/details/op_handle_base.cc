@@ -123,8 +123,8 @@ void OpHandleBase::RecordWaitEventOnCtx2(
   } else {
     auto stream =
         static_cast<platform::CUDADeviceContext *>(waited_ctx)->stream();
-    for (auto &ev : generate_input_events) {
-      PADDLE_ENFORCE(cudaStreamWaitEvent(stream, ev.second, 0));
+    for (auto &event : generate_input_events) {
+      PADDLE_ENFORCE(cudaStreamWaitEvent(stream, event, 0));
     }
   }
 #else
