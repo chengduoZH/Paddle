@@ -40,7 +40,6 @@ OpHandleBase::~OpHandleBase() {
 }
 
 void OpHandleBase::Run(bool use_cuda) {
-  RunImpl();
 #ifdef PADDLE_WITH_CUDA
   if (events_.empty() && use_cuda) {
     for (auto &p : dev_ctxes_) {
@@ -79,6 +78,7 @@ void OpHandleBase::Run(bool use_cuda) {
 #else
   PADDLE_ENFORCE(!use_cuda);
 #endif
+  RunImpl();
 }
 
 void OpHandleBase::RecordWaitEventOnCtx(platform::DeviceContext *waited_ctx) {
