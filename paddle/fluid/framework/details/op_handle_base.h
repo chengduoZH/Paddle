@@ -67,7 +67,7 @@ class OpHandleBase {
 
   // If the Op involves data transfer of multiple devices that
   // will likely block other computations.
-  virtual bool IsMultiDeviceTransfer() { return false; }
+  virtual bool IsMultiDeviceTransfer() const = 0;
 
   const platform::DeviceContext *DeviceContext(platform::Place place) {
     auto it = dev_ctxes_.find(place);
