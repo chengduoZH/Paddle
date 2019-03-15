@@ -134,6 +134,7 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     }
     //    event4.release();
     VLOG(10) << "ready_ops: " << Print(ready_ops);
+    VLOG(10) << "pending_vars: " << Print(pending_vars);
   }
   PADDLE_ENFORCE(ready_ops.empty());
   // Wait FetchOps.
