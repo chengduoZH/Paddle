@@ -29,6 +29,7 @@ GatherOpHandle::GatherOpHandle(ir::Node *node,
 void GatherOpHandle::RunImpl() {
   if (places_.size() == 1) return;
   platform::RecordEvent record_event(Name());
+
   // the input and output may have dummy var.
   auto in_var_handles = DynamicCast<VarHandle>(inputs_);
   auto out_var_handles = DynamicCast<VarHandle>(this->Outputs());
