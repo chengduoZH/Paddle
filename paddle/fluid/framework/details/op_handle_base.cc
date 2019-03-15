@@ -60,7 +60,7 @@ void OpHandleBase::Run(bool use_cuda) {
         var_handle->SetGenerateEvent(events_[dev_id]);
       }
     } else {
-      PADDLE_ENFORCE_EQ(dev_ctxes_.size(), 1);
+      PADDLE_ENFORCE_EQ(dev_ctxes_.size(), 1, "%s OpHandle.", Name * ());
       auto &place = dev_ctxes_.begin()->first;
       int dev_id = boost::get<platform::CUDAPlace>(place).device;
       for (auto &var : outputs_) {
