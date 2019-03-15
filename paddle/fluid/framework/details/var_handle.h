@@ -124,7 +124,17 @@ struct VarHandle : public VarHandleBase {
   const platform::Place& place() const { return place_; }
 
 #ifdef PADDLE_WITH_CUDA
-  void SetGenerateEvent(const cudaEvent_t& event) { event_ = event; }
+  bool HasEvent() { return has_event_; }
+
+  const cudaEvent_t& GetEvent() {
+    PADDLE_ENFORCE(HasEvent(), "The event is not set.");
+    return event_;
+  }
+
+  void SetGenerateEvent(const cudaEvent_t& event) {
+    has_event_ = true;
+    event_ = event;
+  }
 #endif
 
   // version field currently is not used, however, just store the version to
@@ -136,7 +146,8 @@ struct VarHandle : public VarHandleBase {
   platform::Place place_;
 #ifdef PADDLE_WITH_CUDA
   // Only when this event is triggered, var is generated.
-  cudaEvent_t events_;
+  cudaEvent_t event_;
+  bool has_event_{false};
 #endif
 };
 

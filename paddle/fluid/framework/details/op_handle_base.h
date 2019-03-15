@@ -46,6 +46,10 @@ class OpHandleBase {
 
   virtual void RecordWaitEventOnCtx(platform::DeviceContext *waited_ctx);
 
+  virtual void RecordWaitEventOnCtx2(
+      const std::unordered_set<VarHandle *> &in_vars,
+      platform::DeviceContext *waited_ctx);
+
   void AddInput(VarHandleBase *in);
 
   void AddOutput(VarHandleBase *out);

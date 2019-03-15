@@ -55,18 +55,15 @@ AllReduceOpHandle::AllReduceOpHandle(ir::Node *node,
 void AllReduceOpHandle::RunImpl() {
   platform::RecordEvent record_event(Name());
 
-  std::map<platform::Place, std::vector<VarHandleBase *>> place_vars;
-  for (auto in_var : inputs_) {
-    if (NeedWait(in_var)) {
-      auto &dev_ctx = in_var->GeneratedOp()->DeviceContext();
-      if (dev_ctx.size() == 1) {
-        place_vars[dev_ctx.begin()->first].emplace_back(in_var);
-      }
-    }
-  }
-
   auto in_var_handles = DynamicCast<VarHandle>(this->Inputs());
   auto out_var_handles = DynamicCast<VarHandle>(this->Outputs());
+
+  std::map<platform::Place, std::unordered_set<VarHandle *>> place_vars;
+  for (auto in_var : in_var_handles) {
+    if (in_var && in_var->GeneratedOp()) {
+      place_vars[in_var->place()].insert(in_var);
+    }
+  }
 
   PADDLE_ENFORCE_EQ(
       in_var_handles.size(), places_.size(),
@@ -112,10 +109,7 @@ void AllReduceOpHandle::RunImpl() {
       auto &vars = place_vars[p];
       auto comm = nccl_ctx.comm_;
       all_reduce_calls.emplace_back([=] {
-        for (auto &var : vars) {
-          var->GeneratedOp()->RecordWaitEventOnCtx(dev_ctx);
-        }
-
+        RecordWaitEventOnCtx2(vars, dev_ctx);
         PADDLE_ENFORCE(platform::dynload::ncclAllReduce(
             buffer, buffer, numel, static_cast<ncclDataType_t>(dtype), ncclSum,
             comm, stream));

@@ -77,7 +77,6 @@ void OpHandleBase::Run(bool use_cuda) {
     }
   }
 #else
-
   PADDLE_ENFORCE(!use_cuda);
 #endif
 }
@@ -94,6 +93,37 @@ void OpHandleBase::RecordWaitEventOnCtx(platform::DeviceContext *waited_ctx) {
     auto stream =
         static_cast<platform::CUDADeviceContext *>(waited_ctx)->stream();
     for (auto &ev : events_) {
+      PADDLE_ENFORCE(cudaStreamWaitEvent(stream, ev.second, 0));
+    }
+  }
+#else
+  for (auto &dev_ctx : dev_ctxes_) {
+    dev_ctx.second->Wait();
+  }
+#endif
+}
+
+void OpHandleBase::RecordWaitEventOnCtx2(
+    const std::unordered_set<VarHandle *> &in_vars,
+    platform::DeviceContext *waited_ctx) {
+#ifdef PADDLE_WITH_CUDA
+  PADDLE_ENFORCE_NOT_NULL(waited_ctx);
+  std::unordered_set<cudaEvent_t> generate_input_events;
+
+  for (auto &in_var : in_vars) {
+    if (in_var->HasEvent()) generate_input_events.insert(in_var->GetEvent());
+  }
+
+  if (platform::is_cpu_place(waited_ctx->GetPlace()) ||
+      generate_input_events.empty()) {
+    for (auto &dev_ctx : dev_ctxes_) {
+      PADDLE_ENFORCE_NOT_NULL(dev_ctx.second);
+      dev_ctx.second->Wait();
+    }
+  } else {
+    auto stream =
+        static_cast<platform::CUDADeviceContext *>(waited_ctx)->stream();
+    for (auto &ev : generate_input_events) {
       PADDLE_ENFORCE(cudaStreamWaitEvent(stream, ev.second, 0));
     }
   }
