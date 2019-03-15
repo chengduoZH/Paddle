@@ -181,11 +181,13 @@ bool OpHandleBase::NeedWait(VarHandleBase *in_var) {
 void OpHandleBase::RunAndRecordEvent(const std::function<void()> &callback) {
   callback();
 #ifdef PADDLE_WITH_CUDA
-  if (!events_.empty()) {  // Use event
-    auto &event = events_.at(boost::get<platform::CUDAPlace>(p.first).device);
-    auto stream =
-        static_cast<platform::CUDADeviceContext *>(p.second)->stream();
-    PADDLE_ENFORCE(cudaEventRecord(event, stream));
+  for (auto &p : dev_ctxes_) {
+    if (!events_.empty()) {  // Use event
+      auto &event = events_.at(boost::get<platform::CUDAPlace>(p.first).device);
+      auto stream =
+          static_cast<platform::CUDADeviceContext *>(p.second)->stream();
+      PADDLE_ENFORCE(cudaEventRecord(event, stream));
+    }
   }
 #endif
 }
