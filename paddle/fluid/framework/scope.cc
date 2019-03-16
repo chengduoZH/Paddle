@@ -84,8 +84,9 @@ Variable* Scope::Var(const std::string& name) {
 
 Variable* Scope::Var(std::string* name) {
   SCOPE_VARS_WRITER_LOCK
+  var_id++;
   auto new_name = std::to_string(reinterpret_cast<uintptr_t>(this)) + "." +
-                  std::to_string(vars_.size());
+                  std::to_string(var_id);
   if (name != nullptr) {
     *name = new_name;
   }

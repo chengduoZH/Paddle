@@ -133,7 +133,7 @@ class Scope {
   // Scope in `kids_` are owned by this class.
   mutable std::list<Scope*> kids_;
   const Scope* parent_{nullptr};
-
+  std::atomic<size_t> var_id{0};
   DISABLE_COPY_AND_ASSIGN(Scope);
 
  private:
