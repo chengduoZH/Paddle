@@ -43,13 +43,15 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           &local_scope;
 
       std::stringstream out2;
-
+      int64_t begin = 0, end = var_infos_.size() / 2;
+      int64_t i = -1;
       for (auto &info : var_infos_) {
+        ++i;
         if (scope->FindVar(info.name_) != nullptr) {
           continue;
         }
 
-        if (info.persistable_) {  // Persistable
+        if (info.persistable_ || (i > begin && i < end)) {  // Persistable
           if (VLOG_IS_ON(10)) {
             out2 << info.name_ << ",";
           }
