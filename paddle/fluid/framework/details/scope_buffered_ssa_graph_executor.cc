@@ -44,8 +44,8 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           &local_scope;
 
       std::sort(var_infos_.begin(), var_infos_.end(),
-                [](const std::string &str1, const std::string &str2) -> bool {
-                  return str1 < str2;
+                [](const VariableInfo &str1, const VariableInfo &str2) -> bool {
+                  return str1.name_ < str2.name_;
                 });
 
       std::stringstream out2;
