@@ -51,7 +51,7 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           continue;
         }
         auto pos = info.name_.find("tmp");
-        if (info.persistable_ || pos != std::string::npos) {  //
+        if (info.persistable_ || pos == std::string::npos) {  //
           //        Persistable
           //        if (info.persistable_) {
           if (VLOG_IS_ON(10)) {
