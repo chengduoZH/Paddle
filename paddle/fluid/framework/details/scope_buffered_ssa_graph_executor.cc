@@ -74,8 +74,8 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           InitializeVariable(scope->Var(info.name_), info.type_);
         } else {
           ++i;
-          if (flag == 0 && ((i >= begin && i < end)
-                            || (i > begin2 && i < end2)) {
+          if (flag == 0 &&
+              ((i >= begin && i < end) || (i > begin2 && i < end2))) {
             InitializeVariable(scope->Var(info.name_), info.type_);
           } else {
             InitializeVariable(local_scope.Var(info.name_), info.type_);
