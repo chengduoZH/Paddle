@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "paddle/fluid/framework/details/scope_buffered_ssa_graph_executor.h"
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -42,11 +43,15 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
       *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>() =
           &local_scope;
 
+      std::sort(var_infos_.begin(), var_infos_.end(),
+                [](const std::string &str1, const std::string &str2) -> bool {
+                  return str1 < str2;
+                });
+
       std::stringstream out2;
-      //      int64_t begin = 0, end = var_infos_.size() / 4 * 2;
-      //      int64_t i = -1;
+      int64_t begin = 0, end = 1140 / 2;
+      int64_t i = -1;
       for (auto &info : var_infos_) {
-        //        ++i;
         if (scope->FindVar(info.name_) != nullptr) {
           continue;
         }
@@ -59,7 +64,12 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           }
           InitializeVariable(scope->Var(info.name_), info.type_);
         } else {
-          InitializeVariable(local_scope.Var(info.name_), info.type_);
+          ++i;
+          if (i >= begin && i < end) {
+            InitializeVariable(scope->Var(info.name_), info.type_);
+          } else {
+            InitializeVariable(local_scope.Var(info.name_), info.type_);
+          }
         }
       }
       if (VLOG_IS_ON(10)) {
