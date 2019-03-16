@@ -57,7 +57,7 @@ class ScopeBufferedSSAGraphExecutor : public SSAGraphExecutor {
 
  private:
   size_t drop_scope_counter_{0};
-
+  std::unordered_map<void*, std::unordered_set<std::string>> create_vars_;
   ExecutionStrategy strategy_;
   std::unique_ptr<SSAGraphExecutor> underlying_executor_;
   std::vector<Scope*> local_scopes_;

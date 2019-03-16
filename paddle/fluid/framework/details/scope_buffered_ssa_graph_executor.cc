@@ -60,8 +60,10 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
       }
       if (VLOG_IS_ON(10)) {
         {
-          std::stringstream out;
           auto vars = local_scope.LocalVarNames();
+          create_vars_[scope].clear();
+          create_vars_[scope].insert(vars.begin(), vars.end());
+          std::stringstream out;
           for (auto var : vars) {
             out << var << ", ";
           }
@@ -100,12 +102,20 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
       {
         std::stringstream out;
+        std::stringstream out2;
+        std::unordered_set<std::string> vars2;
         auto vars = local_scope->LocalVarNames();
         for (auto var : vars) {
           out << var << ", ";
+          if (create_vars_[scope].count(var) == 0) {
+            out2 << var << ", ";
+            vars2.insert(var);
+          }
         }
         VLOG(10) << "delete local scope of " << scope << ", " << vars.size()
                  << ", " << out.str() << "";
+        VLOG(10) << "not in local scope " << scope << ", " << vars2.size()
+                 << ", " << out2.str() << "";
       }
       scope->DeleteScope(local_scope);
     }
