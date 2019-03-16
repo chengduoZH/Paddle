@@ -124,7 +124,7 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
       //      scope->DeleteScope(local_scope);
     }
 
-    drop_scope_counter_ = 0;
+    //    drop_scope_counter_ = 0;
   }
 
   for (auto &scope : local_scopes_) {
