@@ -39,6 +39,7 @@ ScopeBufferedSSAGraphExecutor::ScopeBufferedSSAGraphExecutor(
 FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
     const std::vector<std::string> &fetch_tensors) {
   if (drop_scope_counter_ == 0) {
+    static int flag = -1;
     // Create local scopes.
     for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
       auto &scope = *it;
@@ -68,16 +69,22 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           InitializeVariable(scope->Var(info.name_), info.type_);
         } else {
           ++i;
-          if (i >= begin && i < end) {
+          if (flag == -1 && i >= begin && i < end) {
             InitializeVariable(scope->Var(info.name_), info.type_);
           } else {
             InitializeVariable(local_scope.Var(info.name_), info.type_);
           }
         }
       }
+      flag = 0;
       if (VLOG_IS_ON(10)) {
         {
           auto vars = local_scope.LocalVarNames();
+          std::sort(
+              vars.begin(), vars.end(),
+              [](const std::string &str1, const std::string &str2) -> bool {
+                return str1 < str2;
+              });
           create_vars_[scope].clear();
           create_vars_[scope].insert(vars.begin(), vars.end());
           std::stringstream out;
