@@ -20,6 +20,9 @@
 #include "paddle/fluid/framework/variable_helper.h"
 #include "paddle/fluid/platform/profiler.h"
 
+DEFINE_int32(begin, 0, ".");
+DEFINE_int32(end, 0, ".");
+
 namespace paddle {
 namespace framework {
 namespace details {
@@ -49,7 +52,7 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
                 });
 
       std::stringstream out2;
-      int64_t begin = 0, end = 1140 / 2;
+      int64_t begin = FLAGS_begin, end = FLAGS_end;
       int64_t i = -1;
       for (auto &info : var_infos_) {
         if (scope->FindVar(info.name_) != nullptr) {
