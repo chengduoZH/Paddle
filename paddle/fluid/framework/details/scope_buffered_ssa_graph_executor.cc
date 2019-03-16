@@ -43,17 +43,17 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           &local_scope;
 
       std::stringstream out2;
-      //      int64_t begin = 0, end = var_infos_.size() / 2;
-      //      int64_t i = -1;
+      int64_t begin = 0, end = var_infos_.size() / 4 * 2;
+      int64_t i = -1;
       for (auto &info : var_infos_) {
-        //        ++i;
+        ++i;
         if (scope->FindVar(info.name_) != nullptr) {
           continue;
         }
 
-        //        if (info.persistable_ || (i > begin && i < end)) {  //
-        //        Persistable
-        if (info.persistable_) {
+        if (info.persistable_ || (i >= begin && i < end)) {  //
+          //        Persistable
+          //        if (info.persistable_) {
           if (VLOG_IS_ON(10)) {
             out2 << info.name_ << ",";
           }
@@ -96,6 +96,12 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
     stream_end = true;
   }
 
+  for (auto &scope : local_scopes_) {
+    auto &local_scope =
+        *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
+    local_scope->DropKids();
+  }
+
   if (drop_scope_counter_ == strategy_.num_iteration_per_drop_scope_) {
     if (!stream_end) {
       WaitComputationalStreams();
@@ -121,16 +127,9 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
         VLOG(10) << "not in local scope " << scope << ", " << vars2.size()
                  << ", " << out2.str() << "";
       }
-      //      scope->DeleteScope(local_scope);
+      scope->DeleteScope(local_scope);
     }
-
-    //    drop_scope_counter_ = 0;
-  }
-
-  for (auto &scope : local_scopes_) {
-    auto &local_scope =
-        *scope->Var(details::kLocalExecScopeName)->GetMutable<Scope *>();
-    local_scope->DropKids();
+    drop_scope_counter_ = 0;
   }
 
   if (eptr) {
