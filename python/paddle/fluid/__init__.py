@@ -133,7 +133,7 @@ def __bootstrap__():
         'print_sub_graph_dir', 'pe_profile_fname', 'warpctc_dir',
         'inner_op_parallelism', 'enable_parallel_graph',
         'multiple_of_cupti_buffer_size', 'enable_subgraph_optimize', 'begin',
-        'end'
+        'end', 'begin2', 'end2'
     ]
     if 'Darwin' not in sysstr:
         read_env_flags.append('use_pinned_memory')

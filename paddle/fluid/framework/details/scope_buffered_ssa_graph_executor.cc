@@ -22,6 +22,8 @@
 
 DEFINE_int32(begin, 0, ".");
 DEFINE_int32(end, 0, ".");
+DEFINE_int32(begin2, 0, ".");
+DEFINE_int32(end2, 0, ".");
 
 namespace paddle {
 namespace framework {
@@ -56,6 +58,7 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
 
       std::stringstream out2;
       int64_t begin = FLAGS_begin, end = FLAGS_end;
+      int64_t begin2 = FLAGS_begin2, end2 = FLAGS_end2;
       int64_t i = -1;
       for (auto &info : var_infos_) {
         if (scope->FindVar(info.name_) != nullptr) {
@@ -71,7 +74,8 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           InitializeVariable(scope->Var(info.name_), info.type_);
         } else {
           ++i;
-          if (flag == 0 && i >= begin && i < end) {
+          if (flag == 0 && ((i >= begin && i < end)
+                            || (i > begin2 && i < end2)) {
             InitializeVariable(scope->Var(info.name_), info.type_);
           } else {
             InitializeVariable(local_scope.Var(info.name_), info.type_);
