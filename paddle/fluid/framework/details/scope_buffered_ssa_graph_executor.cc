@@ -65,7 +65,12 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           continue;
         }
         auto pos = info.name_.find("tmp");
-        if (info.persistable_ || pos == std::string::npos) {  //
+        bool reduce_sum = info.name_.find("reduce_sum_") != std::string::npos;
+        bool transpose = info.name_.find("transpose_") != std::string::npos;
+        bool reshape2_ = info.name_.find("reshape2_") != std::string::npos;
+        bool fc_ = info.name_.find("fc_") != std::string::npos;
+        bool flag_has_op = reduce_sum || reshape2_ || transpose || fc_;
+        if (info.persistable_ || pos == std::string::npos || flag_has_op) {  //
           //        Persistable
           //        if (info.persistable_) {
           if (VLOG_IS_ON(10)) {
