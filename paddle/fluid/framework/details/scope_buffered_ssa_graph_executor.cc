@@ -65,8 +65,8 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
           for (auto var : vars) {
             out << var << ", ";
           }
-          VLOG(10) << "create local scope of " << scope << ", " << out.str()
-                   << "";
+          VLOG(10) << "create local scope of " << scope << ", " << vars.size()
+                   << "  :" << out.str() << "";
         }
         VLOG(10) << "create persistable_ for " << scope << ", " << out2.str()
                  << "";
@@ -104,8 +104,8 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
         for (auto var : vars) {
           out << var << ", ";
         }
-        VLOG(10) << "delete local scope of " << scope << ", " << out.str()
-                 << "";
+        VLOG(10) << "delete local scope of " << scope << ", " << vars.size()
+                 << ", " << out.str() << "";
       }
       scope->DeleteScope(local_scope);
     }
