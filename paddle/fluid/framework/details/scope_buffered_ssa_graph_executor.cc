@@ -20,10 +20,10 @@
 #include "paddle/fluid/framework/variable_helper.h"
 #include "paddle/fluid/platform/profiler.h"
 
-DEFINE_int32(begin, 0, ".");
-DEFINE_int32(end, 0, ".");
-DEFINE_int32(begin2, 0, ".");
-DEFINE_int32(end2, 0, ".");
+DEFINE_int32(begin, -1, ".");
+DEFINE_int32(end, -1, ".");
+DEFINE_int32(begin2, -1, ".");
+DEFINE_int32(end2, -1, ".");
 
 namespace paddle {
 namespace framework {
@@ -69,7 +69,12 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
         bool transpose = info.name_.find("transpose_") != std::string::npos;
         bool reshape2_ = info.name_.find("reshape2_") != std::string::npos;
         bool fc_ = info.name_.find("fc_") != std::string::npos;
-        bool flag_has_op = reduce_sum || reshape2_ || transpose || fc_;
+        bool softmax_ = info.name_.find("softmax_") != std::string::npos;
+        bool square_ = info.name_.find("square_") != std::string::npos;
+        bool layer_norm = info.name_.find("layer_norm_") != std::string::npos;
+        bool embedding_ = info.name_.find("embedding_") != std::string::npos;
+        bool flag_has_op = reduce_sum || reshape2_ || transpose || fc_ ||
+                           layer_norm || square_ || softmax_ || embedding_;
         if (info.persistable_ || pos == std::string::npos || flag_has_op) {  //
           //        Persistable
           //        if (info.persistable_) {
