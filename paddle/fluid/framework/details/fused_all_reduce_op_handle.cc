@@ -30,7 +30,7 @@ typedef std::vector<std::vector<std::pair<std::string, const LoDTensor *>>>
 // Note(zcd): Addresses should be aligned, otherwise, the results may have
 // diff.
 size_t Alignment(const platform::Place &place, size_t size) {
-  size_t alignment = 1 << 12;
+  size_t alignment = 1;
   if (platform::is_gpu_place(place)) {
     alignment = 1 << 8;
   }
@@ -126,7 +126,7 @@ void FusedAllReduceOpHandle::RunImpl() {
     for (size_t k = 1; k < g_tensor.size(); ++k) {
       const void *cur_address = g_tensor.at(k - 1).second->data<void>();
       int64_t len = g_tensor.at(k - 1).second->numel();
-      auto offset = Alignment(places_[0], len * size_of_dtype);
+      auto offset = Alignment(places_[0], len) * size_of_dtype;
       void *infer_next_address = reinterpret_cast<void *>(
           reinterpret_cast<uintptr_t>(cur_address) + offset);
       const void *next_address = g_tensor.at(k).second->data<void>();
