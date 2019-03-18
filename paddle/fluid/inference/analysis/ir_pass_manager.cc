@@ -96,13 +96,13 @@ std::unique_ptr<Graph> IRPassManager::Apply(std::unique_ptr<Graph> graph) {
   if (passes_.empty()) {
     return graph;
   }
-  PADDLE_ENFORCE(graph.get());
+  PADDLE_ENFORCE(graph);
   // Apply all the passes
   for (const auto &pass : passes_) {
     if (pass->Type() != "graph_viz_pass") {
       PrettyLogEndl(Style::H2(), "--- Running IR pass [%s]", pass->Type());
     }
-    graph = pass->Apply(std::move(graph));
+    graph = pass->Apply(graph);
   }
   return graph;
 }

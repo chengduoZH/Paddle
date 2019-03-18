@@ -67,13 +67,13 @@ ProgramDesc BuildProgramDesc() {
 TEST(FCFusePass, basic) {
   auto prog = BuildProgramDesc();
 
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
 
   auto pass = PassRegistry::Instance().Get("fc_fuse_pass");
 
   int pre_nodes = graph->Nodes().size();
 
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
 
   int after_nodes = graph->Nodes().size();
 

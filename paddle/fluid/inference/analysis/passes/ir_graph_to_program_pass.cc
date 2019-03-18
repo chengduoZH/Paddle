@@ -37,7 +37,7 @@ void IrGraphToProgramPass::RunImpl(Argument *argument) {
   framework::ProgramDesc desc;
   desc.CopyFrom(*argument->main_program().Proto());
   pass->SetNotOwned("program", &desc);
-  auto thegraph = pass->Apply(std::move(graph));
+  auto thegraph = pass->Apply(graph);
   thegraph.release();  // the argument still own the graph.
 
   argument->SetIrAnalyzedProgram(

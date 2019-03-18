@@ -109,7 +109,7 @@ TEST(GraphTest, Basic) {
   ASSERT_EQ(proto::VarType::LOD_TENSOR,
             prog.MutableBlock(0)->Var("test_out")->GetType());
 
-  std::unique_ptr<ir::Graph> g(new ir::Graph(prog));
+  ir::Graph *g(new ir::Graph(prog));
   std::vector<ir::Node *> nodes(g->Nodes().begin(), g->Nodes().end());
   for (ir::Node *n : nodes) {
     if (n->Name() == "sum") {
@@ -146,7 +146,7 @@ TEST(GraphTest, WriteAfterRead) {
   prog.MutableBlock(0)->Var("b")->SetType(proto::VarType::LOD_TENSOR);
   prog.MutableBlock(0)->Var("c")->SetType(proto::VarType::LOD_TENSOR);
 
-  std::unique_ptr<ir::Graph> g(new ir::Graph(prog));
+  ir::Graph *g(new ir::Graph(prog));
   ir::Node *control_dep1 = nullptr;
   ir::Node *control_dep2 = nullptr;
   for (ir::Node *n : g->Nodes()) {
@@ -185,7 +185,7 @@ TEST(GraphTest, WriteAfterWrite) {
   prog.MutableBlock(0)->Var("b")->SetType(proto::VarType::LOD_TENSOR);
   prog.MutableBlock(0)->Var("c")->SetType(proto::VarType::LOD_TENSOR);
 
-  std::unique_ptr<ir::Graph> g(new ir::Graph(prog));
+  ir::Graph *g(new ir::Graph(prog));
   ir::Node *control_dep1 = nullptr;
   ir::Node *control_dep2 = nullptr;
   for (ir::Node *n : g->Nodes()) {

@@ -82,13 +82,13 @@ ProgramDesc BuildProgramDesc() {
 TEST(ConvReLUFusePass, basic) {
   auto prog = BuildProgramDesc();
 
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
 
   auto pass = PassRegistry::Instance().Get("conv_relu_mkldnn_fuse_pass");
 
   int original_nodes_num = graph->Nodes().size();
 
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
 
   int current_nodes_num = graph->Nodes().size();
 

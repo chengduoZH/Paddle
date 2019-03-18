@@ -39,7 +39,7 @@ void BuildCircleGraph(Graph* g) {
 
 class TestPass : public Pass {
  protected:
-  std::unique_ptr<Graph> ApplyImpl(std::unique_ptr<Graph> graph) const {
+  Graph* ApplyImpl(Graph* graph) const {
     graph->Set<int>("copy_test_pass_attr", new int);
     graph->Set<int>("copy_test_graph_attr", new int);
 
@@ -55,10 +55,10 @@ class TestPass : public Pass {
 TEST(PassTest, TestPassAttrCheck) {
   ProgramDesc prog;
   auto pass = PassRegistry::Instance().Get("test_pass");
-  std::unique_ptr<Graph> graph(new Graph(prog));
+  Graph* graph(new Graph(prog));
   std::string exception;
   try {
-    graph = pass->Apply(std::move(graph));
+    graph = pass->Apply(graph);
   } catch (paddle::platform::EnforceNotMet e) {
     exception = std::string(e.what());
   }
@@ -69,7 +69,7 @@ TEST(PassTest, TestPassAttrCheck) {
   pass->SetNotOwned<int>("test_pass_attr", &val);
 
   try {
-    graph = pass->Apply(std::move(graph));
+    graph = pass->Apply(graph);
   } catch (paddle::platform::EnforceNotMet e) {
     exception = std::string(e.what());
   }
@@ -78,23 +78,23 @@ TEST(PassTest, TestPassAttrCheck) {
   graph.reset(new Graph(prog));
   graph->Set<int>("test_graph_attr", new int);
   graph->Get<int>("test_graph_attr") = 1;
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
   ASSERT_EQ(graph->Get<int>("copy_test_pass_attr"), 2);
   ASSERT_EQ(graph->Get<int>("copy_test_graph_attr"), 2);
 
   // Allow apply more than once.
   graph.reset(new Graph(prog));
   graph->Set<int>("test_graph_attr", new int);
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
 
   pass = PassRegistry::Instance().Get("test_pass");
   pass->SetNotOwned<int>("test_pass_attr", &val);
   graph.reset(new Graph(prog));
-  BuildCircleGraph(graph.get());
+  BuildCircleGraph(graph);
   graph->Set<int>("test_graph_attr", new int);
   graph->Get<int>("test_graph_attr") = 2;
   try {
-    auto tmp = pass->Apply(std::move(graph));
+    auto tmp = pass->Apply(graph);
   } catch (paddle::platform::EnforceNotMet e) {
     exception = std::string(e.what());
   }

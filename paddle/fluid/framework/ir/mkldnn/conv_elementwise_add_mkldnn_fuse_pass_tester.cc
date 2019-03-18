@@ -43,12 +43,12 @@ void SetOp(ProgramDesc* prog, const std::string& type,
 struct TestIsReachable {
   using func = std::function<bool(const std::string&, const std::string&)>;
 
-  auto operator()(const std::unique_ptr<ir::Graph>& graph) -> func {
+  auto operator()(const ir::Graph*& graph) -> func {  // NOLINT
     auto hash = [](const Node* node) -> std::string {
       return node->Name() + std::to_string(node->id());
     };
 
-    auto find_node = [&](const std::unique_ptr<ir::Graph>& graph,
+    auto find_node = [&](const ir::Graph*& graph,  // NOLINT
                          const std::string& name) -> Node* {
       for (auto& node : GraphTraits::DFS(*graph)) {
         if (name == hash(&node)) {
@@ -97,8 +97,7 @@ struct TestIsReachable {
   }
 };
 
-void AssertOpsCount(const std::unique_ptr<ir::Graph>& graph,
-                    int expected_conv_count,
+void AssertOpsCount(const ir::Graph*& graph, int expected_conv_count,  // NOLINT
                     int expected_elementwise_add_count = 0) {
   int conv_count = 0;
   int elementwise_add_count = 0;
@@ -140,7 +139,7 @@ ProgramDesc BuildProgramDesc(const std::vector<std::string>& transient_vars,
 
 void RunPassAndAssert(ProgramDesc* prog, const std::string& from,
                       const std::string& to, int expected_conv_num) {
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(*prog));
+  ir::Graph* graph(new ir::Graph(*prog));
 
   TestIsReachable is_reachable;
   EXPECT_TRUE(is_reachable(graph)(from, to));
@@ -148,7 +147,7 @@ void RunPassAndAssert(ProgramDesc* prog, const std::string& from,
   auto pass =
       PassRegistry::Instance().Get("conv_elementwise_add_mkldnn_fuse_pass");
   int original_nodes_num = graph->Nodes().size();
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
   int current_nodes_num = graph->Nodes().size();
 
   EXPECT_TRUE(is_reachable(graph)(from, to));
@@ -250,7 +249,7 @@ TEST(ConvElementwiseAddMKLDNNFusePass, NoFusion) {
   SetOp(&prog, "elementwise_add", {{"X", "c"}, {"Y", "e"}}, {"Out", "f"});
   SetOp(&prog, "relu", {{"X", "f"}}, {"Out", "g"});
 
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
 
   TestIsReachable is_reachable;
   EXPECT_TRUE(is_reachable(graph)("a", "g"));
@@ -258,7 +257,7 @@ TEST(ConvElementwiseAddMKLDNNFusePass, NoFusion) {
   auto pass =
       PassRegistry::Instance().Get("conv_elementwise_add_mkldnn_fuse_pass");
   int original_nodes_num = graph->Nodes().size();
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
   int current_nodes_num = graph->Nodes().size();
 
   EXPECT_TRUE(is_reachable(graph)("a", "g"));

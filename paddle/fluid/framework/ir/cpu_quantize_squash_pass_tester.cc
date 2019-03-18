@@ -107,7 +107,7 @@ void InitTensorHolder(Scope* scope, const paddle::platform::Place& place,
 }
 
 void MainTest(const ProgramDesc& prog, int removed_nodes_num) {
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
 
   // Init scope, as it is used in pass
   auto place = paddle::platform::CPUPlace();
@@ -125,7 +125,7 @@ void MainTest(const ProgramDesc& prog, int removed_nodes_num) {
 
   int original_nodes_num = graph->Nodes().size();
 
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
 
   int current_nodes_num = graph->Nodes().size();
 

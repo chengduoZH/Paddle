@@ -146,8 +146,7 @@ void MultiDevSSAGraphBuilderBase::Init() const {
 #endif
 }
 
-std::unique_ptr<ir::Graph> MultiDevSSAGraphBuilderBase::ApplyImpl(
-    std::unique_ptr<ir::Graph> graph) const {
+ir::Graph *MultiDevSSAGraphBuilderBase::ApplyImpl(ir::Graph *graph) const {
   Init();
   std::vector<ir::Node *> sorted_ops = SortOperations(*graph);
 

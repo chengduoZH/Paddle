@@ -73,7 +73,7 @@ ProgramDesc BuildProgramDesc() {
 TEST(DepthwiseConvMKLDNNPass, basic) {
   auto prog = BuildProgramDesc();
 
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
 
   auto pass = PassRegistry::Instance().Get("depthwise_conv_mkldnn_pass");
 
@@ -86,7 +86,7 @@ TEST(DepthwiseConvMKLDNNPass, basic) {
 
   counters before{1, 1, 1, 1};
 
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
 
   // initialize counters before loop
   counters after{0, 0, 0, 0};

@@ -991,7 +991,7 @@ All parameter, weight, gradient are variables in Paddle.
                      int val) { self.Set<const int>(name, new int(val)); })
       .def("type", &ir::Pass::Type)
       .def("apply", [](ir::Pass &self, std::shared_ptr<ir::Graph> graph) {
-        std::unique_ptr<ir::Graph> origin_graph(graph.get());
+        ir::Graph *origin_graph(graph);
         auto optim_graph = self.Apply(std::move(origin_graph));
         optim_graph.release();
       });

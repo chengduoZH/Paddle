@@ -77,8 +77,7 @@ class ParallelExecutorPrivate {
     }
   }
 
-  std::unique_ptr<ir::Graph> PrepareGCAndRefCnts(
-      std::unique_ptr<ir::Graph> graph, size_t max_memory_size);
+  ir::Graph *PrepareGCAndRefCnts(ir::Graph *graph, size_t max_memory_size);
 
   inline bool HasGarbageCollectors() const { return !gcs_.empty(); }
 
@@ -118,8 +117,8 @@ class ParallelExecutorPrivate {
   details::GarbageCollectorMap gcs_;
 };
 
-std::unique_ptr<ir::Graph> ParallelExecutorPrivate::PrepareGCAndRefCnts(
-    std::unique_ptr<ir::Graph> graph, size_t max_memory_size) {
+ir::Graph *ParallelExecutorPrivate::PrepareGCAndRefCnts(
+    ir::Graph *graph, size_t max_memory_size) {
   for (size_t i = 0; i < places_.size(); ++i) {
     auto &place = places_[i];
     if (gcs_.count(place) > 0) {
@@ -161,7 +160,7 @@ std::unique_ptr<ir::Graph> ParallelExecutorPrivate::PrepareGCAndRefCnts(
                               &global_ref_cnts_);
     ref_cnt_pass->SetNotOwned(details::kLastLiveOpsOfVars,
                               &last_live_ops_of_vars);
-    graph = ref_cnt_pass->Apply(std::move(graph));
+    graph = ref_cnt_pass->Apply(graph);
     VLOG(10) << "ReferenceCountPass Applied";
 
     auto eager_deletion_pass =
@@ -172,7 +171,7 @@ std::unique_ptr<ir::Graph> ParallelExecutorPrivate::PrepareGCAndRefCnts(
     eager_deletion_pass->SetNotOwned(details::kLastLiveOpsOfVars,
                                      &last_live_ops_of_vars);
     eager_deletion_pass->SetNotOwned(details::kAllPlaces, &places_);
-    graph = eager_deletion_pass->Apply(std::move(graph));
+    graph = eager_deletion_pass->Apply(graph);
     VLOG(10) << "EagerDeletionPass Applied";
   }
 
@@ -220,13 +219,13 @@ ParallelExecutor::ParallelExecutor(const std::vector<platform::Place> &places,
     }
   }
 
-  std::unique_ptr<ir::Graph> temp_owned_graph(graph);
+  ir::Graph *temp_owned_graph(graph);
 
   // FIXME(Yancey1989): parallel graph mode get better performance
   // in GPU allreduce distributed training. Need an elegant way to
   // choice the execution strategy.
-  build_strategy.enable_parallel_graph_ = EnableParallelGraphExecution(
-      *temp_owned_graph, exec_strategy, build_strategy);
+  build_strategy.enable_parallel_graph_ =
+      EnableParallelGraphExecution(*graph, exec_strategy, build_strategy);
   if (build_strategy.enable_parallel_graph_)
     VLOG(0) << "The Executor would execute the graph by ParallelGraph "
                "Execution which can get better performance,"
@@ -295,25 +294,22 @@ ParallelExecutor::ParallelExecutor(const std::vector<platform::Place> &places,
 #if defined(PADDLE_WITH_CUDA) && !defined(_WIN32)
 
   temp_owned_graph = build_strategy.Apply(
-      std::move(temp_owned_graph), member_->places_, loss_var_name,
-      member_->local_scopes_, member_->nranks_, member_->use_cuda_,
-      member_->nccl_ctxs_.get());
+      temp_owned_graph, member_->places_, loss_var_name, member_->local_scopes_,
+      member_->nranks_, member_->use_cuda_, member_->nccl_ctxs_.get());
 #else
-  temp_owned_graph = build_strategy.Apply(
-      std::move(temp_owned_graph), member_->places_, loss_var_name,
-      member_->local_scopes_, member_->nranks_, member_->use_cuda_);
+  temp_owned_graph = build_strategy.Apply(temp_owned_graph, member_->places_,
+                                          loss_var_name, member_->local_scopes_,
+                                          member_->nranks_, member_->use_cuda_);
 
 #endif
   auto max_memory_size = GetEagerDeletionThreshold();
   VLOG(10) << "Eager Deletion Threshold "
            << static_cast<float>(max_memory_size) / (1 << 30);
   if (max_memory_size >= 0) {
-    graph = member_
-                ->PrepareGCAndRefCnts(std::move(temp_owned_graph),
-                                      static_cast<size_t>(max_memory_size))
-                .release();
+    graph = member_->PrepareGCAndRefCnts(temp_owned_graph,
+                                         static_cast<size_t>(max_memory_size));
   } else {
-    graph = temp_owned_graph.release();
+    graph = temp_owned_graph;
   }
 
   // Step 3. Create vars in each scope. Passes may also create new vars.

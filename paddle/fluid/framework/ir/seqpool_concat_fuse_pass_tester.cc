@@ -54,12 +54,12 @@ int CountOpType(const ir::Graph* graph,
   return count;
 }
 
-std::unique_ptr<ir::Graph> GetNumNodesOfBeforeAfter(
-    std::unique_ptr<ir::Graph> graph, int* before, int* after,
+ir::Graph* GetNumNodesOfBeforeAfter(
+    ir::Graph* graph, int* before, int* after,
     const std::string& pass_type = "seqpool_concat_fuse_pass") {
   auto pass = PassRegistry::Instance().Get(pass_type);
   *before = graph->Nodes().size();
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
   *after = graph->Nodes().size();
   return graph;
 }
@@ -101,13 +101,13 @@ TEST(SeqPoolConcatFusePass, basic) {
   SetOp(&prog, "concat", std::vector<std::string>({"e", "g", "i"}),
         std::vector<std::string>({"j"}));
 
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
   int before, after;
-  graph = GetNumNodesOfBeforeAfter(std::move(graph), &before, &after);
+  graph = GetNumNodesOfBeforeAfter(graph, &before, &after);
   // Remove 10 Nodes: op1, op2, op3, d, e, f, g, h, i, concat_op
   // Add 1 Node: fusion_seqpool_concat
   EXPECT_EQ(after, before - 9);
-  EXPECT_EQ(CountOpType(graph.get()), 1);
+  EXPECT_EQ(CountOpType(graph), 1);
 }
 
 /*
@@ -147,13 +147,13 @@ TEST(SeqPoolConcatFusePass, advanced) {
   SetOp(&prog, "concat", std::vector<std::string>({"d", "f"}),
         std::vector<std::string>({"h"}));
 
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
   int before, after;
-  graph = GetNumNodesOfBeforeAfter(std::move(graph), &before, &after);
+  graph = GetNumNodesOfBeforeAfter(graph, &before, &after);
   // Remove 7 Nodes: op1, op2, c, d, e, f concat_op
   // Add 1 Node: fusion_seqpool_concat
   EXPECT_EQ(after, before - 6);
-  EXPECT_EQ(CountOpType(graph.get()), 1);
+  EXPECT_EQ(CountOpType(graph), 1);
 }
 
 ProgramDesc BuildProgramDesc(int num_inputs_of_concat) {
@@ -181,13 +181,13 @@ ProgramDesc BuildProgramDesc(int num_inputs_of_concat) {
 TEST(SeqPoolConcatFusePass, more_inputs) {
   for (int num : {1, 2, 10}) {
     ProgramDesc prog = BuildProgramDesc(num);
-    std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+    ir::Graph* graph(new ir::Graph(prog));
     int before, after;
-    graph = GetNumNodesOfBeforeAfter(std::move(graph), &before, &after);
+    graph = GetNumNodesOfBeforeAfter(graph, &before, &after);
     // Remove Nodes: n * (seqpool_op, out, out_unused), and concat_op
     // Add Node: fusion_seqpool_concat op
     EXPECT_EQ(after, before - num * 3);
-    EXPECT_EQ(CountOpType(graph.get()), 1);
+    EXPECT_EQ(CountOpType(graph), 1);
   }
 }
 

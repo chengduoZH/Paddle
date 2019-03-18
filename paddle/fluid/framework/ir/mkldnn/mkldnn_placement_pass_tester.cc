@@ -91,13 +91,13 @@ void MainTest(std::initializer_list<std::string> mkldnn_enabled_op_types,
               unsigned expected_use_mkldnn_true_count) {
   auto prog = BuildProgramDesc();
 
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
 
   auto pass = PassRegistry::Instance().Get("mkldnn_placement_pass");
   pass->Set("mkldnn_enabled_op_types",
             new std::unordered_set<std::string>(mkldnn_enabled_op_types));
 
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
 
   unsigned use_mkldnn_true_count = 0;
 

@@ -93,11 +93,11 @@ ProgramDesc BuildProgramDesc() {
 TEST(IsTestPass, basic) {
   auto prog = BuildProgramDesc();
 
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
 
   auto pass = PassRegistry::Instance().Get("is_test_pass");
 
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
 
   for (auto* node : graph->Nodes()) {
     if (node->IsOp()) {

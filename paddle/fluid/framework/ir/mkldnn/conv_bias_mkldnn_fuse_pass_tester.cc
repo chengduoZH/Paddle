@@ -16,7 +16,7 @@
 #include "paddle/fluid/framework/naive_executor.h"
 #include "paddle/fluid/platform/place.h"
 
-#include <gtest/gtest.h>
+#include <gtest/gtest.h>  // NOLINT
 #include "paddle/fluid/framework/op_proto_maker.h"
 
 namespace paddle {
@@ -87,7 +87,7 @@ void InitTensorHolder(Scope* scope, const paddle::platform::Place& place,
 
 void MainTest(bool convWithExistingBias) {
   auto prog = BuildProgramDesc(convWithExistingBias);
-  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
+  ir::Graph* graph(new ir::Graph(prog));
   auto place = paddle::platform::CPUPlace();
   NaiveExecutor exe{place};
   Scope scope;
@@ -103,7 +103,7 @@ void MainTest(bool convWithExistingBias) {
 
   int original_nodes_num = graph->Nodes().size();
 
-  graph = pass->Apply(std::move(graph));
+  graph = pass->Apply(graph);
 
   int current_nodes_num = graph->Nodes().size();
 

@@ -39,14 +39,13 @@ class ParallelSSAGraphExecutor : public SSAGraphExecutor {
   FeedFetchList Run(const std::vector<std::string> &fetch_tensors) override;
 
  private:
-  std::vector<std::unique_ptr<ir::Graph>> SeparateMultiDevicesGraph(
-      ir::Graph *graph);
+  std::vector<ir::Graph *> SeparateMultiDevicesGraph(ir::Graph *graph);
 
   ExecutionStrategy strategy_;
   std::vector<Scope *> local_scopes_;
   std::unique_ptr<::ThreadPool> pool_{nullptr};
   std::vector<platform::Place> places_;
-  std::vector<std::unique_ptr<ir::Graph>> graphs_;
+  std::vector<ir::Graph *> graphs_;
 
   std::vector<std::unique_ptr<details::ThreadedSSAGraphExecutor>> executors_;
   ExceptionHolder exception_holder_;

@@ -142,16 +142,15 @@ void InplacePass::InitSSAGraphNodes() const {
   }
 }
 
-std::unique_ptr<ir::Graph> InplacePass::ApplyImpl(
-    std::unique_ptr<ir::Graph> graph) const {
+ir::Graph* InplacePass::ApplyImpl(ir::Graph* graph) const {
   var_nodes_.clear();
-  view_.Build(graph.get());
+  view_.Build(graph);
   InitSSAGraphNodes();
 
   for (auto* op : view_.AllOps()) {
     if (FLAGS_enable_inplace_whitelist && !whitelist_.count(op->Name()))
       continue;
-    TryInplaceOpInputOutput(op, graph.get());
+    TryInplaceOpInputOutput(op, graph);
   }
   graph->ResolveHazard(var_nodes_);
 
