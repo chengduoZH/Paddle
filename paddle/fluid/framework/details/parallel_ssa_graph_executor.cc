@@ -21,13 +21,13 @@ namespace paddle {
 namespace framework {
 namespace details {
 
-std::vector<ir::Graph *> ParallelSSAGraphExecutor::SeparateMultiDevicesGraph(
-    ir::Graph *graph) {
-  std::vector<ir::Graph *> graphs;
+std::vector<std::unique_ptr<ir::Graph>>
+ParallelSSAGraphExecutor::SeparateMultiDevicesGraph(ir::Graph *graph) {
+  std::vector<std::unique_ptr<ir::Graph>> graphs;
   graphs.reserve(places_.size());
   for (size_t i = 0; i < places_.size(); ++i) {
     ProgramDesc empty;
-    graphs.emplace_back(ir::Graph * (new ir::Graph(empty)));
+    graphs.emplace_back(std::unique_ptr<ir::Graph>(new ir::Graph(empty)));
     auto &g = graphs.back();
     g->Set(kGraphVars, new GraphVars(1UL));
     g->Set(kGraphDepVars, new GraphDepVars);
