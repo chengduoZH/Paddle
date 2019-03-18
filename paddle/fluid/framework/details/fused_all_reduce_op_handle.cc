@@ -27,6 +27,17 @@ namespace details {
 typedef std::vector<std::vector<std::pair<std::string, const LoDTensor *>>>
     GradientAndLoDTensor;
 
+// Note(zcd): Addresses should be aligned, otherwise, the results may have
+// diff.
+size_t Alignment(const platform::Place &place, size_t size) {
+  size_t alignment = 1 << 12;
+  if (platform::is_gpu_place(place)) {
+    alignment = 1 << 8;
+  }
+  size_t remaining = size % alignment;
+  return remaining == 0 ? size : size + (alignment - remaining);
+}
+
 #if defined(PADDLE_WITH_CUDA) && !defined(_WIN32)
 FusedAllReduceOpHandle::FusedAllReduceOpHandle(
     ir::Node *node, const std::vector<Scope *> &local_scopes,
@@ -102,6 +113,7 @@ void FusedAllReduceOpHandle::RunImpl() {
                         static_cast<framework::proto::VarType::Type>(0));
     }
     PADDLE_ENFORCE_EQ(ele_dtype, dtype);
+    size_t size_of_dtype = framework::SizeOfType(dtype);
 
     // Check whether the address space is contiguous.
     std::sort(
@@ -112,19 +124,19 @@ void FusedAllReduceOpHandle::RunImpl() {
         });
 
     for (size_t k = 1; k < g_tensor.size(); ++k) {
-      const void *pre_address = g_tensor.at(k - 1).second->data<void>();
+      const void *cur_address = g_tensor.at(k - 1).second->data<void>();
       int64_t len = g_tensor.at(k - 1).second->numel();
-      auto offset = len * framework::SizeOfType(dtype);
-      void *next_address = reinterpret_cast<void *>(
-          reinterpret_cast<uintptr_t>(pre_address) + offset);
-      const void *cur_address = g_tensor.at(k).second->data<void>();
-      VLOG(10) << k << ", "
-               << " pre_address(" << g_tensor.at(k - 1).first
-               << "): " << pre_address << ", cur_address("
-               << g_tensor.at(k).first << "): " << cur_address
-               << ", offset:" << offset << ", " << next_address << ", "
-               << cur_address;
-      PADDLE_ENFORCE_EQ(next_address, cur_address);
+      auto offset = Alignment(places_[0], len * size_of_dtype);
+      void *infer_next_address = reinterpret_cast<void *>(
+          reinterpret_cast<uintptr_t>(cur_address) + offset);
+      const void *next_address = g_tensor.at(k).second->data<void>();
+
+      VLOG(10) << string::Sprintf(
+          "Input[%d](%s) address: 0X%02x, Input[%d](%s) address: 0X%02x, Infer "
+          "input[%d%] address: 0X%02x. The offset: %d",
+          k - 1, g_tensor.at(k - 1).first, cur_address, g_tensor.at(k).first, k,
+          next_address, k, infer_next_address, offset);
+      PADDLE_ENFORCE_EQ(infer_next_address, next_address);
     }
   }
 
