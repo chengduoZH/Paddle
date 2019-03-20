@@ -61,7 +61,6 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     }
     set.clear();
   };
-  auto run_all_op = [&](OpHandleBase *op) { RunOp(ready_vars, op); };
   // Clean run context
   run_op_futures_.clear();
   exception_holder_.Clear();
@@ -95,7 +94,7 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         auto &deps = pending_ops[op];
         --deps;
         if (deps == 0) {
-          run_all_op(op);
+          ready_ops.insert(op);
         }
       }
     }
