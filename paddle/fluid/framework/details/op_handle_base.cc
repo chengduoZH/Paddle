@@ -127,9 +127,30 @@ void OpHandleBase::WaitInputVarGenerated() {
 }
 
 void OpHandleBase::WaitInputVarGenerated(const platform::Place &place) {
-  for (auto *in : inputs_) {
-    if (NeedWait(in)) {
-      in->GeneratedOp()->RecordWaitEventOnCtx(dev_ctxes_.at(place));
+  for (auto in_var : inputs_) {
+    if (NeedWait(in_var)) {
+      auto *in_var_handle = dynamic_cast<VarHandle *>(in_var);
+      if (in_var_handle) {
+        if (platform::is_gpu_place(in_var_handle->place())) {
+#ifdef PADDLE_WITH_CUDA
+          auto stream = static_cast<platform::CUDADeviceContext *>(
+                            dev_ctxes_.at(in_var_handle->place()))
+                            ->stream();
+          PADDLE_ENFORCE(
+              cudaStreamWaitEvent(stream, in_var_handle->GetEvent(), 0));
+#else
+          PADDLE_THROW("Doesn't compile the GPU.");
+#endif
+        }
+        // what to do when the place is CPU?
+      } else {
+        // If the in_var is DummyVarHandle, and it's generate op is not
+        // MultiDeviceTransfer, there should have RecordWaitEvent on the current
+        // dev_ctx.
+        if (!in_var->GeneratedOp()->IsMultiDeviceTransfer()) {
+          in_var->GeneratedOp()->RecordWaitEventOnCtx(dev_ctxes_.at(place));
+        }
+      }
     }
   }
 }
