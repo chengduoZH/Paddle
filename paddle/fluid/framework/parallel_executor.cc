@@ -241,7 +241,8 @@ ParallelExecutor::ParallelExecutor(
     }
     if (member_->nranks_ > 1UL) {
       if (nccl_id == nullptr) {
-        VLOG(3) << "Init nccl_id";
+        VLOG(3) << "Init nccl_id " << build_strategy.trainer_id_ << " "
+                << build_strategy.num_trainers_;
         local_nccl_id_.reset(new ncclUniqueId());
         platform::dynload::ncclGetUniqueId(local_nccl_id_.get());
         nccl_id = local_nccl_id_.get();
