@@ -48,8 +48,34 @@ void OpHandleBase::Run(bool use_cuda) {
       PADDLE_ENFORCE(
           cudaEventCreateWithFlags(&events_[dev_id], cudaEventDisableTiming));
     }
+    if (IsMultiDeviceTransfer()) {
+      for (auto &in_var : inputs_) {
+        auto *in_var_handle = dynamic_cast<VarHandle *>(in_var);
+        if (in_var_handle) {
+          int dev_id =
+              boost::get<platform::CUDAPlace>(in_var_handle->place()).device;
+          in_var_handle->SetGenerateEvent(events_[dev_id]);
+        }
+      }
+    } else {
+      PADDLE_ENFORCE_EQ(dev_ctxes_.size(), 1UL,
+                        "%s should have only one dev_ctx.", Name());
+      auto &place = dev_ctxes_.begin()->first;
+      int dev_id = boost::get<platform::CUDAPlace>(place).device;
+      for (auto &in_var : inputs_) {
+        auto *in_var_handle = dynamic_cast<VarHandle *>(in_var);
+        if (in_var_handle) {
+          PADDLE_ENFORCE(platform::is_same_place(place, in_var_handle->place()),
+                         "The place of input(%s) is not consistent with the "
+                         "place of current op(%s).",
+                         in_var_handle->Name(), Name());
+          in_var_handle->SetGenerateEvent(events_[dev_id]);
+        }
+      }
+    }
   }
 #else
+
   PADDLE_ENFORCE(!use_cuda);
 #endif
 
