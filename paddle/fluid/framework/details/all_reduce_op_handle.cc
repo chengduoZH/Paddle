@@ -55,19 +55,7 @@ AllReduceOpHandle::AllReduceOpHandle(ir::Node *node,
 
 void AllReduceOpHandle::RunImpl() {
   platform::RecordEvent record_event(Name());
-
-  std::map<platform::Place, std::vector<VarHandleBase *>> place_vars;
-  for (auto in_var : inputs_) {
-    if (in_var && in_var->GeneratedOp()) {
-      auto &dev_ctx = in_var->GeneratedOp()->DeviceContext();
-      // If the dev_ctx.size() > 1, the in_var's generate Op is a
-      // communicate OpHandle(i.e AllReduceOpHandle, FetchOpHandle).
-      // The current OpHandle doesn't need add event for those OpHandle.
-      if (dev_ctx.size() == 1) {
-        place_vars[dev_ctx.begin()->first].emplace_back(in_var);
-      }
-    }
-  }
+  WaitInputVarGenerated();
 
   auto in_var_handles = DynamicCast<VarHandle>(this->Inputs());
   auto out_var_handles = DynamicCast<VarHandle>(this->Outputs());
@@ -98,7 +86,6 @@ void AllReduceOpHandle::RunImpl() {
                       "AllReduceOpHandle should be one.");
 
     std::vector<std::function<void()>> all_reduce_calls;
-    auto &p = places_[0];
     auto &lod_tensor = *lod_tensors[0];
 
     void *buffer = const_cast<void *>(lod_tensor.data<void>());
@@ -109,15 +96,9 @@ void AllReduceOpHandle::RunImpl() {
     int dev_id = boost::get<platform::CUDAPlace>(places_[0]).device;
     auto &nccl_ctx = nccl_ctxs_->at(dev_id);
     auto stream = nccl_ctx.stream();
-    auto dev_ctx = nccl_ctxs_->DevCtx(p);
-    auto &vars = place_vars[p];
     auto comm = nccl_ctx.comm_;
 
     all_reduce_calls.emplace_back([=] {
-      for (auto &var : vars) {
-        var->GeneratedOp()->RecordWaitEventOnCtx(dev_ctx);
-      }
-
       PADDLE_ENFORCE(platform::dynload::ncclAllReduce(
           buffer, buffer, numel, static_cast<ncclDataType_t>(dtype), ncclSum,
           comm, stream));

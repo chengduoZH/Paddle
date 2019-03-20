@@ -412,17 +412,18 @@ void MultiDevSSAGraphBuilderBase::CreateAllReduceOp(
   };
 
   auto add_input_and_output = [&](const std::vector<platform::Place> &places,
-                                  const std::string &og, size_t idx) {
-    auto &vars = result->Get<GraphVars>(kGraphVars)[idx][og];
+                                  const std::string &gradient, size_t idx,
+                                  OpHandleBase *op) {
+    auto &vars = result->Get<GraphVars>(kGraphVars)[idx][gradient];
     PADDLE_ENFORCE(!vars.empty());
     auto &prev_grad = vars.back();
-    op_handle->AddInput(prev_grad);
+    op->AddInput(prev_grad);
 
-    auto var =
-        new VarHandle(result->CreateEmptyNode(og, ir::Node::Type::kVariable),
-                      vars.size(), idx, og, places[idx]);
+    auto var = new VarHandle(
+        result->CreateEmptyNode(gradient, ir::Node::Type::kVariable),
+        vars.size(), idx, gradient, places[idx]);
     vars.emplace_back(var);
-    op_handle->AddOutput(var);
+    op->AddOutput(var);
   };
 
   if (platform::is_gpu_place(places_[0])) {
@@ -432,15 +433,14 @@ void MultiDevSSAGraphBuilderBase::CreateAllReduceOp(
           result->CreateEmptyNode("barrier", ir::Node::Type::kOperation)));
       op_handle = result->Get<GraphOps>(kGraphOps).back();
       for (size_t i = 0; i < places_.size(); ++i) {
-        add_input_and_output(places_, og, i);
+        add_input_and_output(places_, og, i, op_handle);
       }
     }
     std::map<platform::Place, OpHandleBase *> all_reduce_ops;
     for (size_t i = 0; i < places_.size(); ++i) {
       op_handle = append_allreduce_op({local_scopes_[i]}, {places_[i]});
       SetCommunicationContext(op_handle, places_[i]);
-      add_input_and_output(places_, og, i);
-
+      add_input_and_output(places_, og, i, op_handle);
       all_reduce_ops[places_[i]] = op_handle;
     }
     if (pre_all_reduce_ops_.size() == 0) {
@@ -459,7 +459,7 @@ void MultiDevSSAGraphBuilderBase::CreateAllReduceOp(
     op_handle = append_allreduce_op(local_scopes_, places_);
     for (size_t i = 0; i < places_.size(); ++i) {
       SetCommunicationContext(op_handle, places_[i]);
-      add_input_and_output(places_, og, i);
+      add_input_and_output(places_, og, i, op_handle);
     }
   }
 }

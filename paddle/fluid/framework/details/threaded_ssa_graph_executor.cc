@@ -58,12 +58,6 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
   auto &pending_vars = op_deps->pending_vars_;
   auto &ready_ops = op_deps->ready_ops_;
 
-  // For ops (e.g. nccl_all_reduce) that need to coordinate multiple
-  // streams from multiple GPUs, it's faster to buffer them and schedule
-  // together since we currently cannot overlap computation and memcpy streams.
-  // Should revisit it if overlapping is available.
-  std::unordered_set<OpHandleBase *> delayed_ops;
-
   // Step 2. Insert FetchOps
   std::vector<FetchOpHandle *> fetch_ops;
   std::unordered_set<VarHandleBase *> fetch_dependencies;
@@ -78,27 +72,37 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
     }
     set.clear();
   };
-  auto run_all_op = [&](OpHandleBase *op) { RunOp(ready_vars, op); };
+
   // Clean run context
   run_op_futures_.clear();
   exception_holder_.Clear();
   event.reset(nullptr);
   // Step 3. Execution
   while (!pending_vars.empty()) {
-    VLOG(10) << "ready_ops: " << Print(ready_ops);
+    if (VLOG_IS_ON(11)) {
+      VLOG(11) << "ready_ops: " << ready_ops.size();
+      VLOG(11) << "pending_vars: " << pending_vars.size();
+      VLOG(11) << "pending_ops: " << pending_ops.size();
+    }
+    if (VLOG_IS_ON(20)) {
+      VLOG(20) << "ready_ops: " << Print(ready_ops);
+      VLOG(20) << "pending_vars: " << Print(pending_vars);
+      std::stringstream out;
+      for (auto var : pending_vars) {
+        out << "(" << var->Name() << ", " << var->GeneratedOp()->Name() << "["
+            << var->GeneratedOp()
+            << "], need input:" << pending_ops[var->GeneratedOp()] << "), ";
+        out << var->GeneratedOp()->DebugString();
+      }
+      VLOG(20) << "pending_vars: " << out.str();
+    }
     // 1. Run All Ready ops
     // Keep loop until all vars are ready.
-    //
-    // NOTE: DelayedOps have a lower priority. It will be scheduled after all
-    // ready_ops have been performed.
     run_all_ops(ready_ops);
 
     // 2. Find ready variable
     bool timeout;
-    //    std::unique_ptr<platform::RecordEvent> event3(
-    //        new platform::RecordEvent("ThreadedSSAGraphExecutorPrepare3"));
     auto cur_ready_vars = ready_vars->PopAll(1, &timeout);
-    VLOG(10) << "ready_vars: " << Print(cur_ready_vars);
 
     if (timeout) {
       if (exception_holder_.IsCaught()) {
@@ -111,10 +115,7 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         continue;
       }
     }
-    //    event3.release();
 
-    //    std::unique_ptr<platform::RecordEvent> event4(
-    //        new platform::RecordEvent("ThreadedSSAGraphExecutorPrepare4"));
     // 3. Remove the dependency of ready_var.
     // Find the ready_ops after the ready_var.
     for (auto ready_var : cur_ready_vars) {
@@ -123,12 +124,10 @@ FeedFetchList ThreadedSSAGraphExecutor::Run(
         auto &deps = pending_ops[op];
         --deps;
         if (deps == 0) {
-          run_all_op(op);
+          ready_ops.insert(op);
         }
       }
     }
-    //    event4.release();
-    VLOG(10) << "ready_ops: " << Print(ready_ops);
   }
   PADDLE_ENFORCE(ready_ops.empty());
   // Wait FetchOps.
