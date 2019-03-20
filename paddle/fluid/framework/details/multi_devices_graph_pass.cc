@@ -13,11 +13,13 @@
 // limitations under the License.
 #include <algorithm>
 #include <fstream>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "paddle/fluid/framework/details/all_reduce_op_handle.h"
+#include "paddle/fluid/framework/details/barrier_op_handle.h"
 #include "paddle/fluid/framework/details/broadcast_op_handle.h"
 #include "paddle/fluid/framework/details/computation_op_handle.h"
 #include "paddle/fluid/framework/details/data_balance_op_handle.h"
@@ -409,25 +411,56 @@ void MultiDevSSAGraphBuilderBase::CreateAllReduceOp(
     return result->Get<GraphOps>(kGraphOps).back();
   };
 
-  if (!strategy_.enable_parallel_graph_)
-    op_handle = append_allreduce_op(local_scopes_, places_);
-
-  for (size_t i = 0; i < places_.size(); ++i) {
-    if (strategy_.enable_parallel_graph_) {
-      op_handle = append_allreduce_op({local_scopes_[i]}, {places_[i]});
-    }
-
-    SetCommunicationContext(op_handle, places_[i]);
-    auto &vars = result->Get<GraphVars>(kGraphVars)[i][og];
+  auto add_input_and_output = [&](const std::vector<platform::Place> &places,
+                                  const std::string &og, size_t idx) {
+    auto &vars = result->Get<GraphVars>(kGraphVars)[idx][og];
     PADDLE_ENFORCE(!vars.empty());
     auto &prev_grad = vars.back();
     op_handle->AddInput(prev_grad);
 
     auto var =
         new VarHandle(result->CreateEmptyNode(og, ir::Node::Type::kVariable),
-                      vars.size(), i, og, places_[i]);
+                      vars.size(), idx, og, places[idx]);
     vars.emplace_back(var);
     op_handle->AddOutput(var);
+  };
+
+  if (platform::is_gpu_place(places_[0])) {
+    // Add barrier op before the first all_reduce_op_handle
+    if (!strategy_.enable_parallel_graph_ && pre_all_reduce_ops_.size() == 0) {
+      result->Get<GraphOps>(kGraphOps).emplace_back(new BarrierOpHandle(
+          result->CreateEmptyNode("barrier", ir::Node::Type::kOperation)));
+      op_handle = result->Get<GraphOps>(kGraphOps).back();
+      for (size_t i = 0; i < places_.size(); ++i) {
+        add_input_and_output(places_, og, i);
+      }
+    }
+    std::map<platform::Place, OpHandleBase *> all_reduce_ops;
+    for (size_t i = 0; i < places_.size(); ++i) {
+      op_handle = append_allreduce_op({local_scopes_[i]}, {places_[i]});
+      SetCommunicationContext(op_handle, places_[i]);
+      add_input_and_output(places_, og, i);
+
+      all_reduce_ops[places_[i]] = op_handle;
+    }
+    if (pre_all_reduce_ops_.size() == 0) {
+      std::swap(pre_all_reduce_ops_, all_reduce_ops);
+    } else {
+      // Add deps between all_reduce_op_handles
+      for (auto &place_op : pre_all_reduce_ops_) {
+        auto *dep_var = new DummyVarHandle(result->CreateControlDepVar());
+        result->Get<GraphDepVars>(kGraphDepVars).emplace(dep_var);
+        place_op.second->AddOutput(dep_var);
+        all_reduce_ops.at(place_op.first)->AddInput(dep_var);
+      }
+      std::swap(pre_all_reduce_ops_, all_reduce_ops);
+    }
+  } else {
+    op_handle = append_allreduce_op(local_scopes_, places_);
+    for (size_t i = 0; i < places_.size(); ++i) {
+      SetCommunicationContext(op_handle, places_[i]);
+      add_input_and_output(places_, og, i);
+    }
   }
 }
 

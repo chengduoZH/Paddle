@@ -14,10 +14,10 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
-
 #include "paddle/fluid/framework/details/build_strategy.h"
 #include "paddle/fluid/framework/details/multi_devices_helper.h"
 #include "paddle/fluid/framework/ir/graph.h"
@@ -102,6 +102,8 @@ class MultiDevSSAGraphBuilderBase : public ir::Pass {
 
   mutable BuildStrategy strategy_;
   mutable std::unordered_map<std::string, VarDesc *> all_vars_;
+
+  mutable std::map<platform::Place, OpHandleBase *> pre_all_reduce_ops_;
 };
 
 class AllReduceSSAGraphBuilder : public MultiDevSSAGraphBuilderBase {
