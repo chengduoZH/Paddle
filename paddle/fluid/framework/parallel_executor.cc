@@ -239,7 +239,7 @@ ParallelExecutor::ParallelExecutor(
     if (nccl_id_var != nullptr) {
       nccl_id = nccl_id_var->GetMutable<ncclUniqueId>();
     }
-    if (build_strategy.enable_parallel_graph_ && member_->nranks_ > 1UL) {
+    if (member_->nranks_ > 1UL) {
       if (nccl_id == nullptr) {
         local_nccl_id_.reset(new ncclUniqueId());
         platform::dynload::ncclGetUniqueId(local_nccl_id_.get());
