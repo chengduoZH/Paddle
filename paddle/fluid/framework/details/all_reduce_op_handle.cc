@@ -105,7 +105,6 @@ void AllReduceOpHandle::RunImpl() {
     });
 
     this->RunAndRecordEvent([&] {
-      platform::NCCLGroupGuard guard;
       // Do not use NCCLGroup when manage NCCL by per thread per device
       all_reduce_calls[0]();
     });
