@@ -96,8 +96,6 @@ struct VarHandleBase {
 //
 // NOTE: runtime variables have place.
 struct VarHandle : public VarHandleBase {
-  explicit VarHandle(ir::Node* node) : VarHandleBase(node) {}
-
   virtual ~VarHandle();
 
   std::string DebugString() const override;
@@ -110,6 +108,20 @@ struct VarHandle : public VarHandleBase {
         name_(std::move(name)),
         place_(std::move(place)) {}
 
+#ifdef PADDLE_WITH_CUDA
+  bool HasEvent() { return has_event_; }
+
+  const cudaEvent_t& GetEvent() {
+    PADDLE_ENFORCE(HasEvent(), "The event is not set.");
+    return event_;
+  }
+
+  void SetGenerateEvent(const cudaEvent_t& event) {
+    has_event_ = true;
+    event_ = event;
+  }
+#endif
+
   // version field currently is not used, however, just store the version to
   // debug easily.
  private:
@@ -117,6 +129,11 @@ struct VarHandle : public VarHandleBase {
   size_t scope_idx_;
   std::string name_;
   platform::Place place_;
+#ifdef PADDLE_WITH_CUDA
+  // Only when this event is triggered, var is generated.
+  cudaEvent_t event_;
+  bool has_event_{false};
+#endif
 
  public:
   bool IsTheSameVar(const VarHandle& o) const {
