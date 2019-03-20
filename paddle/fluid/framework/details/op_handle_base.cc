@@ -119,8 +119,27 @@ void OpHandleBase::AddOutput(VarHandleBase *out) {
 void OpHandleBase::WaitInputVarGenerated() {
   for (auto in_var : inputs_) {
     if (NeedWait(in_var)) {
-      for (auto &pair : dev_ctxes_) {
-        in_var->GeneratedOp()->RecordWaitEventOnCtx(pair.second);
+      auto *in_var_handle = dynamic_cast<VarHandle *>(in_var);
+      if (in_var_handle) {
+        auto &place = in_var_handle->place();
+        if (platform::is_gpu_place(place)) {
+#ifdef PADDLE_WITH_CUDA
+          auto stream =
+              static_cast<platform::CUDADeviceContext *>(dev_ctxes_.at(place))
+                  ->stream();
+          PADDLE_ENFORCE(
+              cudaStreamWaitEvent(stream, in_var_handle->GetEvent(), 0));
+#else
+          PADDLE_THROW("Doesn't compile the GPU.");
+#endif
+        }
+        // what to do when the place is CPU?
+      } else {
+        if (!in_var->GeneratedOp()->IsMultiDeviceTransfer()) {
+          PADDLE_ENFORCE_EQ(in_var->GeneratedOp()->dev_ctxes_.size(), 1UL);
+          auto &place = in_var->GeneratedOp()->dev_ctxes_.begin()->first;
+          in_var->GeneratedOp()->RecordWaitEventOnCtx(dev_ctxes_.at(place));
+        }
       }
     }
   }
