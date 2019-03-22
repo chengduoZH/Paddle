@@ -233,13 +233,21 @@ void CudnnHolder::ReallocateWorkspace(size_t required_workspace_len) {
                                      paddle::memory::Allocator::kScratchpad);
 }
 
-CUDADeviceContext::CUDADeviceContext(CUDAPlace place)
+CUDADeviceContext::CUDADeviceContext(CUDAPlace place, bool use_priority)
     : place_(place), cudnn_holder_(nullptr) {
   CUDADeviceGuard guard(place_.device);
   compute_capability_ = GetCUDAComputeCapability(place_.device);
   multi_process_ = GetCUDAMultiProcessors(place_.device);
   max_threads_per_mp_ = GetCUDAMaxThreadsPerMultiProcessor(place_.device);
-  PADDLE_ENFORCE(cudaStreamCreate(&stream_));
+  if (use_priority) {
+    int priority_high, priority_low;
+    cudaDeviceGetStreamPriorityRange(&priority_low, &priority_high);
+    // create streams with highest priorities
+    cudaStreamCreateWithPriority(&stream_, cudaStreamNonBlocking,
+                                 priority_high);
+  } else {
+    PADDLE_ENFORCE(cudaStreamCreate(&stream_));
+  }
   eigen_stream_.reset(new EigenCudaStreamDevice());
   eigen_stream_->Reinitialize(&stream_, place);
   eigen_device_.reset(new Eigen::GpuDevice(eigen_stream_.get()));

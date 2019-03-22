@@ -215,7 +215,7 @@ class CudnnWorkspaceHandle {
 
 class CUDADeviceContext : public DeviceContext {
  public:
-  explicit CUDADeviceContext(CUDAPlace place);
+  explicit CUDADeviceContext(CUDAPlace place, bool use_priority = false);
   virtual ~CUDADeviceContext();
 
   /*! \brief  Wait for all operations completion in the stream. */
