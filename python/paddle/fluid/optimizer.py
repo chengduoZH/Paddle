@@ -37,7 +37,7 @@ __all__ = [
     'SGDOptimizer', 'MomentumOptimizer', 'AdagradOptimizer', 'AdamOptimizer',
     'AdamaxOptimizer', 'DecayedAdagradOptimizer', 'RMSPropOptimizer',
     'FtrlOptimizer', 'Adadelta', 'ModelAverage', 'LarsMomentum',
-    'LarsMomentumOptimizer'
+    'LarsMomentumOptimizer', 'extend_with_decoupled_weight_decay'
 ]
 
 
