@@ -97,7 +97,7 @@ TEST(IsTestPass, basic) {
 
   auto pass = PassRegistry::Instance().Get("is_test_pass");
 
-  graph = pass-> Apply(graph));
+  graph = pass->Apply(graph);
 
   for (auto* node : graph->Nodes()) {
     if (node->IsOp()) {
