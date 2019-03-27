@@ -86,7 +86,7 @@ TEST(DepthwiseConvMKLDNNPass, basic) {
 
   counters before{1, 1, 1, 1};
 
-  graph = pass->Apply(graph);
+  graph.reset(pass->Apply(graph.release()));
 
   // initialize counters before loop
   counters after{0, 0, 0, 0};
