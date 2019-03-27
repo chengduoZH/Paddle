@@ -148,7 +148,7 @@ void RunPassAndAssert(ProgramDesc* prog, const std::string& from,
   auto pass =
       PassRegistry::Instance().Get("conv_elementwise_add_mkldnn_fuse_pass");
   int original_nodes_num = graph->Nodes().size();
-  graph.reset(pass->Apply(grapah.release()));
+  graph.reset(pass->Apply(graph.release()));
   int current_nodes_num = graph->Nodes().size();
 
   EXPECT_TRUE(is_reachable(graph)(from, to));
