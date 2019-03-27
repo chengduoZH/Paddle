@@ -38,7 +38,7 @@ LoDTensor tensor_apply_eltwise(const LoDTensor& vec_a, const LoDTensor& vec_b,
   return vec_y;
 }
 
-void onvBiasFusePass::ApplyImpl(ir::Graph* graph) const {
+void ConvBiasFusePass::ApplyImpl(ir::Graph* graph) const {
   PADDLE_ENFORCE(graph);
   FusePassBase::Init(name_scope_, graph);
 
