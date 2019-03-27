@@ -95,7 +95,7 @@ TEST(PassTest, TestPassAttrCheck) {
   graph->Set<int>("test_graph_attr", new int);
   graph->Get<int>("test_graph_attr") = 2;
   try {
-    auto tmp = pass->Apply(graph);
+    auto tmp = pass->Apply(graph.release());
   } catch (paddle::platform::EnforceNotMet e) {
     exception = std::string(e.what());
   }

@@ -64,7 +64,7 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
 
     if (params_grads.size() == 0) {
       VLOG(10) << "Doesn't find gradients";
-      return std::move(graph);
+      return;
     }
 
     std::unordered_map<std::string, ir::Node *> vars;
@@ -123,8 +123,6 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
 
     InitFusedVarsAndAllocSpaceForVars(places, local_scopes, vars,
                                       fused_var_name, params_grads);
-
-    return std::move(graph);
   }
 
   template <typename AttrType>
