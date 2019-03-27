@@ -73,7 +73,7 @@ TEST(FCFusePass, basic) {
 
   int pre_nodes = graph->Nodes().size();
 
-  graph = pass->Apply(graph);
+  graph.resetpass->Apply(graph.release());
 
   int after_nodes = graph->Nodes().size();
 
