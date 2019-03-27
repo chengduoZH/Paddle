@@ -87,6 +87,7 @@ ir::Graph *FuseElewiseAddActPass::FuseElewiseAddAct(
   gpd(graph, handler);
 
   AddStatis(found_elewise_add_act_count);
+  return graph;
 }
 
 // act(ele_add(x,y))
@@ -136,6 +137,7 @@ ir::Graph *FuseElewiseAddActPass::FuseActElewiseAdd(
   gpd(graph, handler);
 
   AddStatis(found_elewise_add_act_count);
+  return graph;
 }
 
 // the backward of act(ele_add(x,y))
@@ -214,6 +216,7 @@ ir::Graph *FuseElewiseAddActPass::FuseElewiseAddActInplaceGrad(
   gpd(graph, handler);
 
   AddStatis(found_elewise_add_act_count);
+  return graph;
 }
 
 Node *FuseElewiseAddActPass::CreateFuseElewiseAddActNode(
