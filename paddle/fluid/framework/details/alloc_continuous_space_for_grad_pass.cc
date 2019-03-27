@@ -46,7 +46,7 @@ static framework::proto::VarType::Type kDefaultDtype =
 
 class AllocContinuousSpaceForGradPass : public ir::Pass {
  protected:
-  ir::Graph *ApplyImpl(ir::Graph *graph) const override {
+  void ApplyImpl(ir::Graph *graph) const override {
     ir::Graph &result = *graph;
 
     auto &places = Get<const std::vector<platform::Place>>(kPlaces);

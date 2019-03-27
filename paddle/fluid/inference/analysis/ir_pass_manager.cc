@@ -142,7 +142,6 @@ std::unique_ptr<Graph> IRPassManager::Apply(std::unique_ptr<Graph> graph) {
     }
     graph.reset(pass->Apply(graph.release()));
   }
-  return graph;
 }
 
 framework::proto::ProgramDesc IRPassManager::AcquireProgram(

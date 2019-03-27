@@ -61,7 +61,6 @@ std::unique_ptr<ir::Graph> GetNumNodesOfBeforeAfter(
   *before = graph->Nodes().size();
   graph = pass->Apply(std::move(graph));
   *after = graph->Nodes().size();
-  return graph;
 }
 
 /*

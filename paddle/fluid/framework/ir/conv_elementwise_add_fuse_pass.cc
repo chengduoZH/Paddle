@@ -79,7 +79,6 @@ ir::Graph* ConvElementwiseAddFusePass::ApplyImpl(ir::Graph* graph) const {
   };
 
   gpd(graph, handler);
-  return graph;
 }
 
 }  // namespace ir

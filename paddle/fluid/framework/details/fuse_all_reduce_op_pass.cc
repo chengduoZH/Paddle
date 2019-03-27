@@ -28,7 +28,7 @@ namespace details {
 
 class FuseAllReduceOpPass : public ir::Pass {
  protected:
-  ir::Graph *ApplyImpl(ir::Graph *graph) const override {
+  void ApplyImpl(ir::Graph *graph) const override {
     ir::Graph &result = *graph;
 
     auto &places = Get<const std::vector<platform::Place>>(kPlaces);
@@ -98,7 +98,6 @@ class FuseAllReduceOpPass : public ir::Pass {
                            group_all_reduce_ops, &result);
 #endif
     }
-    return std::move(graph);
   }
 
   void InsertFusedAllReduce(const std::vector<platform::Place> &places,
