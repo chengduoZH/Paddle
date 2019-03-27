@@ -125,7 +125,7 @@ void MainTest(const ProgramDesc& prog, int removed_nodes_num) {
 
   int original_nodes_num = graph->Nodes().size();
 
-  graph = pass->Apply(std::move(graph));
+  graph = pass-> Apply(graph));
 
   int current_nodes_num = graph->Nodes().size();
 

@@ -73,7 +73,7 @@ TEST(FCFusePass, basic) {
 
   int pre_nodes = graph->Nodes().size();
 
-  graph = pass->Apply(std::move(graph));
+  graph = pass-> Apply(graph));
 
   int after_nodes = graph->Nodes().size();
 

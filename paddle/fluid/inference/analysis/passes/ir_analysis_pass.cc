@@ -30,7 +30,7 @@ void IrAnalysisPass::RunImpl(Argument* argument) {
 
   // Apply passes.
   IRPassManager the_ir_manager(argument);
-  graph = the_ir_manager.Apply(std::move(graph));
+  graph = the_ir_manager. Apply(graph));
   PADDLE_ENFORCE_GT(graph->Nodes().size(), 0);
   argument->SetMainGraph(graph.release());
   CollectFusionStatis(argument);
