@@ -70,7 +70,7 @@ class FuseAllReduceOpPass : public ir::Pass {
 
     VLOG(10) << "Find all_reduce_ops: " << all_reduce_ops.size();
     if (all_reduce_ops.size() == 0) {
-      return std::move(graph);
+      return;
     }
 
     PADDLE_ENFORCE_EQ(all_reduce_ops.size(), grads.size(),

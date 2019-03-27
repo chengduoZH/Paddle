@@ -146,6 +146,7 @@ ir::Graph *FuseReluDepthwiseConvPass::FuseReluDepthwiseConv(
   gpd(graph, handler);
   GraphSafeRemoveNodes(graph, need_removed_nodes);
   AddStatis(count);
+  return graph;
 }
 
 }  // namespace ir
