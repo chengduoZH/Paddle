@@ -14,7 +14,6 @@
 
 #include <algorithm>
 #include <map>
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -24,7 +23,6 @@
 #include "paddle/fluid/framework/details/all_reduce_op_handle.h"
 #include "paddle/fluid/framework/details/multi_devices_helper.h"
 #include "paddle/fluid/framework/details/op_graph_view.h"
-#include "paddle/fluid/framework/details/var_handle.h"
 #include "paddle/fluid/framework/ir/graph_helper.h"
 #include "paddle/fluid/framework/op_proto_maker.h"
 
@@ -42,6 +40,13 @@ void AllReduceDepsPass::ApplyImpl(ir::Graph* graph) const {
     if (all_reduce_op_handle) {
       all_reduce_op_handles.emplace_back(all_reduce_op_handle);
     }
+  }
+
+  for (size_t i = 1; i < all_reduce_op_handles.size(); ++i) {
+    auto* dep_var = new DummyVarHandle(graph->CreateControlDepVar());
+    graph->Get<GraphDepVars>(kGraphDepVars).emplace(dep_var);
+    all_reduce_op_handles[i - 1]->AddOutput(dep_var);
+    all_reduce_op_handles[i]->AddInput(dep_var);
   }
 
   if (VLOG_IS_ON(10)) {
@@ -78,13 +83,6 @@ void AllReduceDepsPass::ApplyImpl(ir::Graph* graph) const {
       VLOG(10)
           << "The gradients number of stale program and graph is not equal.";
     }
-  }
-
-  for (size_t i = 1; i < all_reduce_op_handles.size(); ++i) {
-    auto* dep_var = new DummyVarHandle(graph->CreateControlDepVar());
-    graph->Get<GraphDepVars>(kGraphDepVars).emplace(dep_var);
-    all_reduce_op_handles[i - 1]->AddOutput(dep_var);
-    all_reduce_op_handles[i]->AddInput(dep_var);
   }
 }
 
