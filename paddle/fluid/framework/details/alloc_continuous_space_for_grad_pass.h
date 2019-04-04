@@ -28,8 +28,8 @@ namespace details {
 void SetFuseParameterGroupsSize(size_t group_size);
 size_t GetFuseParameterGroupsSize();
 
-void SetFuseParameterMemorySize(size_t memory_size);
-size_t GetFuseParameterMemorySize();
+void SetFuseParameterMemorySize(int32_t memory_size);
+int32_t GetFuseParameterMemorySize();
 
 class AllocContinuousSpaceForGradPass : public ir::Pass {
  protected:

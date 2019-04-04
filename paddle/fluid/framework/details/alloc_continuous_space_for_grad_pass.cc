@@ -49,12 +49,12 @@ size_t GetFuseParameterGroupsSize() {
   return static_cast<size_t>(FLAGS_fuse_parameter_memory_size);
 }
 
-void SetFuseParameterMemorySize(size_t memory_size) {
-  FLAGS_fuse_parameter_groups_size = static_cast<u_int32_t>(memory_size);
+void SetFuseParameterMemorySize(int32_t memory_size) {
+  FLAGS_fuse_parameter_groups_size = static_cast<int32_t>(memory_size);
 }
 
-size_t GetFuseParameterMemorySize() {
-  return static_cast<size_t>(FLAGS_fuse_parameter_groups_size);
+int32_t GetFuseParameterMemorySize() {
+  return static_cast<int32_t>(FLAGS_fuse_parameter_groups_size);
 }
 
 static const char kUnKnow[] = "@UNKNOW@";
@@ -150,7 +150,7 @@ void AllocContinuousSpaceForGradPass::ApplyImpl(ir::Graph *graph) const {
 }
 
 template <typename AttrType>
-void AllocContinuousSpaceForGradPass::esetAttribute(
+void AllocContinuousSpaceForGradPass::ResetAttribute(
     const std::string &attr_name, ir::Graph *graph) const {
   if (graph->Has(attr_name)) {
     VLOG(10) << attr_name << " is reset.";
@@ -277,7 +277,7 @@ void AllocContinuousSpaceForGradPass::SetGroupAccordingToGroupSize(
   if (GetFuseParameterMemorySize() == 1) {
     return;
   }
-  size_t group_size = GetFuseParameterMemorySize();
+  size_t group_size = static_cast<size_t>(GetFuseParameterMemorySize());
   if (GetFuseParameterMemorySize() == -1) {
     group_size = group_grads_params->size();
   }
