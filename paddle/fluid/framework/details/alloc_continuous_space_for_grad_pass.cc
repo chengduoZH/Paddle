@@ -41,6 +41,22 @@ namespace paddle {
 namespace framework {
 namespace details {
 
+void SetFuseParameterGroupsSize(size_t group_size) {
+  FLAGS_fuse_parameter_memory_size = static_cast<u_int32_t>(group_size);
+}
+
+size_t GetFuseParameterGroupsSize() {
+  return static_cast<size_t>(FLAGS_fuse_parameter_memory_size);
+}
+
+void SetFuseParameterMemorySize(size_t memory_size) {
+  FLAGS_fuse_parameter_groups_size = static_cast<u_int32_t>(memory_size);
+}
+
+size_t GetFuseParameterMemorySize() {
+  return static_cast<size_t>(FLAGS_fuse_parameter_groups_size);
+}
+
 static const char kUnKnow[] = "@UNKNOW@";
 static framework::proto::VarType::Type kDefaultDtype =
     framework::proto::VarType::Type::VarType_Type_BOOL;
@@ -200,11 +216,10 @@ void AllocContinuousSpaceForGradPass::SetGroupAccordingToLayers(
 void AllocContinuousSpaceForGradPass::SetGroupAccordingToMemorySize(
     const std::unordered_map<std::string, ir::Node *> &var_nodes,
     GroupGradsAndParams *group_grads_params) const {
-  if (FLAGS_fuse_parameter_memory_size == 0) {
+  if (GetFuseParameterGroupsSize() == 0) {
     return;
   }
-  size_t group_memory_size =
-      static_cast<size_t>(FLAGS_fuse_parameter_memory_size);
+  size_t group_memory_size = GetFuseParameterGroupsSize();
   GroupGradsAndParams local_group_grads_params;
 
   size_t j = 0;
@@ -239,7 +254,7 @@ void AllocContinuousSpaceForGradPass::SetGroupAccordingToMemorySize(
   std::swap(*group_grads_params, local_group_grads_params);
 
   VLOG(10) << string::Sprintf("SetGroupAccordingToMemorySize(memory_size: %d):",
-                              FLAGS_fuse_parameter_memory_size);
+                              GetFuseParameterGroupsSize());
   for (size_t i = 0; i < group_grads_params->size(); ++i) {
     VLOG(10) << "group " << i;
     std::stringstream out;
@@ -259,11 +274,11 @@ void AllocContinuousSpaceForGradPass::SetGroupAccordingToMemorySize(
 void AllocContinuousSpaceForGradPass::SetGroupAccordingToGroupSize(
     const std::unordered_map<std::string, ir::Node *> &var_nodes,
     GroupGradsAndParams *group_grads_params) const {
-  if (FLAGS_fuse_parameter_groups_size == 1) {
+  if (GetFuseParameterMemorySize() == 1) {
     return;
   }
-  size_t group_size = static_cast<size_t>(FLAGS_fuse_parameter_groups_size);
-  if (FLAGS_fuse_parameter_groups_size == -1) {
+  size_t group_size = GetFuseParameterMemorySize();
+  if (GetFuseParameterMemorySize() == -1) {
     group_size = group_grads_params->size();
   }
   PADDLE_ENFORCE_GT(group_size, 1);

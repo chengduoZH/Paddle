@@ -25,6 +25,12 @@ namespace paddle {
 namespace framework {
 namespace details {
 
+void SetFuseParameterGroupsSize(size_t group_size);
+size_t GetFuseParameterGroupsSize();
+
+void SetFuseParameterMemorySize(size_t memory_size);
+size_t GetFuseParameterMemorySize();
+
 class AllocContinuousSpaceForGradPass : public ir::Pass {
  protected:
   void ApplyImpl(ir::Graph *graph) const override;
