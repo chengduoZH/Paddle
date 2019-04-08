@@ -48,15 +48,13 @@ void SetFuseParameterGroupsSize(int group_size) {
   FLAGS_fuse_parameter_groups_size = group_size;
 }
 
-const int GetFuseParameterGroupsSize() {
-  return FLAGS_fuse_parameter_groups_size;
-}
+int GetFuseParameterGroupsSize() { return FLAGS_fuse_parameter_groups_size; }
 
 void SetFuseParameterMemorySize(uint64_t memory_size) {
   FLAGS_fuse_parameter_memory_size = memory_size;
 }
 
-const uint64_t GetFuseParameterMemorySize() {
+uint64_t GetFuseParameterMemorySize() {
   return FLAGS_fuse_parameter_memory_size;
 }
 

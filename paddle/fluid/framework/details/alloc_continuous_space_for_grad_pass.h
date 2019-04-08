@@ -26,10 +26,10 @@ namespace framework {
 namespace details {
 
 void SetFuseParameterGroupsSize(int group_size);
-const int GetFuseParameterGroupsSize();
+int GetFuseParameterGroupsSize();
 
 void SetFuseParameterMemorySize(uint64_t memory_size);
-const uint64_t GetFuseParameterMemorySize();
+uint64_t GetFuseParameterMemorySize();
 
 class AllocContinuousSpaceForGradPass : public ir::Pass {
  protected:
