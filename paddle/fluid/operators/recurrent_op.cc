@@ -505,8 +505,8 @@ class RecurrentGradOp : public RecurrentBase {
     auto *var = scope.FindVar(Input(kStepScopes));
     PADDLE_ENFORCE(var != nullptr);
     auto step_scopes = var->GetMutable<StepScopeVar>();
-    for (auto *sub_scope : step_scopes) {
-      const_cast<framework::Scope &>(scope).DeleteScope(&sub_scope);
+    for (auto *sub_scope : *step_scopes) {
+      const_cast<framework::Scope &>(scope).DeleteScope(sub_scope);
     }
   }
 
