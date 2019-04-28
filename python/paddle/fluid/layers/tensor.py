@@ -254,7 +254,7 @@ def tensor_array_to_tensor(input, axis=1, name=None):
     return out, out_index
 
 
-def sums(input, out=None):
+def sums(input):
     """
     This function performs the sum operation on the input and returns the
     result as the output.
@@ -262,8 +262,6 @@ def sums(input, out=None):
     Args:
         input (Variable|list): The input tensor that has the elements
                                that need to be summed up.
-        out (Variable|None): Output parameter. The sum result.
-                             Default: None
 
     Returns:
         Variable: the sum of input. The same as the argument 'out'
@@ -281,9 +279,7 @@ def sums(input, out=None):
           a_sum = layers.sums(input=[mean_a0, mean_a1])
     """
     helper = LayerHelper('sum', **locals())
-    if out is None:
-        out = helper.create_variable_for_type_inference(
-            dtype=helper.input_dtype())
+    out = helper.create_variable_for_type_inference(dtype=helper.input_dtype())
     helper.append_op(
         type='sum',
         inputs={'X': input},
@@ -312,6 +308,7 @@ def assign(input, output=None):
           hidden = fluid.layers.fc(input=data, size=10)
           fluid.layers.assign(hidden, out)
     """
+    assert input != output, "The input and output should not be the same."
     helper = LayerHelper('assign', **locals())
     if output is None:
         output = helper.create_variable_for_type_inference(dtype=input.dtype)
@@ -346,7 +343,7 @@ def assign(input, output=None):
     return output
 
 
-def fill_constant(shape, dtype, value, force_cpu=False, out=None):
+def fill_constant(shape, dtype, value, force_cpu=False):
     """
     **fill_constant**
 
@@ -359,7 +356,6 @@ def fill_constant(shape, dtype, value, force_cpu=False, out=None):
         shape(tuple|list|None): Shape of the output tensor.
         dtype(np.dtype|core.VarDesc.VarType|str): Data type of the output tensor.
         value(float): The constant value used to initialize the output tensor.
-        out(Variable): The output tensor.
         force_cpu(True|False): data should be on CPU if set true.
 
     Returns:
@@ -372,8 +368,7 @@ def fill_constant(shape, dtype, value, force_cpu=False, out=None):
     """
 
     helper = LayerHelper("fill_constant", **locals())
-    if out is None:
-        out = helper.create_variable_for_type_inference(dtype=dtype)
+    out = helper.create_variable_for_type_inference(dtype=dtype)
     helper.append_op(
         type='fill_constant',
         inputs={},
@@ -855,7 +850,7 @@ def linspace(start, stop, num, dtype):
     return out
 
 
-def zeros_like(x, out=None):
+def zeros_like(x):
     """
     **zeros_like**
 
@@ -864,7 +859,6 @@ def zeros_like(x, out=None):
 
     Args:
         x(Variable): The input tensor which specifies shape and dtype.
-        out(Variable): The output tensor.
 
     Returns:
         Variable: The tensor variable storing the output.
@@ -878,8 +872,7 @@ def zeros_like(x, out=None):
     """
 
     helper = LayerHelper("zeros_like", **locals())
-    if out is None:
-        out = helper.create_variable_for_type_inference(dtype=x.dtype)
+    out = helper.create_variable_for_type_inference(dtype=x.dtype)
     helper.append_op(
         type='fill_zeros_like', inputs={'X': [x]}, outputs={'Out': [out]})
     out.stop_gradient = True
