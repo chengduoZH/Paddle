@@ -22,6 +22,7 @@ limitations under the License. */
 #include <cublas_v2.h>
 #include <cudnn.h>
 #include <curand.h>
+#include <stdio.h>
 #include <thrust/system/cuda/error.h>
 #include <thrust/system_error.h>
 #endif  // PADDLE_WITH_CUDA
@@ -355,6 +356,34 @@ using CommonType2 = typename std::add_lvalue_reference<
   __PADDLE_BINARY_COMPARE(__VAL0, __VAL1, <, >=, __VA_ARGS__)
 #define PADDLE_ENFORCE_LE(__VAL0, __VAL1, ...) \
   __PADDLE_BINARY_COMPARE(__VAL0, __VAL1, <=, >, __VA_ARGS__)
+
+// NOTE: PADDLE_ASSERT is mainly used in CUDA Kernel or HOSTDEVICE function.
+// For cuda, the assertions can affect performance and it is therefore
+// recommended to disable them in production code
+// https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#assertion
+#if defined(__CUDA_ARCH__)
+#define EXIT() asm("trap;")
+#else
+#define EXIT() PADDLE_THROW("Exception encounter.")
+#endif
+
+#define PADDLE_ASSERT(_IS_NOT_ERROR)                                          \
+  do {                                                                        \
+    if (!(_IS_NOT_ERROR)) {                                                   \
+      printf("Exception: %s:%d Assertion `%s` failed.\n", __FILE__, __LINE__, \
+             #_IS_NOT_ERROR);                                                 \
+      EXIT();                                                                 \
+    }                                                                         \
+  } while (0)
+
+#define PADDLE_ASSERT_MSG(_IS_NOT_ERROR, __MSG, __VAL)                       \
+  do {                                                                       \
+    if (!(_IS_NOT_ERROR)) {                                                  \
+      printf("Exception: %s:%d Assertion `%s` failed (%s %ld).\n", __FILE__, \
+             __LINE__, TOSTRING(_IS_NOT_ERROR), __MSG, __VAL);               \
+      EXIT();                                                                \
+    }                                                                        \
+  } while (0)
 
 #define __PADDLE_INFERSHAPE_BINARY_COMPARE(__CTX, __VAL1, __VAL2, __CMP, \
                                            __INV_CMP, ...)               \

@@ -14,7 +14,6 @@ limitations under the License. */
 
 #include "glog/logging.h"
 #include "paddle/fluid/memory/detail/memory_block.h"
-#include "paddle/fluid/platform/assert.h"
 
 namespace paddle {
 namespace memory {
