@@ -63,8 +63,17 @@ void FetchOpHandle::RunImpl() {
     auto &t = var->Get<framework::LoDTensor>();
     if (platform::is_gpu_place(t.place())) {
 #ifdef PADDLE_WITH_CUDA
-      TensorCopy(t, cpu, *dev_ctxes_.at(t.place()), &tensors_[i]);
-      dev_ctxes_.at(t.place())->Wait();
+      if(VLOG_IS_ON(12)) {
+         TensorCopy(t, cpu, *dev_ctxes_.at(t.place()), &tensors_[i]);
+         dev_ctxes_.at(t.place())->Wait();
+         // cudaDeviceSynchronize();
+         VLOG(12) << inputs_[i]->Name() << " "<<  tensors_[i].data<float>()[0]; 
+      } else {
+         TensorCopy(t, cpu, &tensors_[i]);
+         // TensorCopy(t, cpu, *dev_ctxes_.at(t.place()), &tensors_[i]);
+         // dev_ctxes_.at(t.place())->Wait();
+         VLOG(1) << inputs_[i]->Name() << " "<<  tensors_[i].data<float>()[0]; 
+      }
 #endif
     } else {
       tensors_[i].ShareDataWith(t);

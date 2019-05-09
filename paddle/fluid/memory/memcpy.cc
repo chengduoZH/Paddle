@@ -46,6 +46,7 @@ void Copy<platform::CPUPlace, platform::CUDAPlace>(
     platform::RecordEvent record_event("GpuMemcpyAsync:GPU->CPU");
     platform::GpuMemcpyAsync(dst, src, num, cudaMemcpyDeviceToHost, stream);
   } else {
+    VLOG(1) << "use sync copy";
     platform::RecordEvent record_event("GpuMemcpySync:GPU->CPU");
     platform::GpuMemcpySync(dst, src, num, cudaMemcpyDeviceToHost);
     // FIXME(zjl): do we really need it?
@@ -64,6 +65,8 @@ void Copy<platform::CUDAPlace, platform::CPUPlace>(
     platform::RecordEvent record_event("GpuMemcpyAsync:CPU->GPU");
     platform::GpuMemcpyAsync(dst, src, num, cudaMemcpyHostToDevice, stream);
   } else {
+    VLOG(1) << "use sync copy";
+
     platform::RecordEvent record_event("GpuMemcpySync:CPU->GPU");
     platform::GpuMemcpySync(dst, src, num, cudaMemcpyHostToDevice);
     // FIXME(zjl): do we really need it?
@@ -83,6 +86,7 @@ void Copy<platform::CUDAPlace, platform::CUDAPlace>(
       platform::RecordEvent record_event("GpuMemcpyAsync(same_gpu):GPU->GPU");
       platform::GpuMemcpyAsync(dst, src, num, cudaMemcpyDeviceToDevice, stream);
     } else {
+    VLOG(1) << "use sync copy";
       platform::RecordEvent record_event("GpuMemcpySync(same_gpu):GPU->GPU");
       platform::GpuMemcpySync(dst, src, num, cudaMemcpyDeviceToDevice);
     }
@@ -92,6 +96,7 @@ void Copy<platform::CUDAPlace, platform::CUDAPlace>(
       platform::GpuMemcpyPeerAsync(dst, dst_place.device, src, src_place.device,
                                    num, stream);
     } else {
+    VLOG(1) << "use sync copy";
       platform::RecordEvent record_event("GpuMemcpyPeerSync:GPU->GPU");
       platform::GpuMemcpyPeerSync(dst, dst_place.device, src, src_place.device,
                                   num);
@@ -130,6 +135,7 @@ void Copy<platform::CUDAPinnedPlace, platform::CUDAPlace>(
     platform::RecordEvent record_event("GpuMemcpyAsync:GPU->CUDAPinned");
     platform::GpuMemcpyAsync(dst, src, num, cudaMemcpyDeviceToHost, stream);
   } else {
+    VLOG(1) << "use sync copy";
     platform::RecordEvent record_event("GpuMemcpySync:GPU->CUDAPinned");
     platform::GpuMemcpySync(dst, src, num, cudaMemcpyDeviceToHost);
   }
@@ -145,6 +151,7 @@ void Copy<platform::CUDAPlace, platform::CUDAPinnedPlace>(
     platform::RecordEvent record_event("GpuMemcpyAsync:CUDAPinned->GPU");
     platform::GpuMemcpyAsync(dst, src, num, cudaMemcpyHostToDevice, stream);
   } else {
+    VLOG(1) << "use sync copy";
     platform::RecordEvent record_event("GpuMemcpySync:CUDAPinned->GPU");
     platform::GpuMemcpySync(dst, src, num, cudaMemcpyHostToDevice);
   }
