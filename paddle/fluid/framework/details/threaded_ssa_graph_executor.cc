@@ -53,18 +53,13 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
       new platform::RecordEvent("ThreadedSSAGraphExecutorPrepare"));
   std::unique_ptr<OpDependentData> op_deps = op_deps_futures_.get();
   CopyOpDeps();
+
   VLOG(10) << "ThreadedSSAGraphExecutor::Run";
   std::shared_ptr<BlockingQueue<VarHandleBase *>> ready_vars(
       new BlockingQueue<VarHandleBase *>);
   auto &pending_ops = op_deps->pending_ops_;
   auto &pending_vars = op_deps->pending_vars_;
   auto &ready_ops = op_deps->ready_ops_;
-
-  // For ops (e.g. nccl_all_reduce) that need to coordinate multiple
-  // streams from multiple GPUs, it's faster to buffer them and schedule
-  // together since we currently cannot overlap computation and memcpy streams.
-  // Should revisit it if overlapping is available.
-  std::unordered_set<OpHandleBase *> delayed_ops;
 
   // Step 2. Insert FetchOps
   std::vector<FetchOpHandle *> fetch_ops;
@@ -73,6 +68,17 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
 
   InsertFetchOps(fetch_tensors, &fetch_ops, &fetch_dependencies, &ready_ops,
                  &pending_ops, &pending_vars, &fetch_data);
+
+  if (!record_ops_.empty()) {
+    for (auto &op : record_ops_) {
+      op->Run(strategy_.use_cuda_);
+    }
+
+    for (auto &op : fetch_ops) {
+      op->Run(strategy_.use_cuda_);
+    }
+    return fetch_data;
+  }
 
   auto run_all_ops = [&](std::unordered_set<OpHandleBase *> &set) {
     for (auto *op : set) {
@@ -84,6 +90,7 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
   run_op_futures_.clear();
   exception_holder_.Clear();
   event.reset(nullptr);
+
   // Step 3. Execution
   while (!pending_vars.empty()) {
     // 1. Run All Ready ops
@@ -286,11 +293,16 @@ void ThreadedSSAGraphExecutor::RunOp(
       exception_holder_.Catch(std::current_exception());
     }
   };
+
   if (pool_) {
     run_op_futures_.emplace_back(pool_->enqueue(op_run));
   } else {
     op_run();
   }
+  if (dynamic_cast<FetchOpHandle *>(op)) {
+    return;
+  }
+  record_ops_.emplace_back(op);
 }
 }  // namespace details
 }  // namespace framework
