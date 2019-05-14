@@ -69,8 +69,8 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
   InsertFetchOps(fetch_tensors, &fetch_ops, &fetch_dependencies, &ready_ops,
                  &pending_ops, &pending_vars, &fetch_data);
 
-  if (!record_ops_.empty()) {
-    for (auto &op : record_ops_) {
+  if (VLOG_IS_ON(2) && !traced_ops_.empty()) {
+    for (auto &op : traced_ops_) {
       op->Run(strategy_.use_cuda_);
     }
 
@@ -299,10 +299,16 @@ void ThreadedSSAGraphExecutor::RunOp(
   } else {
     op_run();
   }
-  if (dynamic_cast<FetchOpHandle *>(op)) {
+
+  RecordOps(op);
+}
+
+void ThreadedSSAGraphExecutor::RecordOps(const OpHandleBase *op) {
+  if ((VLOG_IS_ON(2) || strategy_.run_as_traced_ops_) &&
+      dynamic_cast<FetchOpHandle *>(op)) {
     return;
   }
-  record_ops_.emplace_back(op);
+  traced_ops_.emplace_back(op);
 }
 }  // namespace details
 }  // namespace framework

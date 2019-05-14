@@ -30,6 +30,7 @@ struct ExecutionStrategy {
   // Please be aware about this parameters.
   size_t num_iteration_per_drop_scope_{1};
   ExecutorType type_{kExperimental};
+  bool run_as_traced_ops_{false};
   bool dry_run_{false};
   size_t num_iteration_per_run_{1};  // only use with async_ssa_graph_executor
                                      // and pyreader with data queue

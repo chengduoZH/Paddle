@@ -26,8 +26,7 @@ class MergeSelectedRowsKernel : public framework::OpKernel<T> {
   void Compute(const framework::ExecutionContext& context) const override {
     auto* x = context.Input<framework::SelectedRows>("X");
     auto* out = context.Output<framework::SelectedRows>("Out");
-
-    math::scatter::MergeAdd<DeviceContext, T> merge_func;
+    context math::scatter::MergeAdd<DeviceContext, T> merge_func;
     merge_func(context.template device_context<DeviceContext>(), *x, out);
   }
 };
