@@ -61,6 +61,7 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
   auto &pending_vars = op_deps->pending_vars_;
   auto &ready_ops = op_deps->ready_ops_;
   size_t num_ops = op_deps->num_ops_;
+  PADDLE_ENFORCE_GT(num_ops, 0, "The graph doesn't have operators.");
 
   // Step 2. Insert FetchOps
   std::vector<OpHandleBase *> fetch_ops;
@@ -277,6 +278,7 @@ void ThreadedSSAGraphExecutor::CopyOpDeps() {
                                   op_deps_->pending_vars_.end());
     op_deps->ready_ops_.insert(op_deps_->ready_ops_.begin(),
                                op_deps_->ready_ops_.end());
+    op_deps->num_ops_ = op_deps_->num_ops_;
     return std::unique_ptr<OpDependentData>(op_deps);
   });
 }
