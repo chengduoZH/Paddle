@@ -52,6 +52,7 @@ FeedFetchList FastThreadedSSAGraphExecutor::Run(
   std::unique_ptr<std::unordered_map<OpHandleBase *, std::atomic<int>>>
       op_deps = atomic_op_deps_.get();
   PrepareAtomicOpDeps();
+  size_t num_ops = op_deps->size();
 
   paddle::framework::FeedFetchList fetches;
   fetches.resize(fetch_tensors.size());
@@ -63,7 +64,6 @@ FeedFetchList FastThreadedSSAGraphExecutor::Run(
   InsertFetchOps(fetch_tensors, &fetches, &fetched_vars, op_deps.get(),
                  &fetch_ops, &ready_fetch_ops);
 
-  size_t num_ops = op_deps->size();
   VLOG(3) << traced_ops_.size() << ", num ops: " << num_ops;
   if (strategy_.num_threads_ == 1 && traced_ops_.size() == num_ops) {
     // If the num_threads is 1, we can record the order of operator's
@@ -77,6 +77,7 @@ FeedFetchList FastThreadedSSAGraphExecutor::Run(
       ExecutionFinal(&fetch_ops);
     }
   } else {
+    traced_ops_.clear();
     remaining_ = 0;
     auto complete_q = std::make_shared<BlockingQueue<size_t>>();
     for (auto op : bootstrap_ops_) {
