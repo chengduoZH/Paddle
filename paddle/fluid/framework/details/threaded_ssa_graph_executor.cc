@@ -45,6 +45,13 @@ ThreadedSSAGraphExecutor::ThreadedSSAGraphExecutor(
   }
   PrepareOpDeps();
   CopyOpDeps();
+  if (strategy.num_threads_) {
+    auto nodes = ir::TopologySortOperations(*graph_);
+    traced_ops_.reserve(nodes.size());
+    for (auto &node : nodes) {
+      traced_ops_.emplace_back(&node->Wrapper<OpHandleBase>());
+    }
+  }
 }
 
 inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
@@ -282,6 +289,7 @@ void ThreadedSSAGraphExecutor::RunOp(
     RunOpSync(op);
     try {
       ready_var_q->Extend(op->Outputs());
+      VLOG(10) << op << " " << op->Name() << " Signal posted";
     } catch (...) {
       exception_holder_.Catch(std::current_exception());
     }
@@ -315,7 +323,6 @@ void ThreadedSSAGraphExecutor::RunOpSync(OpHandleBase *op) {
       op->Run(strategy_.use_cuda_);
     }
     VLOG(10) << op << " " << op->Name() << " Done ";
-    VLOG(10) << op << " " << op->Name() << " Signal posted";
   } catch (...) {
     exception_holder_.Catch(std::current_exception());
   }

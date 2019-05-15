@@ -263,7 +263,6 @@ void FastThreadedSSAGraphExecutor::RunOpSync(OpHandleBase *op) {
       op->Run(strategy_.use_cuda_);
     }
     VLOG(10) << op << " " << op->Name() << " Done ";
-    VLOG(10) << op << " " << op->Name() << " Signal posted";
   } catch (...) {
     exception_.Catch(std::current_exception());
   }
