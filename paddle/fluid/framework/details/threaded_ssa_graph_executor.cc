@@ -60,6 +60,7 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
   auto &pending_ops = op_deps->pending_ops_;
   auto &pending_vars = op_deps->pending_vars_;
   auto &ready_ops = op_deps->ready_ops_;
+  size_t num_ops = op_deps->num_ops_;
 
   // Step 2. Insert FetchOps
   std::vector<OpHandleBase *> fetch_ops;
@@ -73,7 +74,7 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
   event.reset(nullptr);
 
   // Step 3. Execution
-  size_t num_ops = ready_ops.size() + pending_ops.size();
+  VLOG(3) << traced_ops_.size() << ", num ops: " << num_ops;
   if (strategy_.num_threads_ == 1 && traced_ops_.size() == num_ops) {
     // If the num_threads is 1, we can record the order of operator's
     // execution in the first iteration, and in subsequent iterations,
@@ -86,6 +87,7 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
       ExecutionFinal(&fetch_ops);
     }
   } else {
+    traced_ops_.clear();
     auto run_all_ops = [&](std::unordered_set<OpHandleBase *> &set) {
       for (auto *op : set) {
         RunOp(ready_vars, op);
@@ -252,6 +254,8 @@ void ThreadedSSAGraphExecutor::PrepareOpDeps() {
       InsertPendingOp(&pending_ops, op);
     }
   }
+  op_deps_->num_ops_ = ready_ops.size() + pending_ops.size();
+
   for (auto ready_var : ready_vars) {
     pending_vars.erase(ready_var);
     for (auto *op : ready_var->PendingOps()) {
