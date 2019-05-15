@@ -62,12 +62,13 @@ FeedFetchList FastThreadedSSAGraphExecutor::Run(
 
   InsertFetchOps(fetch_tensors, &fetches, &fetched_vars, op_deps.get(),
                  &fetch_ops, &ready_fetch_ops);
-
-  if (strategy_.num_threads_ == 1 && !traced_ops_.empty()) {
+  size_t num_ops = op_deps->size();
+  if (strategy_.num_threads_ == 1 && traced_ops_.size() == num_ops) {
     // If the num_threads is 1, we can record the order of operator's
     // execution in the first iteration, and in subsequent iterations,
     // run the recorded operators directly. This strategy could make the
     // execution faster.
+    VLOG(3) << "Run the traced ops.";
     RunTracedOps(traced_ops_);
     RunTracedOps(fetch_ops);
     if (exception_.IsCaught()) {

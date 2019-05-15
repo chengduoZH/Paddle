@@ -45,13 +45,6 @@ ThreadedSSAGraphExecutor::ThreadedSSAGraphExecutor(
   }
   PrepareOpDeps();
   CopyOpDeps();
-  if (strategy.num_threads_) {
-    auto nodes = ir::TopologySortOperations(*graph_);
-    traced_ops_.reserve(nodes.size());
-    for (auto &node : nodes) {
-      traced_ops_.emplace_back(&node->Wrapper<OpHandleBase>());
-    }
-  }
 }
 
 inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
@@ -80,11 +73,13 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
   event.reset(nullptr);
 
   // Step 3. Execution
-  if (strategy_.num_threads_ == 1 && !traced_ops_.empty()) {
+  size_t num_ops = ready_ops.size() + pending_ops.size();
+  if (strategy_.num_threads_ == 1 && traced_ops_.size() == num_ops) {
     // If the num_threads is 1, we can record the order of operator's
     // execution in the first iteration, and in subsequent iterations,
     // run the recorded operators directly. This strategy could make the
     // execution faster.
+    VLOG(3) << "Run the traced ops. ";
     RunTracedOps(traced_ops_);
     RunTracedOps(fetch_ops);
     if (exception_holder_.IsCaught()) {
