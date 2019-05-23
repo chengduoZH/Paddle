@@ -51,18 +51,16 @@ class NCCLBroadcastOpKernel : public framework::OpKernel<T> {
     auto comm = dev_ctx.nccl_comm();
     auto stream = dev_ctx.stream();
 
-    void* send_recv_buffer = const_cast<void*>(in->data<void>());
-    if (root_dev_id != in_dev_id) {
-      send_recv_buffer = out->mutable_data<T>(ctx.GetPlace());
-    }
+    const void* send_buffer = in->data<void>();
+    void* recv_buffer = out->mutable_data<T>(ctx.GetPlace());
+
+    PADDLE_ENFORCE(platform::dynload::ncclBroadcast(
+        send_buffer, recv_buffer, static_cast<size_t>(in->numel()),
+        platform::ToNCCLDataType(in->type()), root_dev_id, comm, stream));
 
     VLOG(3) << "Bcast " << ctx.Inputs("X")[0] << ", ("
             << static_cast<size_t>(in->numel()) << ")"
             << " From " << root_dev_id << " to " << in_dev_id;
-
-    PADDLE_ENFORCE(platform::dynload::ncclBcast(
-        send_recv_buffer, static_cast<size_t>(in->numel()),
-        platform::ToNCCLDataType(in->type()), root_dev_id, comm, stream));
 
     if (ctx.Attr<bool>("sync_mode")) {
       PADDLE_ENFORCE(cudaStreamSynchronize(stream));
