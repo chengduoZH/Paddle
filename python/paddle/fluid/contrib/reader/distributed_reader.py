@@ -13,13 +13,14 @@
 # limitations under the License.
 
 from __future__ import print_function
+import os
 
-__all__ = ["distributed_reader"]
+__all__ = ["distributed_sampler"]
 
 
-def distributed_reader(reader, batch_size):
+def distributed_sampler(reader, batch_size):
     """
-    Create a distributed sampler.
+    Create a distributed reader.
 
     :param reader: the data reader to read from.
     :type reader: callable
@@ -35,7 +36,7 @@ def distributed_reader(reader, batch_size):
         trainer_id = int(os.getenv("PADDLE_TRAINER_ID", "0"))
         trainer_count = int(os.getenv("PADDLE_TRAINERS_NUM", "1"))
 
-        def _get_data_slice(size):
+        def _slice_data(size):
             per_node_lines = size // trainer_count
             return [
                 trainer_id * per_node_lines, (trainer_id + 1) * per_node_lines
@@ -48,12 +49,12 @@ def distributed_reader(reader, batch_size):
             b.append(instance)
             if len(b) == batch_size:
                 if len(b) >= trainer_count:
-                    begin, end = _get_data_slice(len(b))
+                    begin, end = _slice_data(len(b))
                     yield b[begin:end]
                 b = []
 
         if len(b) >= trainer_count:
-            begin, end = _get_data_slice(len(b))
+            begin, end = _slice_data(len(b))
             yield b[begin:end]
 
     # Batch size check
