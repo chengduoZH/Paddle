@@ -37,7 +37,12 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
     const std::vector<std::string> &fetch_tensors) {
   if (drop_scope_counter_ == 0) {
     platform::RecordEvent e("InitLocalExeScopes");
-    PrepareLocalExeScopes();
+    if (iterations_ == 0) {
+      PrepareLocalExeScopes();
+      ++iterations_;
+    } else {
+      PrepareLocalExeScopes2();
+    }
   }
 
   std::vector<framework::LoDTensor> fetch_data;
@@ -74,8 +79,11 @@ void ScopeBufferedSSAGraphExecutor::DropLocalExeScopes() {
 }
 
 void ScopeBufferedSSAGraphExecutor::PrepareLocalExeScopes() {
+  //  tmp_scopes_.resize(local_scopes_.size());
   // Create local scopes.
-  for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
+  size_t idx = local_scopes_.size() - 1;
+  for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend() && idx > 0;
+       ++it, --idx) {
     auto &scope = *it;
     Scope &local_scope = scope->NewScope();
     *scope->Var(kLocalExecScopeName)->GetMutable<Scope *>() = &local_scope;
@@ -88,7 +96,24 @@ void ScopeBufferedSSAGraphExecutor::PrepareLocalExeScopes() {
         InitializeVariable(scope->Var(info.name_), info.type_);
       } else {
         InitializeVariable(local_scope.Var(info.name_), info.type_);
+        tmp_vars_[idx].emplace_back(info);
       }
+    }
+  }
+}
+
+void ScopeBufferedSSAGraphExecutor::PrepareLocalExeScopes2() {
+  //  tmp_scopes_.resize(local_scopes_.size());
+  // Create local scopes.
+  size_t idx = local_scopes_.size() - 1;
+  for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend() && idx > 0;
+       ++it, --idx) {
+    auto &scope = *it;
+    Scope &local_scope = scope->NewScope();
+    *scope->Var(kLocalExecScopeName)->GetMutable<Scope *>() = &local_scope;
+
+    for (auto &info : tmp_vars_[idx]) {
+      InitializeVariable(local_scope.Var(info.name_), info.type_);
     }
   }
 }

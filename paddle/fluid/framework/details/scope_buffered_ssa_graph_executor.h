@@ -53,14 +53,18 @@ class ScopeBufferedSSAGraphExecutor : public SSAGraphExecutor {
   bool NeedCreateLocalExeScope();
 
   void PrepareLocalExeScopes();
+  void PrepareLocalExeScopes2();
 
  private:
   size_t drop_scope_counter_{0};
   ExecutionStrategy strategy_;
   std::unique_ptr<SSAGraphExecutor> underlying_executor_;
   std::vector<Scope*> local_scopes_;
+  //  std::vector<Scope> tmp_scopes_;
+  std::vector<std::vector<VariableInfo>> tmp_vars_;
   std::vector<VariableInfo> var_infos_;
   std::vector<platform::Place> places_;
+  int iterations_{0};
 };
 }  // namespace details
 }  // namespace framework
