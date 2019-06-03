@@ -182,7 +182,7 @@ class VarBase {
     }
     var_->GetMutable<framework::LoDTensor>()->Resize(shape);
     VLOG(2) << "create varbase: " << name_ << " type: " << dtype_
-            << " place: " << place_;
+            << " place: " << place_ << " dim:" << shape;
   }
 
  public:
@@ -256,7 +256,8 @@ class VarBase {
     if (!var_->Get<framework::LoDTensor>().IsInitialized()) {
       var_->GetMutable<framework::LoDTensor>()->mutable_data(place_, dtype_);
       VLOG(2) << "initialized varbase: " << name_ << " type: " << dtype_
-              << " place: " << place_;
+              << " place: " << place_
+              << " dim: " << var_->GetMutable<framework::LoDTensor>()->dims();
     } else {
       VLOG(2) << "var: " << name_ << " has already been initialized ";
     }
