@@ -69,7 +69,7 @@ class Tracer {
 
   framework::BlockDesc* root_block_;
   ::ThreadPool prepare_pool_;
-  std::future<std::set<std::string>> future_;
+  std::future<void> future_;
 
   void RunOp(const std::string& op_type, const platform::Place& op_place,
              const framework::OpInfo& op_info, const VarBasePtrMap& inputs,
