@@ -143,7 +143,7 @@ class VarBase {
     var_->GetMutable<framework::LoDTensor>()->Resize(
         framework::make_ddim(shape));
     VLOG(2) << "create varbase: " << name_ << " type: " << dtype_
-            << " place: " << place_;
+            << " place: " << place_ << " Dim " << framework::make_ddim(shape);
   }
 
   // Internal interface, create VarBase from with ddim
