@@ -77,7 +77,8 @@ class Tracer {
              const framework::VariableValueMap& outvars_map,
              const framework::VariableNameMap& invars_name_map,
              const framework::VariableNameMap& outvars_name_map,
-             VarBasePtrMap* outputs, framework::AttributeMap* attrs_map) const;
+             VarBasePtrMap* outputs, framework::AttributeMap* attrs_map,
+             framework::OperatorBase* op_base) const;
 };
 
 }  // namespace imperative

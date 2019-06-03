@@ -173,9 +173,17 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   //  if (future_.valid()) {
   //  }
   auto& info = framework::OpInfoMap::Instance().Get(op->Type());
+  if (info.Checker() != nullptr) {
+    info.Checker()->Check(&attrs_map);
+  }
+  std::unique_ptr<framework::OperatorBase> op_base =
+      framework::OpRegistry::CreateOp(op->Type(), invars_name_map,
+                                      outvars_name_map, attrs_map);
+
   future_ = prepare_pool_.enqueue([&]() {
     RunOp(op->Type(), op->place_, info, inputs, invars_map, outvars_map,
-          invars_name_map, outvars_name_map, outputs, &attrs_map);
+          invars_name_map, outvars_name_map, outputs, &attrs_map,
+          op_base.get());
   });
 
   future_.get();
@@ -190,13 +198,8 @@ void Tracer::RunOp(const std::string& op_type, const platform::Place& op_place,
                    const framework::VariableValueMap& outvars_map,
                    const framework::VariableNameMap& invars_name_map,
                    const framework::VariableNameMap& outvars_name_map,
-                   VarBasePtrMap* outputs,
-                   framework::AttributeMap* attrs_map) const {
-  VLOG(3) << "tracer running " << op_type;
-  if (info.Checker() != nullptr) {
-    info.Checker()->Check(attrs_map);
-  }
-
+                   VarBasePtrMap* outputs, framework::AttributeMap* attrs_map,
+                   framework::OperatorBase* op_base) const {
   VLOG(3) << "tracer running " << op_type;
   if (info.infer_var_type_) {
     RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs, attrs_map);
@@ -204,13 +207,10 @@ void Tracer::RunOp(const std::string& op_type, const platform::Place& op_place,
   }
   VLOG(3) << "tracer running " << op_type;
 
-  std::unique_ptr<framework::OperatorBase> op_base =
-      framework::OpRegistry::CreateOp(op_type, invars_name_map,
-                                      outvars_name_map, *attrs_map);
   VLOG(3) << "tracer running " << op_type;
   // TODO(panyx0718): Cache p.
   framework::OperatorWithKernel* op_kernel =
-      dynamic_cast<framework::OperatorWithKernel*>(op_base.get());
+      dynamic_cast<framework::OperatorWithKernel*>(op_base);
   PADDLE_ENFORCE_NOT_NULL(op_kernel, "only support op with kernel");
 
   // TODO(minqiyang): Support infer var type in imperative mode
