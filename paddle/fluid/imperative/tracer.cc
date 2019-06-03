@@ -184,7 +184,7 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   }
   // TODO(panyx0718): Cache p.
   framework::OperatorWithKernel* op_kernel =
-      dynamic_cast<framework::OperatorWithKernel*>(op_base);
+      dynamic_cast<framework::OperatorWithKernel*>(op_base.get());
   PADDLE_ENFORCE_NOT_NULL(op_kernel, "only support op with kernel");
 
   // TODO(minqiyang): Support infer var type in imperative mode
