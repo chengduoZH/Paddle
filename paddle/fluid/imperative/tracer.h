@@ -69,8 +69,7 @@ class Tracer {
       const bool stop_gradient,
       const std::map<std::string, VarBase*>& current_vars_map,
       const framework::VariableNameMap& invars_name_map,
-      const framework::VariableNameMap& outvars_name_map,
-      const PreparedOp& prepared_op) const;
+      const framework::VariableNameMap& outvars_name_map) const;
 };
 
 }  // namespace imperative
