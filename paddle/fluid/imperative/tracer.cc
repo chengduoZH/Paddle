@@ -26,36 +26,37 @@
 #include "paddle/fluid/platform/device_context.h"
 #include "paddle/fluid/platform/enforce.h"
 #include "paddle/fluid/platform/profiler.h"
+
 #ifdef WITH_GPERFTOOLS
 #include "gperftools/profiler.h"
 #endif
 namespace paddle {
 namespace imperative {
 
-void CreateGradOp(const framework::OpDesc& op_desc,
-                  const std::unordered_set<std::string>& no_grad_set,
-                  const std::vector<framework::BlockDesc*>& grad_sub_block,
-                  std::vector<framework::OpDesc*>* grad_op_descs,
-                  std::unordered_map<std::string, std::string>* grad_to_var) {
+void CreateGradOp(const framework::OpDesc &op_desc,
+                  const std::unordered_set<std::string> &no_grad_set,
+                  const std::vector<framework::BlockDesc *> &grad_sub_block,
+                  std::vector<framework::OpDesc *> *grad_op_descs,
+                  std::unordered_map<std::string, std::string> *grad_to_var) {
   PADDLE_ENFORCE(grad_op_descs->empty());
-  const framework::OpInfo& op_info =
+  const framework::OpInfo &op_info =
       framework::OpInfoMap::Instance().Get(op_desc.Type());
   if (!op_info.grad_op_maker_) return;
 
   std::vector<std::unique_ptr<framework::OpDesc>> descs =
       op_info.GradOpMaker()(op_desc, no_grad_set, grad_to_var, grad_sub_block);
-  for (auto& desc : descs) {
+  for (auto &desc : descs) {
     grad_op_descs->emplace_back(desc.release());
   }
 }
 
-void CreateNoBuffuerGrad(VarBase* var, platform::DeviceContext* dev_ctx) {
+void CreateNoBuffuerGrad(VarBase *var, platform::DeviceContext *dev_ctx) {
   PADDLE_ENFORCE_NOT_NULL(var, "Could not get valid var base");
   PADDLE_ENFORCE_NOT_NULL(dev_ctx,
                           "Could not get valid device from forward op");
 
   if (var->Grad() == nullptr) {
-    auto& var_t = var->GetVar()->Get<framework::LoDTensor>();
+    auto &var_t = var->GetVar()->Get<framework::LoDTensor>();
     var->SetGrad(new VarBase(var->GradName(), framework::proto::VarType::FP32,
                              framework::vectorize(var_t.dims()),
                              dev_ctx->GetPlace(), true, false, false));
@@ -65,7 +66,7 @@ void CreateNoBuffuerGrad(VarBase* var, platform::DeviceContext* dev_ctx) {
 platform::Place GetExpectedPlace(platform::Place place, VarBasePtrMap inputs) {
   platform::Place result = place;
   for (auto it : inputs) {
-    for (VarBase* var : it.second) {
+    for (VarBase *var : it.second) {
       platform::Place tmp_place =
           var->GetVar()->Get<framework::LoDTensor>().place();
       if (!platform::is_same_place(tmp_place, result)) {
@@ -81,16 +82,16 @@ platform::Place GetExpectedPlace(platform::Place place, VarBasePtrMap inputs) {
 }
 
 framework::VariableNameMap CreateInputVarNameMap(
-    const OpBase* op, const VarBasePtrMap& varbase_map) {
+    const OpBase *op, const VarBasePtrMap &varbase_map) {
   framework::VariableNameMap result;
 
-  auto& info_map = framework::OpInfoMap::Instance();
-  auto* op_info = info_map.GetNullable(op->Type());
+  auto &info_map = framework::OpInfoMap::Instance();
+  auto *op_info = info_map.GetNullable(op->Type());
   if (op_info == nullptr || op_info->proto_ == nullptr) {
     return result;
   }
 
-  for (auto& in : op_info->Proto().inputs()) {
+  for (auto &in : op_info->Proto().inputs()) {
     auto it = varbase_map.find(in.name());
     if (it == varbase_map.end()) {
       PADDLE_ENFORCE(in.dispensable());
@@ -99,7 +100,7 @@ framework::VariableNameMap CreateInputVarNameMap(
       auto var_vector = it->second;
       std::vector<std::string> args;
       args.reserve(var_vector.size());
-      for (VarBase* var_base : var_vector) {
+      for (VarBase *var_base : var_vector) {
         args.emplace_back(var_base->Name());
       }
       result[in.name()] = args;
@@ -109,16 +110,16 @@ framework::VariableNameMap CreateInputVarNameMap(
 }
 
 framework::VariableNameMap CreateOutputVarNameMap(
-    const OpBase* op, const VarBasePtrMap& varbase_map) {
+    const OpBase *op, const VarBasePtrMap &varbase_map) {
   framework::VariableNameMap result;
 
-  auto& info_map = framework::OpInfoMap::Instance();
-  auto* op_info = info_map.GetNullable(op->Type());
+  auto &info_map = framework::OpInfoMap::Instance();
+  auto *op_info = info_map.GetNullable(op->Type());
   if (op_info == nullptr || op_info->proto_ == nullptr) {
     return result;
   }
 
-  for (auto& out : op_info->Proto().outputs()) {
+  for (auto &out : op_info->Proto().outputs()) {
     auto it = varbase_map.find(out.name());
     if (it == varbase_map.end()) {
       PADDLE_ENFORCE(out.dispensable());
@@ -127,7 +128,7 @@ framework::VariableNameMap CreateOutputVarNameMap(
       auto var_vector = it->second;
       std::vector<std::string> args;
       args.reserve(var_vector.size());
-      for (VarBase* var_base : var_vector) {
+      for (VarBase *var_base : var_vector) {
         args.emplace_back(var_base->Name());
       }
       result[out.name()] = args;
@@ -136,11 +137,11 @@ framework::VariableNameMap CreateOutputVarNameMap(
   return result;
 }
 
-Tracer::Tracer(framework::BlockDesc* root_block)
+Tracer::Tracer(framework::BlockDesc *root_block)
     : root_block_(root_block), prepare_pool_(1) {}
 
-std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
-                                    VarBasePtrMap* outputs,
+std::set<std::string> Tracer::Trace(OpBase *op, const VarBasePtrMap &inputs,
+                                    VarBasePtrMap *outputs,
                                     framework::AttributeMap attrs_map,
                                     const platform::Place expected_place,
                                     const bool stop_gradient) {
@@ -149,7 +150,6 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
     ProfilerFlush();
   }
 #endif
-
   platform::RecordEvent record_event(op->type_);
   std::unique_ptr<platform::RecordEvent> event_1(
       new platform::RecordEvent(op->type_ + "_forward"));
@@ -157,7 +157,7 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   framework::VariableValueMap outvars_map;
 
   // Construct input_vars_map and output_vars_map
-  std::map<std::string, VarBase*> current_vars_map;
+  std::map<std::string, VarBase *> current_vars_map;
   op->input_vars_ = inputs;
   op->output_vars_ = *outputs;
   op->place_ = GetExpectedPlace(expected_place, inputs);
@@ -171,53 +171,66 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   framework::VariableNameMap outvars_name_map =
       CreateOutputVarNameMap(op, *outputs);
 
-  auto& info = framework::OpInfoMap::Instance().Get(op->Type());
-  if (info.Checker() != nullptr) {
-    info.Checker()->Check(&attrs_map);
+  {
+    auto &info = framework::OpInfoMap::Instance().Get(op->Type());
+    if (info.Checker() != nullptr) {
+      info.Checker()->Check(&attrs_map);
+    }
+    if (info.infer_var_type_) {
+      RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs,
+                                                    &attrs_map);
+      info.infer_var_type_(&infer_var_type_ctx);
+    }
+    std::unique_ptr<framework::OperatorBase> op_base =
+        framework::OpRegistry::CreateOp(op->Type(), invars_name_map,
+                                        outvars_name_map, attrs_map);
+    // TODO(panyx0718): Cache p.
+    framework::OperatorWithKernel *op_kernel =
+        dynamic_cast<framework::OperatorWithKernel *>(op_base.get());
+    PADDLE_ENFORCE_NOT_NULL(op_kernel, "only support op with kernel");
+
+    // TODO(minqiyang): Support infer var type in imperative mode
+    // Run forward op
+    VLOG(3) << "tracer running " << op->Type();
+    framework::RuntimeContext ctx(invars_map, outvars_map);
+    PreparedOp prepared_op = PreparedOp::Prepare(ctx, *op_kernel, op->place_);
+
+    framework::Scope scope;
+    prepared_op.op.RuntimeInferShape(scope, op->place_, ctx);
+
+    future_ = prepare_pool_.enqueue([&]() {
+      RunOp(op->Type(), op->place_, info, inputs, invars_map, outvars_map,
+            invars_name_map, outvars_name_map, outputs, &attrs_map,
+            op_base.get(), &prepared_op);
+    });
   }
-  std::unique_ptr<framework::OperatorBase> op_base =
-      framework::OpRegistry::CreateOp(op->Type(), invars_name_map,
-                                      outvars_name_map, attrs_map);
-  if (info.infer_var_type_) {
-    RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs, &attrs_map);
-    info.infer_var_type_(&infer_var_type_ctx);
-  }
-  // TODO(panyx0718): Cache p.
-  framework::OperatorWithKernel* op_kernel =
-      dynamic_cast<framework::OperatorWithKernel*>(op_base.get());
-  PADDLE_ENFORCE_NOT_NULL(op_kernel, "only support op with kernel");
 
-  // TODO(minqiyang): Support infer var type in imperative mode
-  // Run forward op
-  VLOG(3) << "tracer running " << op->Type();
-  framework::RuntimeContext ctx(invars_map, outvars_map);
-  PreparedOp prepared_op = PreparedOp::Prepare(ctx, *op_kernel, op->place_);
-
-  framework::Scope scope;
-  prepared_op.op.RuntimeInferShape(scope, op->place_, ctx);
-
-  future_ = prepare_pool_.enqueue([&]() {
-    RunOp(op->Type(), op->place_, info, inputs, invars_map, outvars_map,
-          invars_name_map, outvars_name_map, outputs, &attrs_map, op_base.get(),
-          &prepared_op);
-  });
   auto vars_saved_for_backward =
       GetVarsSavedForBackward(attrs_map, stop_gradient, current_vars_map,
                               invars_name_map, outvars_name_map, op);
+
+  {
+    std::stringstream out;
+    for (auto &var_name : vars_saved_for_backward) {
+      out << var_name << ", ";
+    }
+    VLOG(3) << out.str();
+  }
+
   future_.get();
   event_1.reset(nullptr);
   return vars_saved_for_backward;
 }
 
-void Tracer::RunOp(const std::string& op_type, const platform::Place& op_place,
-                   const framework::OpInfo& info, const VarBasePtrMap& inputs,
-                   const framework::VariableValueMap& invars_map,
-                   const framework::VariableValueMap& outvars_map,
-                   const framework::VariableNameMap& invars_name_map,
-                   const framework::VariableNameMap& outvars_name_map,
-                   VarBasePtrMap* outputs, framework::AttributeMap* attrs_map,
-                   framework::OperatorBase* op_base,
-                   PreparedOp* prepared_op) const {
+void Tracer::RunOp(const std::string &op_type, const platform::Place &op_place,
+                   const framework::OpInfo &info, const VarBasePtrMap &inputs,
+                   const framework::VariableValueMap &invars_map,
+                   const framework::VariableValueMap &outvars_map,
+                   const framework::VariableNameMap &invars_name_map,
+                   const framework::VariableNameMap &outvars_name_map,
+                   VarBasePtrMap *outputs, framework::AttributeMap *attrs_map,
+                   framework::OperatorBase *op_base,
+                   PreparedOp *prepared_op) const {
   VLOG(3) << "tracer running " << op_type;
 
   VLOG(3) << "tracer running " << op_type;
@@ -230,11 +243,11 @@ void Tracer::RunOp(const std::string& op_type, const platform::Place& op_place,
 }
 
 std::set<std::string> Tracer::GetVarsSavedForBackward(
-    const framework::AttributeMap& attrs_map, const bool stop_gradient,
-    const std::map<std::string, VarBase*>& current_vars_map,
-    const framework::VariableNameMap& invars_name_map,
-    const framework::VariableNameMap& outvars_name_map,
-    OpBase* op) const {  // construct backward op
+    const framework::AttributeMap &attrs_map, const bool stop_gradient,
+    const std::map<std::string, VarBase *> &current_vars_map,
+    const framework::VariableNameMap &invars_name_map,
+    const framework::VariableNameMap &outvars_name_map,
+    OpBase *op) const {  // construct backward op
   std::set<std::string> vars_saved_for_backward;
   if (!stop_gradient) {
     std::unique_ptr<platform::RecordEvent> event_2(
@@ -257,15 +270,15 @@ std::set<std::string> Tracer::GetVarsSavedForBackward(
     op->grad_output_vars_.resize(grad_op_count);
     //    auto dev_ctx = prepared_op.GetDeviceContext();
 
-    platform::DeviceContextPool& pool = platform::DeviceContextPool::Instance();
-    auto* dev_ctx = pool.Get(op->place_);
+    platform::DeviceContextPool &pool = platform::DeviceContextPool::Instance();
+    auto *dev_ctx = pool.Get(op->place_);
 
     for (size_t i = 0; i < grad_op_count; ++i) {
-      framework::OpDesc* grad_op_desc = op->grad_op_descs_[i];
+      framework::OpDesc *grad_op_desc = op->grad_op_descs_[i];
       for (auto it : grad_op_desc->Inputs()) {
-        auto& grad_in_vars = op->grad_input_vars_[i][it.first];
+        auto &grad_in_vars = op->grad_input_vars_[i][it.first];
         grad_in_vars.reserve(it.second.size());
-        for (const std::string& grad_invar : it.second) {
+        for (const std::string &grad_invar : it.second) {
           auto var_it = grad_to_var->find(grad_invar);
           if (var_it == grad_to_var->end()) {
             auto fwd_var_it = current_vars_map.find(grad_invar);
@@ -273,7 +286,7 @@ std::set<std::string> Tracer::GetVarsSavedForBackward(
             // Forward inputs or outputs.
             grad_in_vars.emplace_back(fwd_var_it->second);
           } else {
-            VarBase* var = current_vars_map.at(var_it->second);
+            VarBase *var = current_vars_map.at(var_it->second);
             CreateNoBuffuerGrad(var, dev_ctx);
             // Douts.
             grad_in_vars.emplace_back(var->Grad());
@@ -284,14 +297,14 @@ std::set<std::string> Tracer::GetVarsSavedForBackward(
       }
 
       for (auto it : grad_op_desc->Outputs()) {
-        auto& grad_out_vars = op->grad_output_vars_[i][it.first];
-        for (const std::string& grad_outvar : it.second) {
+        auto &grad_out_vars = op->grad_output_vars_[i][it.first];
+        for (const std::string &grad_outvar : it.second) {
           auto var_it = grad_to_var->find(grad_outvar);
           PADDLE_ENFORCE(var_it != grad_to_var->end(),
                          "Could not found the grad op output var, should this "
                          "operator %s's stop gradient be True",
                          op->Type());
-          VarBase* var = current_vars_map.at(var_it->second);
+          VarBase *var = current_vars_map.at(var_it->second);
           CreateNoBuffuerGrad(var, dev_ctx);
           grad_out_vars.push_back(var->Grad());
           VLOG(3) << "grads output var name: " << var->Name();
@@ -304,16 +317,16 @@ std::set<std::string> Tracer::GetVarsSavedForBackward(
 }
 
 void Tracer::PrepareInputAndOutput(
-    OpBase* op, const bool stop_gradient, framework::VariableValueMap* invars_m,
-    framework::VariableValueMap* outvars_m,
-    std::map<std::string, VarBase*>* current_vars_m) const {
-  framework::VariableValueMap& invars_map = *invars_m;
-  framework::VariableValueMap& outvars_map = *outvars_m;
-  std::map<std::string, VarBase*>& current_vars_map = *current_vars_m;
+    OpBase *op, const bool stop_gradient, framework::VariableValueMap *invars_m,
+    framework::VariableValueMap *outvars_m,
+    std::map<std::string, VarBase *> *current_vars_m) const {
+  framework::VariableValueMap &invars_map = *invars_m;
+  framework::VariableValueMap &outvars_map = *outvars_m;
+  std::map<std::string, VarBase *> &current_vars_map = *current_vars_m;
   for (auto it : op->input_vars_) {
-    auto& invars = invars_map[it.first];
+    auto &invars = invars_map[it.first];
     invars.reserve(it.second.size());
-    for (VarBase* inp : it.second) {
+    for (VarBase *inp : it.second) {
       PADDLE_ENFORCE_NOT_NULL(inp->GetVar(), "op %s input %s nullptr",
                               op->Type(), inp->Name());
 
@@ -329,11 +342,11 @@ void Tracer::PrepareInputAndOutput(
   }
 
   for (auto it : op->output_vars_) {
-    auto& outvars = outvars_map[it.first];
-    const std::vector<VarBase*>& outputs = it.second;
+    auto &outvars = outvars_map[it.first];
+    const std::vector<VarBase *> &outputs = it.second;
     outvars.reserve(outputs.size());
     for (size_t i = 0U; i < outputs.size(); ++i) {
-      VarBase* out = outputs[i];
+      VarBase *out = outputs[i];
       outvars.emplace_back(out->GetMutableVar());
       out->TrackPreOp(op, it.first, i, stop_gradient);
       if (!stop_gradient) {
