@@ -181,7 +181,7 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   auto vars_saved_for_backward =
       GetVarsSavedForBackward(attrs_map, stop_gradient, current_vars_map,
                               invars_name_map, outvars_name_map, op);
-  future_.wait();
+  future_.get();
   event_1.reset(nullptr);
   return vars_saved_for_backward;
 }
