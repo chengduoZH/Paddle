@@ -182,10 +182,24 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
     RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs, &attrs_map);
     info.infer_var_type_(&infer_var_type_ctx);
   }
+  // TODO(panyx0718): Cache p.
+  framework::OperatorWithKernel* op_kernel =
+      dynamic_cast<framework::OperatorWithKernel*>(op_base);
+  PADDLE_ENFORCE_NOT_NULL(op_kernel, "only support op with kernel");
+
+  // TODO(minqiyang): Support infer var type in imperative mode
+  // Run forward op
+  VLOG(3) << "tracer running " << op->Type();
+  framework::RuntimeContext ctx(invars_map, outvars_map);
+  PreparedOp prepared_op = PreparedOp::Prepare(ctx, *op_kernel, op->place_);
+
+  framework::Scope scope;
+  prepared_op.op.RuntimeInferShape(scope, op->place_, ctx);
+
   future_ = prepare_pool_.enqueue([&]() {
     RunOp(op->Type(), op->place_, info, inputs, invars_map, outvars_map,
-          invars_name_map, outvars_name_map, outputs, &attrs_map,
-          op_base.get());
+          invars_name_map, outvars_name_map, outputs, &attrs_map, op_base.get(),
+          &prepared_op);
   });
   auto vars_saved_for_backward =
       GetVarsSavedForBackward(attrs_map, stop_gradient, current_vars_map,
@@ -202,28 +216,17 @@ void Tracer::RunOp(const std::string& op_type, const platform::Place& op_place,
                    const framework::VariableNameMap& invars_name_map,
                    const framework::VariableNameMap& outvars_name_map,
                    VarBasePtrMap* outputs, framework::AttributeMap* attrs_map,
-                   framework::OperatorBase* op_base) const {
+                   framework::OperatorBase* op_base,
+                   PreparedOp* prepared_op) const {
   VLOG(3) << "tracer running " << op_type;
 
   VLOG(3) << "tracer running " << op_type;
 
   VLOG(3) << "tracer running " << op_type;
-  // TODO(panyx0718): Cache p.
-  framework::OperatorWithKernel* op_kernel =
-      dynamic_cast<framework::OperatorWithKernel*>(op_base);
-  PADDLE_ENFORCE_NOT_NULL(op_kernel, "only support op with kernel");
-
-  // TODO(minqiyang): Support infer var type in imperative mode
-  // Run forward op
-  VLOG(3) << "tracer running " << op_type;
-  framework::RuntimeContext ctx(invars_map, outvars_map);
-  PreparedOp prepared_op = PreparedOp::Prepare(ctx, *op_kernel, op_place);
-
   framework::Scope scope;
-  prepared_op.op.RuntimeInferShape(scope, op_place, ctx);
-  prepared_op.func(
-      framework::ExecutionContext(prepared_op.op, scope, *prepared_op.dev_ctx,
-                                  prepared_op.ctx, prepared_op.kernel_configs));
+  prepared_op->func(framework::ExecutionContext(
+      prepared_op->op, scope, *prepared_op->dev_ctx, prepared_op->ctx,
+      prepared_op->kernel_configs));
 }
 
 std::set<std::string> Tracer::GetVarsSavedForBackward(
