@@ -171,52 +171,65 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   framework::VariableNameMap outvars_name_map =
       CreateOutputVarNameMap(op, *outputs);
 
-  future_.wait();
+  try {
+    future_.wait();
+  } catch (...) {
+  }
+
   future_ = prepare_pool_.enqueue([&]() {
-    auto& info = framework::OpInfoMap::Instance().Get(op->Type());
-    if (info.Checker() != nullptr) {
-      info.Checker()->Check(&attrs_map);
-    }
-
-    if (info.infer_var_type_) {
-      RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs,
-                                                    &attrs_map);
-      info.infer_var_type_(&infer_var_type_ctx);
-    }
-
-    std::unique_ptr<framework::OperatorBase> op_base =
-        framework::OpRegistry::CreateOp(op->Type(), invars_name_map,
-                                        outvars_name_map, attrs_map);
-    // TODO(panyx0718): Cache p.
-    framework::OperatorWithKernel* op_kernel =
-        dynamic_cast<framework::OperatorWithKernel*>(op_base.get());
-    PADDLE_ENFORCE_NOT_NULL(op_kernel, "only support op with kernel");
-
-    // TODO(minqiyang): Support infer var type in imperative mode
-    // Run forward op
-    VLOG(3) << "tracer running " << op->Type();
-    framework::RuntimeContext ctx(invars_map, outvars_map);
-    PreparedOp prepared_op = PreparedOp::Prepare(ctx, *op_kernel, op->place_);
-
-    framework::Scope scope;
-    prepared_op.op.RuntimeInferShape(scope, op->place_, ctx);
-    prepared_op.func(framework::ExecutionContext(
-        prepared_op.op, scope, *prepared_op.dev_ctx, prepared_op.ctx,
-        prepared_op.kernel_configs));
+    RunOp(op, inputs, invars_map, outvars_map, invars_name_map,
+          outvars_name_map, outputs, &attrs_map);
   });
 
   event_1.reset(nullptr);
-  return GetVarsSavedForBackward(op, attrs_map, stop_gradient, current_vars_map,
-                                 invars_name_map, outvars_name_map);
+  return GetVarsSavedForBackward(attrs_map, stop_gradient, current_vars_map,
+                                 invars_name_map, outvars_name_map, op);
+}
+
+void Tracer::RunOp(const OpBase* op, const VarBasePtrMap& inputs,
+                   const framework::VariableValueMap& invars_map,
+                   const framework::VariableValueMap& outvars_map,
+                   const framework::VariableNameMap& invars_name_map,
+                   const framework::VariableNameMap& outvars_name_map,
+                   VarBasePtrMap* outputs,
+                   framework::AttributeMap* attrs_map) const {
+  auto& info = framework::OpInfoMap::Instance().Get(op->Type());
+  if (info.Checker() != nullptr) {
+    info.Checker()->Check(attrs_map);
+  }
+
+  if (info.infer_var_type_) {
+    RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs, attrs_map);
+    info.infer_var_type_(&infer_var_type_ctx);
+  }
+
+  std::unique_ptr<framework::OperatorBase> op_base =
+      framework::OpRegistry::CreateOp(op->Type(), invars_name_map,
+                                      outvars_name_map, *attrs_map);
+  // TODO(panyx0718): Cache p.
+  framework::OperatorWithKernel* op_kernel =
+      dynamic_cast<framework::OperatorWithKernel*>(op_base.get());
+  PADDLE_ENFORCE_NOT_NULL(op_kernel, "only support op with kernel");
+
+  // TODO(minqiyang): Support infer var type in imperative mode
+  // Run forward op
+  VLOG(3) << "tracer running " << op->Type();
+  framework::RuntimeContext ctx(invars_map, outvars_map);
+  PreparedOp prepared_op = PreparedOp::Prepare(ctx, *op_kernel, op->place_);
+
+  framework::Scope scope;
+  prepared_op.op.RuntimeInferShape(scope, op->place_, ctx);
+  prepared_op.func(
+      framework::ExecutionContext(prepared_op.op, scope, *prepared_op.dev_ctx,
+                                  prepared_op.ctx, prepared_op.kernel_configs));
 }
 
 std::set<std::string> Tracer::GetVarsSavedForBackward(
-    OpBase* op, const framework::AttributeMap& attrs_map,
-    const bool stop_gradient,
+    const framework::AttributeMap& attrs_map, const bool stop_gradient,
     const std::map<std::string, VarBase*>& current_vars_map,
     const framework::VariableNameMap& invars_name_map,
-    const framework::VariableNameMap& outvars_name_map)
-    const {  // construct backward op
+    const framework::VariableNameMap& outvars_name_map,
+    OpBase* op) const {  // construct backward op
   std::set<std::string> vars_saved_for_backward;
   if (!stop_gradient) {
     std::unique_ptr<platform::RecordEvent> event_2(

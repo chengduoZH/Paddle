@@ -62,16 +62,22 @@ class Tracer {
       std::map<std::string, VarBase*>* current_vars_map) const;
 
   std::set<std::string> GetVarsSavedForBackward(
-      OpBase* op, const framework::AttributeMap& attrs_map,
-      const bool stop_gradient,
+      const framework::AttributeMap& attrs_map, const bool stop_gradient,
       const std::map<std::string, VarBase*>& current_vars_map,
       const framework::VariableNameMap& invars_name_map,
-      const framework::VariableNameMap& outvars_name_map) const;
+      const framework::VariableNameMap& outvars_name_map, OpBase* op) const;
 
   //  platform::Place GetPlace(const VarBasePtrMap& inputs);
   framework::BlockDesc* root_block_;
   ::ThreadPool prepare_pool_;
   std::future<void> future_;
+
+  void RunOp(const OpBase* op, const VarBasePtrMap& inputs,
+             const framework::VariableValueMap& invars_map,
+             const framework::VariableValueMap& outvars_map,
+             const framework::VariableNameMap& invars_name_map,
+             const framework::VariableNameMap& outvars_name_map,
+             VarBasePtrMap* outputs, framework::AttributeMap* attrs_map) const;
 };
 
 }  // namespace imperative
