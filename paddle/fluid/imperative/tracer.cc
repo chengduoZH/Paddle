@@ -170,8 +170,7 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
       CreateInputVarNameMap(op, inputs);
   framework::VariableNameMap outvars_name_map =
       CreateOutputVarNameMap(op, *outputs);
-  //  if (future_.valid()) {
-  //  }
+
   auto& info = framework::OpInfoMap::Instance().Get(op->Type());
   if (info.Checker() != nullptr) {
     info.Checker()->Check(&attrs_map);
@@ -179,7 +178,10 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   std::unique_ptr<framework::OperatorBase> op_base =
       framework::OpRegistry::CreateOp(op->Type(), invars_name_map,
                                       outvars_name_map, attrs_map);
-
+  if (info.infer_var_type_) {
+    RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs, &attrs_map);
+    info.infer_var_type_(&infer_var_type_ctx);
+  }
   future_ = prepare_pool_.enqueue([&]() {
     RunOp(op->Type(), op->place_, info, inputs, invars_map, outvars_map,
           invars_name_map, outvars_name_map, outputs, &attrs_map,
@@ -202,10 +204,7 @@ void Tracer::RunOp(const std::string& op_type, const platform::Place& op_place,
                    VarBasePtrMap* outputs, framework::AttributeMap* attrs_map,
                    framework::OperatorBase* op_base) const {
   VLOG(3) << "tracer running " << op_type;
-  if (info.infer_var_type_) {
-    RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs, attrs_map);
-    info.infer_var_type_(&infer_var_type_ctx);
-  }
+
   VLOG(3) << "tracer running " << op_type;
 
   VLOG(3) << "tracer running " << op_type;
