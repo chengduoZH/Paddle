@@ -175,41 +175,41 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   auto& info = framework::OpInfoMap::Instance().Get(op->Type());
 
   future_ = prepare_pool_.enqueue([&]() {
-    RunOp(op, info, inputs, invars_map, outvars_map, invars_name_map,
-          outvars_name_map, outputs, &attrs_map);
+    RunOp(op->type_, op->place_, info, inputs, invars_map, outvars_map,
+          invars_name_map, outvars_name_map, outputs, &attrs_map);
   });
   auto vars_saved_for_backward =
       GetVarsSavedForBackward(attrs_map, stop_gradient, current_vars_map,
                               invars_name_map, outvars_name_map, op);
-  future_.get();
+  future_.wait();
   event_1.reset(nullptr);
   return vars_saved_for_backward;
 }
 
-void Tracer::RunOp(const OpBase* op, const framework::OpInfo& info,
-                   const VarBasePtrMap& inputs,
+void Tracer::RunOp(const std::string& op_type, const platform::Place& op_place,
+                   const framework::OpInfo& info, const VarBasePtrMap& inputs,
                    const framework::VariableValueMap& invars_map,
                    const framework::VariableValueMap& outvars_map,
                    const framework::VariableNameMap& invars_name_map,
                    const framework::VariableNameMap& outvars_name_map,
                    VarBasePtrMap* outputs,
                    framework::AttributeMap* attrs_map) const {
-  VLOG(3) << "tracer running " << op->Type();
+  VLOG(3) << "tracer running " << op_type;
   if (info.Checker() != nullptr) {
     info.Checker()->Check(attrs_map);
   }
 
-  VLOG(3) << "tracer running " << op->Type();
+  VLOG(3) << "tracer running " << op_type;
   if (info.infer_var_type_) {
     RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs, attrs_map);
     info.infer_var_type_(&infer_var_type_ctx);
   }
-  VLOG(3) << "tracer running " << op->Type();
+  VLOG(3) << "tracer running " << op_type;
 
   std::unique_ptr<framework::OperatorBase> op_base =
-      framework::OpRegistry::CreateOp(op->Type(), invars_name_map,
+      framework::OpRegistry::CreateOp(op_type, invars_name_map,
                                       outvars_name_map, *attrs_map);
-  VLOG(3) << "tracer running " << op->Type();
+  VLOG(3) << "tracer running " << op_type;
   // TODO(panyx0718): Cache p.
   framework::OperatorWithKernel* op_kernel =
       dynamic_cast<framework::OperatorWithKernel*>(op_base.get());
@@ -217,12 +217,12 @@ void Tracer::RunOp(const OpBase* op, const framework::OpInfo& info,
 
   // TODO(minqiyang): Support infer var type in imperative mode
   // Run forward op
-  VLOG(3) << "tracer running " << op->Type();
+  VLOG(3) << "tracer running " << op_type;
   framework::RuntimeContext ctx(invars_map, outvars_map);
-  PreparedOp prepared_op = PreparedOp::Prepare(ctx, *op_kernel, op->place_);
+  PreparedOp prepared_op = PreparedOp::Prepare(ctx, *op_kernel, op_place);
 
   framework::Scope scope;
-  prepared_op.op.RuntimeInferShape(scope, op->place_, ctx);
+  prepared_op.op.RuntimeInferShape(scope, op_place, ctx);
   prepared_op.func(
       framework::ExecutionContext(prepared_op.op, scope, *prepared_op.dev_ctx,
                                   prepared_op.ctx, prepared_op.kernel_configs));
