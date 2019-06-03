@@ -171,9 +171,8 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   framework::VariableNameMap outvars_name_map =
       CreateOutputVarNameMap(op, *outputs);
 
-  try {
+  if (future_.valid()) {
     future_.wait();
-  } catch (...) {
   }
 
   future_ = prepare_pool_.enqueue([&]() {
