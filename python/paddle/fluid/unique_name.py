@@ -96,11 +96,11 @@ __tmp_var_idx__ = -1
 
 
 def generate_with_ignorable_key(key):
-    global __tmp_var_idx__
-    from .framework import in_dygraph_mode
-    if in_dygraph_mode():
-        __tmp_var_idx__ += 1
-        return "tmp_" + "_" + str(__tmp_var_idx__)
+    # global __tmp_var_idx__
+    # from .framework import in_dygraph_mode
+    # if in_dygraph_mode():
+    #     __tmp_var_idx__ += 1
+    #     return "tmp_" + "_" + str(__tmp_var_idx__)
 
     return generator(key)
 

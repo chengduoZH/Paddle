@@ -195,9 +195,9 @@ std::set<std::string> Tracer::Trace(OpBase *op, const VarBasePtrMap &inputs,
   framework::RuntimeContext ctx(invars_map, outvars_map);
   PreparedOp prepared_op = PreparedOp::Prepare(ctx, *op_kernel, op->place_);
 
+  framework::Scope scope;
+  prepared_op.op.RuntimeInferShape(scope, op->place_, ctx);
   future_ = prepare_pool_.enqueue([&]() {
-    framework::Scope scope;
-    prepared_op.op.RuntimeInferShape(scope, op->place_, ctx);
     RunOp(op->Type(), op->place_, info, inputs, invars_map, outvars_map,
           invars_name_map, outvars_name_map, outputs, &attrs_map, op_base.get(),
           &prepared_op);
