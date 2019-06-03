@@ -67,7 +67,6 @@ class Tracer {
       const framework::VariableNameMap& invars_name_map,
       const framework::VariableNameMap& outvars_name_map, OpBase* op) const;
 
-  //  platform::Place GetPlace(const VarBasePtrMap& inputs);
   framework::BlockDesc* root_block_;
   ::ThreadPool prepare_pool_;
   std::future<void> future_;

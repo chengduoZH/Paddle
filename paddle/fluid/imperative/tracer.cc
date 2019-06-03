@@ -170,20 +170,20 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
       CreateInputVarNameMap(op, inputs);
   framework::VariableNameMap outvars_name_map =
       CreateOutputVarNameMap(op, *outputs);
-
-  if (future_.valid()) {
-    future_.wait();
-  }
+  //  if (future_.valid()) {
+  //  }
   auto& info = framework::OpInfoMap::Instance().Get(op->Type());
 
   future_ = prepare_pool_.enqueue([&]() {
     RunOp(op, info, inputs, invars_map, outvars_map, invars_name_map,
           outvars_name_map, outputs, &attrs_map);
   });
-
+  auto vars_saved_for_backward =
+      GetVarsSavedForBackward(attrs_map, stop_gradient, current_vars_map,
+                              invars_name_map, outvars_name_map, op);
+  future_.wait();
   event_1.reset(nullptr);
-  return GetVarsSavedForBackward(attrs_map, stop_gradient, current_vars_map,
-                                 invars_name_map, outvars_name_map, op);
+  return vars_saved_for_backward;
 }
 
 void Tracer::RunOp(const OpBase* op, const framework::OpInfo& info,
