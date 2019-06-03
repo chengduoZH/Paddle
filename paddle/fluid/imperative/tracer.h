@@ -72,7 +72,8 @@ class Tracer {
   ::ThreadPool prepare_pool_;
   std::future<void> future_;
 
-  void RunOp(const OpBase* op, const VarBasePtrMap& inputs,
+  void RunOp(const OpBase* op, const framework::OpInfo& op_info,
+             const VarBasePtrMap& inputs,
              const framework::VariableValueMap& invars_map,
              const framework::VariableValueMap& outvars_map,
              const framework::VariableNameMap& invars_name_map,

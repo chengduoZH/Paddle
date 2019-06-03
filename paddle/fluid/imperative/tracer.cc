@@ -174,9 +174,10 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   if (future_.valid()) {
     future_.wait();
   }
+  auto& info = framework::OpInfoMap::Instance().Get(op->Type());
 
   future_ = prepare_pool_.enqueue([&]() {
-    RunOp(op, inputs, invars_map, outvars_map, invars_name_map,
+    RunOp(op, info, inputs, invars_map, outvars_map, invars_name_map,
           outvars_name_map, outputs, &attrs_map);
   });
 
@@ -185,15 +186,14 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
                                  invars_name_map, outvars_name_map, op);
 }
 
-void Tracer::RunOp(const OpBase* op, const VarBasePtrMap& inputs,
+void Tracer::RunOp(const OpBase* op, const framework::OpInfo& info,
+                   const VarBasePtrMap& inputs,
                    const framework::VariableValueMap& invars_map,
                    const framework::VariableValueMap& outvars_map,
                    const framework::VariableNameMap& invars_name_map,
                    const framework::VariableNameMap& outvars_name_map,
                    VarBasePtrMap* outputs,
                    framework::AttributeMap* attrs_map) const {
-  VLOG(3) << "tracer running " << op->Type();
-  auto& info = framework::OpInfoMap::Instance().Get(op->Type());
   VLOG(3) << "tracer running " << op->Type();
   if (info.Checker() != nullptr) {
     info.Checker()->Check(attrs_map);
