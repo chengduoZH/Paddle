@@ -185,11 +185,12 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
           invars_name_map, outvars_name_map, outputs, &attrs_map,
           op_base.get());
   });
-
+  auto vars_saved_for_backward =
+      GetVarsSavedForBackward(attrs_map, stop_gradient, current_vars_map,
+                              invars_name_map, outvars_name_map, op);
   future_.get();
   event_1.reset(nullptr);
-  return GetVarsSavedForBackward(attrs_map, stop_gradient, current_vars_map,
-                                 invars_name_map, outvars_name_map, op);
+  return vars_saved_for_backward;
 }
 
 void Tracer::RunOp(const std::string& op_type, const platform::Place& op_place,
