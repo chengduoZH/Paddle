@@ -192,19 +192,24 @@ void Tracer::RunOp(const OpBase* op, const VarBasePtrMap& inputs,
                    const framework::VariableNameMap& outvars_name_map,
                    VarBasePtrMap* outputs,
                    framework::AttributeMap* attrs_map) const {
+  VLOG(3) << "tracer running " << op->Type();
   auto& info = framework::OpInfoMap::Instance().Get(op->Type());
+  VLOG(3) << "tracer running " << op->Type();
   if (info.Checker() != nullptr) {
     info.Checker()->Check(attrs_map);
   }
 
+  VLOG(3) << "tracer running " << op->Type();
   if (info.infer_var_type_) {
     RuntimeInferVarTypeContext infer_var_type_ctx(&inputs, outputs, attrs_map);
     info.infer_var_type_(&infer_var_type_ctx);
   }
+  VLOG(3) << "tracer running " << op->Type();
 
   std::unique_ptr<framework::OperatorBase> op_base =
       framework::OpRegistry::CreateOp(op->Type(), invars_name_map,
                                       outvars_name_map, *attrs_map);
+  VLOG(3) << "tracer running " << op->Type();
   // TODO(panyx0718): Cache p.
   framework::OperatorWithKernel* op_kernel =
       dynamic_cast<framework::OperatorWithKernel*>(op_base.get());
