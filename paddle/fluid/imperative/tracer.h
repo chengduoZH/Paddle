@@ -21,6 +21,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include <ThreadPool.h>  // ThreadPool in thrird party
 #include "paddle/fluid/framework/op_desc.h"
 #include "paddle/fluid/framework/op_registry.h"
 #include "paddle/fluid/imperative/engine.h"
@@ -54,10 +55,6 @@ class Tracer {
                               const bool stop_gradient = false);
 
  private:
-  platform::Place GetPlace(const VarBasePtrMap& inputs);
-
-  framework::BlockDesc* root_block_;
-
   void PrepareInputAndOutput(
       OpBase* op, const bool stop_gradient,
       framework::VariableValueMap* invars_map,
@@ -70,6 +67,11 @@ class Tracer {
       const std::map<std::string, VarBase*>& current_vars_map,
       const framework::VariableNameMap& invars_name_map,
       const framework::VariableNameMap& outvars_name_map) const;
+
+  //  platform::Place GetPlace(const VarBasePtrMap& inputs);
+  framework::BlockDesc* root_block_;
+  ::ThreadPool prepare_pool_;
+  std::future<void> future_;
 };
 
 }  // namespace imperative

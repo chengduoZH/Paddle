@@ -136,7 +136,8 @@ framework::VariableNameMap CreateOutputVarNameMap(
   return result;
 }
 
-Tracer::Tracer(framework::BlockDesc* root_block) : root_block_(root_block) {}
+Tracer::Tracer(framework::BlockDesc* root_block)
+    : root_block_(root_block), prepare_pool_(1) {}
 
 std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
                                     VarBasePtrMap* outputs,
@@ -170,7 +171,8 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   framework::VariableNameMap outvars_name_map =
       CreateOutputVarNameMap(op, *outputs);
 
-  {
+  future_.wait();
+  future_ = prepare_pool_.enqueue([&]() {
     auto& info = framework::OpInfoMap::Instance().Get(op->Type());
     if (info.Checker() != nullptr) {
       info.Checker()->Check(&attrs_map);
@@ -201,7 +203,8 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
     prepared_op.func(framework::ExecutionContext(
         prepared_op.op, scope, *prepared_op.dev_ctx, prepared_op.ctx,
         prepared_op.kernel_configs));
-  }
+  });
+
   event_1.reset(nullptr);
   return GetVarsSavedForBackward(op, attrs_map, stop_gradient, current_vars_map,
                                  invars_name_map, outvars_name_map);
