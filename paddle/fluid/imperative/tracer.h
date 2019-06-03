@@ -57,6 +57,20 @@ class Tracer {
   platform::Place GetPlace(const VarBasePtrMap& inputs);
 
   framework::BlockDesc* root_block_;
+
+  void PrepareInputAndOutput(
+      OpBase* op, const bool stop_gradient,
+      framework::VariableValueMap* invars_map,
+      framework::VariableValueMap* outvars_map,
+      std::map<std::string, VarBase*>* current_vars_map) const;
+
+  std::set<std::string> GetVarSavedForGrad(
+      OpBase* op, const framework::AttributeMap& attrs_map,
+      const bool stop_gradient,
+      const std::map<std::string, VarBase*>& current_vars_map,
+      const framework::VariableNameMap& invars_name_map,
+      const framework::VariableNameMap& outvars_name_map,
+      const PreparedOp& prepared_op) const;
 };
 
 }  // namespace imperative

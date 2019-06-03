@@ -158,42 +158,10 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   // Construct input_vars_map and output_vars_map
   std::map<std::string, VarBase*> current_vars_map;
   op->input_vars_ = inputs;
-  for (auto it : op->input_vars_) {
-    auto& invars = invars_map[it.first];
-    invars.reserve(it.second.size());
-    for (VarBase* inp : it.second) {
-      PADDLE_ENFORCE_NOT_NULL(inp->GetVar(), "op %s input %s nullptr",
-                              op->Type(), inp->Name());
-
-      invars.emplace_back(inp->GetMutableVar());
-      if (!stop_gradient) {
-        current_vars_map[inp->Name()] = inp;
-      }
-      VLOG(3) << "input var name: " << inp->Name()
-              << " inited: " << inp->GetVar()->IsInitialized()
-              << " stop_grad: " << inp->IsStopGradient();
-    }
-    op->TrackPreOp(it.first, it.second);
-  }
-
   op->output_vars_ = *outputs;
-  for (auto it : op->output_vars_) {
-    auto& outvars = outvars_map[it.first];
-    const std::vector<VarBase*>& outputs = it.second;
-    outvars.reserve(outputs.size());
-    for (size_t i = 0U; i < outputs.size(); ++i) {
-      VarBase* out = outputs[i];
-      outvars.emplace_back(out->GetMutableVar());
-      out->TrackPreOp(op, it.first, i, stop_gradient);
-      if (!stop_gradient) {
-        current_vars_map[out->Name()] = out;
-      }
 
-      VLOG(3) << "output var name: " << out->Name()
-              << " inited: " << out->GetVar()->IsInitialized()
-              << " stop_grad: " << out->IsStopGradient();
-    }
-  }
+  PrepareInputAndOutput(op, stop_gradient, &invars_map, &outvars_map,
+                        &current_vars_map);
 
   // Check attrs and create op
   framework::VariableNameMap invars_name_map =
@@ -235,8 +203,17 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
                                   prepared_op.ctx, prepared_op.kernel_configs));
 
   event_1.reset(nullptr);
+  return GetVarSavedForGrad(op, attrs_map, stop_gradient, current_vars_map,
+                            invars_name_map, outvars_name_map, prepared_op);
+}
 
-  // construct backward op
+std::set<std::string> Tracer::GetVarSavedForGrad(
+    OpBase* op, const framework::AttributeMap& attrs_map,
+    const bool stop_gradient,
+    const std::map<std::string, VarBase*>& current_vars_map,
+    const framework::VariableNameMap& invars_name_map,
+    const framework::VariableNameMap& outvars_name_map,
+    const PreparedOp& prepared_op) const {  // construct backward op
   std::set<std::string> vars_saved_for_backward;
   if (!stop_gradient) {
     std::unique_ptr<platform::RecordEvent> event_2(
@@ -301,6 +278,49 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
   }
 
   return vars_saved_for_backward;
+}
+
+void Tracer::PrepareInputAndOutput(
+    OpBase* op, const bool stop_gradient, framework::VariableValueMap* invars_m,
+    framework::VariableValueMap* outvars_m,
+    std::map<std::string, VarBase*>* current_vars_m) const {
+  framework::VariableValueMap& invars_map = *invars_m;
+  framework::VariableValueMap& outvars_map = *outvars_m;
+  std::map<std::string, VarBase*>& current_vars_map = *current_vars_m;
+  for (auto it : op->input_vars_) {
+    auto& invars = invars_map[it.first];
+    invars.reserve(it.second.size());
+    for (VarBase* inp : it.second) {
+      PADDLE_ENFORCE_NOT_NULL(inp->GetVar(), "op %s input %s nullptr",
+                              op->Type(), inp->Name());
+
+      invars.emplace_back(inp->GetMutableVar());
+      if (!stop_gradient) {
+        current_vars_map[inp->Name()] = inp;
+      }
+      VLOG(3) << "input var name: " << inp->Name()
+              << " inited: " << inp->GetVar()->IsInitialized()
+              << " stop_grad: " << inp->IsStopGradient();
+    }
+    op->TrackPreOp(it.first, it.second);
+  }
+
+  for (auto it : op->output_vars_) {
+    auto& outvars = outvars_map[it.first];
+    const std::vector<VarBase*>& outputs = it.second;
+    outvars.reserve(outputs.size());
+    for (size_t i = 0U; i < outputs.size(); ++i) {
+      VarBase* out = outputs[i];
+      outvars.emplace_back(out->GetMutableVar());
+      out->TrackPreOp(op, it.first, i, stop_gradient);
+      if (!stop_gradient) {
+        current_vars_map[out->Name()] = out;
+      }
+      VLOG(3) << "output var name: " << out->Name()
+              << " inited: " << out->GetVar()->IsInitialized()
+              << " stop_grad: " << out->IsStopGradient();
+    }
+  }
 }
 }  // namespace imperative
 }  // namespace paddle
