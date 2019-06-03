@@ -203,11 +203,12 @@ std::set<std::string> Tracer::Trace(OpBase* op, const VarBasePtrMap& inputs,
                                   prepared_op.ctx, prepared_op.kernel_configs));
 
   event_1.reset(nullptr);
-  return GetVarSavedForGrad(op, attrs_map, stop_gradient, current_vars_map,
-                            invars_name_map, outvars_name_map, prepared_op);
+  return GetVarsSavedForBackward(op, attrs_map, stop_gradient, current_vars_map,
+                                 invars_name_map, outvars_name_map,
+                                 prepared_op);
 }
 
-std::set<std::string> Tracer::GetVarSavedForGrad(
+std::set<std::string> Tracer::GetVarsSavedForBackward(
     OpBase* op, const framework::AttributeMap& attrs_map,
     const bool stop_gradient,
     const std::map<std::string, VarBase*>& current_vars_map,
@@ -250,7 +251,7 @@ std::set<std::string> Tracer::GetVarSavedForGrad(
             // Forward inputs or outputs.
             grad_in_vars.emplace_back(fwd_var_it->second);
           } else {
-            VarBase* var = current_vars_map[var_it->second];
+            VarBase* var = current_vars_map.at(var_it->second);
             CreateNoBuffuerGrad(var, prepared_op.GetDeviceContext());
             // Douts.
             grad_in_vars.emplace_back(var->Grad());
@@ -268,7 +269,7 @@ std::set<std::string> Tracer::GetVarSavedForGrad(
                          "Could not found the grad op output var, should this "
                          "operator %s's stop gradient be True",
                          op->Type());
-          VarBase* var = current_vars_map[var_it->second];
+          VarBase* var = current_vars_map.at(var_it->second);
           CreateNoBuffuerGrad(var, prepared_op.GetDeviceContext());
           grad_out_vars.push_back(var->Grad());
           VLOG(3) << "grads output var name: " << var->Name();

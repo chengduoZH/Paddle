@@ -64,7 +64,7 @@ class Tracer {
       framework::VariableValueMap* outvars_map,
       std::map<std::string, VarBase*>* current_vars_map) const;
 
-  std::set<std::string> GetVarSavedForGrad(
+  std::set<std::string> GetVarsSavedForBackward(
       OpBase* op, const framework::AttributeMap& attrs_map,
       const bool stop_gradient,
       const std::map<std::string, VarBase*>& current_vars_map,
