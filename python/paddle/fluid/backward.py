@@ -217,9 +217,10 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
             return True
 
         if not_in_grad_vars:
-            for var in not_in_grad_vars:
-                if core.grad_var_suffix() in var:
-                    no_grad_set.add(var)
+            no_grad_vars = [
+                var for var in not_in_grad_vars if core.grad_var_suffix() in var
+            ]
+            no_grad_set.update(no_grad_vars)
 
         out_arg_names = op_desc.output_arg_names()
         if len(out_arg_names) == 0 or _all_in_set_(out_arg_names, no_grad_set):
@@ -234,8 +235,7 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
         grad_vars.extend(op_desc.output_arg_names())
         return False
 
-    grad_vars = op_descs[0].output_arg_names()
-    grad_vars.extend(op_descs[0].input_arg_names())
+    grad_vars = op_descs[0].input_arg_names()
     # Remove ops whose outputs are all in no_grad_dict
     op_descs = [
         op_desc for op_desc in op_descs

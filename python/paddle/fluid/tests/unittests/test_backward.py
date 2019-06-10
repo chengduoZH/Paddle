@@ -1,4 +1,4 @@
-# Copyright (c) 2018 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2019 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,9 +45,9 @@ def simple_net2():
 
 class TestBackward(unittest.TestCase):
     def check_backward(self, model):
-
         place = fluid.CPUPlace()
         exe = fluid.Executor(place)
+
         main = fluid.Program()
         startup = fluid.Program()
         batch_size = 2
@@ -60,10 +60,7 @@ class TestBackward(unittest.TestCase):
 
             exe.run(fluid.default_startup_program())
             img, label = init_data(batch_size, img_shape=[784], label_range=9)
-            output = exe.run(feed={'image': img,
-                                   'label': label},
-                             fetch_list=[loss])
-            print(output)
+            exe.run(feed={'image': img, 'label': label})
 
     def test_backward(self):
         for model in [simple_net1, simple_net2]:
