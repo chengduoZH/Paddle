@@ -162,7 +162,7 @@ def _addup_repetitive_outputs_(op_descs):
                 else:
                     if len(renamed_vars[var_name]) == 1:
                         new_name = var_name + "@RENAME@" + \
-                            str(var_rename_count[var_name])
+                                   str(var_rename_count[var_name])
                         var_rename_count[var_name] += 1
                         # rename original var_name
                         renamed_vars[var_name][0] = new_name
@@ -183,7 +183,7 @@ def _addup_repetitive_outputs_(op_descs):
                         ] + arg_names[arg_idx:]
 
                     new_name = var_name + "@RENAME@" + \
-                        str(var_rename_count[var_name])
+                               str(var_rename_count[var_name])
                     var_rename_count[var_name] += 1
                     arg_names[arg_idx] = new_name
                     op_desc.set_output(param_name, arg_names)
@@ -209,22 +209,46 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
         2. all grad inputs of the grad op are in 'no_grad_set'
     """
 
-    def _op_can_be_removed_(op_desc, no_grad_set):
+    def _op_can_be_removed_(op_desc, no_grad_set, grad_vars):
+        in_arg_names = op_desc.input_arg_names()
+        print(op_desc.type(), in_arg_names, grad_vars)
+
+        not_in_grad_vars = []
+        for var in in_arg_names:
+            if var not in grad_vars:
+                not_in_grad_vars.append(var)
+
+        if len(not_in_grad_vars) == len(in_arg_names):
+            print(op_desc.type(), "  should be removed op.")
+            return True
+
+        if not_in_grad_vars:
+            for var in not_in_grad_vars:
+                if core.grad_var_suffix() in var:
+                    no_grad_set.add(var)
+
         out_arg_names = op_desc.output_arg_names()
         if len(out_arg_names) == 0 or _all_in_set_(out_arg_names, no_grad_set):
             return True
+
         if _all_in_set_([
                 name for name in op_desc.input_arg_names()
                 if name.find(core.grad_var_suffix()) != -1
         ], no_grad_set):
             no_grad_set.update(out_arg_names)
             return True
+        print(op_desc.type(), op_desc.output_arg_names())
+        grad_vars.extend(op_desc.output_arg_names())
+        print(grad_vars)
         return False
 
+    grad_vars = op_descs[0].output_arg_names()
+    grad_vars.extend(op_descs[0].input_arg_names())
+    print(grad_vars)
     # Remove ops whose outputs are all in no_grad_dict
     op_descs = [
         op_desc for op_desc in op_descs
-        if not _op_can_be_removed_(op_desc, no_grad_set)
+        if not _op_can_be_removed_(op_desc, no_grad_set, grad_vars)
     ]
     # Insert fill_zeros_like_op
     to_insert = []
