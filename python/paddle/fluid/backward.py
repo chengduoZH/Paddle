@@ -211,15 +211,9 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
 
     def _op_can_be_removed_(op_desc, no_grad_set, grad_vars):
         in_arg_names = op_desc.input_arg_names()
-        print(op_desc.type(), in_arg_names, grad_vars)
-
-        not_in_grad_vars = []
-        for var in in_arg_names:
-            if var not in grad_vars:
-                not_in_grad_vars.append(var)
+        not_in_grad_vars = [var for var in in_arg_names if var not in grad_vars]
 
         if len(not_in_grad_vars) == len(in_arg_names):
-            print(op_desc.type(), "  should be removed op.")
             return True
 
         if not_in_grad_vars:
@@ -237,14 +231,11 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
         ], no_grad_set):
             no_grad_set.update(out_arg_names)
             return True
-        print(op_desc.type(), op_desc.output_arg_names())
         grad_vars.extend(op_desc.output_arg_names())
-        print(grad_vars)
         return False
 
     grad_vars = op_descs[0].output_arg_names()
     grad_vars.extend(op_descs[0].input_arg_names())
-    print(grad_vars)
     # Remove ops whose outputs are all in no_grad_dict
     op_descs = [
         op_desc for op_desc in op_descs
