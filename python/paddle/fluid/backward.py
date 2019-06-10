@@ -211,7 +211,9 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
 
     def _op_can_be_removed_(op_desc, no_grad_set):
         out_arg_names = op_desc.output_arg_names()
-        if len(out_arg_names) == 0 or _all_in_set_(out_arg_names, no_grad_set):
+        if (len(out_arg_names) == 0 and
+                op_desc.type() != "print") or _all_in_set_(out_arg_names,
+                                                           no_grad_set):
             return True
         if _all_in_set_([
                 name for name in op_desc.input_arg_names()
@@ -596,7 +598,8 @@ def _find_op_path_(block, outputs, inputs, no_grad_set):
                 relevant_op_flags[i] = False
 
     for i, op in reversed(list(enumerate(block.ops))):
-        if _some_in_set_(op.desc.output_arg_names(), output_names):
+        if _some_in_set_(op.desc.output_arg_names(),
+                         output_names) or op.type == "print":
             for name in op.desc.input_arg_names():
                 if name not in no_grad_set:
                     output_names.add(name)
