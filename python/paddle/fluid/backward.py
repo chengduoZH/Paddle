@@ -201,7 +201,7 @@ def _addup_repetitive_outputs_(op_descs):
     return op_descs
 
 
-def _remove_no_grad_branch_(op_descs, no_grad_set):
+def _remove_no_grad_branch_(op_descs, no_grad_set, out_grad_vars=None):
     """
     Remove unnecessary grad ops
     A grad op can be removed in two cases:
@@ -212,13 +212,14 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
     def _op_can_be_removed_(op_desc, no_grad_set, grad_vars):
         in_arg_names = op_desc.input_arg_names()
         not_in_grad_vars = [var for var in in_arg_names if var not in grad_vars]
-
-        if len(not_in_grad_vars) == len(in_arg_names):
+        if len(not_in_grad_vars) == len(in_arg_names) and not _some_in_set_(
+                op_desc.output_arg_names(), out_grad_vars):
             return True
 
         if not_in_grad_vars:
             no_grad_vars = [
-                var for var in not_in_grad_vars if core.grad_var_suffix() in var
+                var for var in not_in_grad_vars \
+                if (core.grad_var_suffix() in var) and (var not in out_grad_vars)
             ]
             no_grad_set.update(no_grad_vars)
 
@@ -269,7 +270,8 @@ def _append_backward_ops_(block,
                           target_block,
                           no_grad_dict,
                           grad_to_var,
-                          callbacks=None):
+                          callbacks=None,
+                          out_grad_vars=None):
     """
     Create all grad ops, and insert them into given block
 
@@ -293,6 +295,8 @@ def _append_backward_ops_(block,
 
     # grad_op_descs holds created grad_op, and will be appended to target_block
     grad_op_descs = []
+    if out_grad_vars is None:
+        out_grad_vars = set()
     program = block.program
     for op in reversed(ops):
         grad_sub_block_list = []
@@ -302,7 +306,8 @@ def _append_backward_ops_(block,
             grad_sub_block = program._create_block()
             grad_sub_block._set_forward_block_idx(sub_block.idx)
             _append_backward_ops_(sub_block, sub_block.ops, grad_sub_block,
-                                  no_grad_dict, grad_to_var, callbacks)
+                                  no_grad_dict, grad_to_var, callbacks,
+                                  out_grad_vars)
 
             program._rollback()
             grad_sub_block_list.append(grad_sub_block.desc)
@@ -313,11 +318,20 @@ def _append_backward_ops_(block,
 
         grad_op_descs.extend(grad_op_desc)
         grad_to_var.update(op_grad_to_var)
+        if len(out_grad_vars) == 0:
+            for grad_op in grad_op_desc:
+                out_grad_vars.update(grad_op.output_arg_names())
+        else:
+            for grad_op in grad_op_desc:
+                for var in grad_op.input_arg_names():
+                    if var in out_grad_vars:
+                        out_grad_vars.update(grad_op.output_arg_names())
+                        break
 
     grad_op_descs = _addup_repetitive_outputs_(grad_op_descs)
 
-    grad_op_descs = _remove_no_grad_branch_(grad_op_descs,
-                                            no_grad_dict[block.idx])
+    grad_op_descs = _remove_no_grad_branch_(
+        grad_op_descs, no_grad_dict[block.idx], out_grad_vars)
 
     # append op_desc in grad_op_descs to target_block
     op_role_attr_name = core.op_proto_and_checker_maker.kOpRoleAttrName()
