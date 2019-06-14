@@ -181,9 +181,11 @@ def Print(input,
 
     '''
     helper = LayerHelper('print', **locals())
+    output = helper.create_variable_for_type_inference(input.dtype)
     helper.append_op(
         type='print',
         inputs={'In': input},
+        outputs={'Out': output},
         attrs={
             'first_n': first_n,
             'summarize': summarize,
@@ -194,7 +196,7 @@ def Print(input,
             'print_tensor_lod': print_tensor_lod,
             'print_phase': print_phase.upper()
         })
-    return input
+    return output
 
 
 class BlockGuard(object):
