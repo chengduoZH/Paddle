@@ -135,15 +135,14 @@ struct Formater {
 };
 
 // TODO(ChunweiYan) there should be some other printers for TensorArray
-class TensorPrintOp : public framework::OperatorBase {
+class PrintOp : public framework::OperatorBase {
  public:
-  TensorPrintOp(const std::string &type,
-                const framework::VariableNameMap &inputs,
-                const framework::VariableNameMap &outputs,
-                const framework::AttributeMap &attrs)
+  PrintOp(const std::string &type, const framework::VariableNameMap &inputs,
+          const framework::VariableNameMap &outputs,
+          const framework::AttributeMap &attrs)
       : OperatorBase(type, inputs, outputs, attrs) {}
 
-  TensorPrintOp(const TensorPrintOp &o)
+  PrintOp(const PrintOp &o)
       : framework::OperatorBase(
             static_cast<const framework::OperatorBase &>(o)) {
     PADDLE_THROW("Not implemented.");
@@ -220,8 +219,8 @@ class TensorPrintOp : public framework::OperatorBase {
 class PrintOpProtoAndCheckMaker : public framework::OpProtoAndCheckerMaker {
  public:
   void Make() override {
-    AddInput("In", "Input tensor to be displayed.");
-    AddInput("Out", "output tensor .");
+    AddInput("In", "Input tensor to be displayeddsdfasdfasdf.");
+    AddOutput("Out", "The output of MatMul op");
     AddAttr<int>("first_n", "Only log `first_n` number of times.");
     AddAttr<std::string>("message", "A string message to print as a prefix.");
     AddAttr<int>("summarize", "Number of elements printed.");
@@ -246,9 +245,10 @@ tensor `t`.)DOC");
   }
 };
 
-class InferShapeForward : public framework::InferShapeBase {
+class PrintOpInferShape : public framework::InferShapeBase {
  public:
   void operator()(framework::InferShapeContext *ctx) const override {
+    VLOG(10) << "PrintOpInferShape";
     PADDLE_ENFORCE(ctx->HasInput("In"), "Input(In) should not be null.");
     PADDLE_ENFORCE(ctx->HasOutput("Out"), "Output(Out) should not be null.");
     ctx->ShareDim("In", /*->*/ "Out");
@@ -285,6 +285,6 @@ class PrintOpGradientMaker : public framework::SingleGradOpDescMaker {
 
 namespace ops = paddle::operators;
 
-REGISTER_OPERATOR(print, ops::TensorPrintOp, ops::PrintOpProtoAndCheckMaker,
-                  ops::PrintOpGradientMaker, ops::InferShapeForward,
+REGISTER_OPERATOR(print, ops::PrintOp, ops::PrintOpProtoAndCheckMaker,
+                  ops::PrintOpGradientMaker, ops::PrintOpInferShape,
                   ops::PrintOpVarTypeInference);
