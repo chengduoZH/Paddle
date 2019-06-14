@@ -248,8 +248,20 @@ tensor `t`.)DOC");
 
 class InferShapeForward : public framework::InferShapeBase {
  public:
-  void operator()(framework::InferShapeContext *context) const override {
-    PADDLE_ENFORCE(context->HasInput("In"), "Input(In) should not be null.");
+  void operator()(framework::InferShapeContext *ctx) const override {
+    PADDLE_ENFORCE(ctx->HasInput("In"), "Input(In) should not be null.");
+    PADDLE_ENFORCE(ctx->HasOutput("Out"), "Output(Out) should not be null.");
+    ctx->ShareDim("In", /*->*/ "Out");
+    ctx->ShareLoD("In", /*->*/ "Out");
+  }
+};
+
+class PrintOpVarTypeInference : public framework::VarTypeInference {
+ public:
+  void operator()(framework::InferVarTypeContext *ctx) const override {
+    auto input_type = ctx->GetType(ctx->Input("In")[0]);
+    auto out_name = ctx->Output("Out").front();
+    ctx->SetType(out_name, input_type);
   }
 };
 
@@ -274,4 +286,5 @@ class PrintOpGradientMaker : public framework::SingleGradOpDescMaker {
 namespace ops = paddle::operators;
 
 REGISTER_OPERATOR(print, ops::TensorPrintOp, ops::PrintOpProtoAndCheckMaker,
-                  ops::PrintOpGradientMaker, ops::InferShapeForward);
+                  ops::PrintOpGradientMaker, ops::InferShapeForward,
+                  ops::PrintOpVarTypeInference);
