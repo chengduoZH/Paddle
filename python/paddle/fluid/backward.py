@@ -219,6 +219,8 @@ def _remove_no_grad_branch_(op_descs, no_grad_set, out_grad_vars=None):
     def _op_can_be_removed_(op_desc, no_grad_set, grad_vars):
         in_arg_names = op_desc.input_arg_names()
         not_in_grad_vars = [var for var in in_arg_names if var not in grad_vars]
+
+        # If all the input of op_desc is not in grad_vars, and ?
         if len(not_in_grad_vars) == len(in_arg_names) and not _some_in_set_(
                 op_desc.output_arg_names(), out_grad_vars):
             return True
@@ -233,7 +235,6 @@ def _remove_no_grad_branch_(op_descs, no_grad_set, out_grad_vars=None):
         out_arg_names = op_desc.output_arg_names()
         if len(out_arg_names) == 0 or _all_in_set_(out_arg_names, no_grad_set):
             return True
-
         if _all_in_set_([
                 name for name in op_desc.input_arg_names()
                 if name.find(core.grad_var_suffix()) != -1
@@ -328,8 +329,8 @@ def _append_backward_ops_(block,
         grad_op_desc, op_grad_to_var = core.get_grad_op_desc(
             op.desc, cpt.to_text(no_grad_dict[block.idx]), grad_sub_block_list)
 
-        grad_op_descs.extend(grad_op_desc)
-        grad_to_var.update(op_grad_to_var)
+        # grad_op_descs.extend(grad_op_desc)
+        # grad_to_var.update(op_grad_to_var)
         if len(out_grad_vars) == 0:
             for grad_op in grad_op_desc:
                 out_grad_vars.update(grad_op.output_arg_names())
