@@ -208,7 +208,7 @@ def _addup_repetitive_outputs_(op_descs):
     return op_descs
 
 
-def _remove_no_grad_branch_(op_descs, no_grad_set):
+def _remove_no_grad_branch_(op_descs, no_grad_set, not_benn_used_vars):
     """
     Remove unnecessary grad ops
     A grad op can be removed in two cases:
@@ -220,10 +220,11 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
         out_arg_names = op_desc.output_arg_names()
         if len(out_arg_names) == 0 or _all_in_set_(out_arg_names, no_grad_set):
             return True
-        if _all_in_set_([
-                name for name in op_desc.input_arg_names()
-                if name.find(core.grad_var_suffix()) != -1
-        ], no_grad_set):
+        in_grad_vars = [
+            name for name in op_desc.input_arg_names()
+            if name.find(core.grad_var_suffix()) != -1
+        ]
+        if _all_in_set_(in_grad_vars, no_grad_set):
             no_grad_set.update(out_arg_names)
             return True
         return False
@@ -234,6 +235,7 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
         if not _op_can_be_removed_(op_desc, no_grad_set)
     ]
     # Insert fill_zeros_like_op
+    output_vars = []
     to_insert = []
     for idx, op_desc in enumerate(op_descs):
         for arg in op_desc.input_arg_names():
@@ -241,6 +243,15 @@ def _remove_no_grad_branch_(op_descs, no_grad_set):
                 x_in = _strip_grad_suffix_(arg)
                 to_insert.append((_create_op_desc_(
                     "fill_zeros_like", {"X": [x_in]}, {"Out": [arg]}, {}), idx))
+            # if not_benn_used_vars is not None and core.grad_var_suffix() in arg:
+            #     if arg not in output_vars:
+            #         x_in = _strip_grad_suffix_(arg)
+            #         if x_in in not_benn_used_vars:
+            #             print(arg)
+            #             to_insert.append(
+            #                 (_create_op_desc_("fill_zeros_like", {"X": [x_in]},
+            #                                   {"Out": [arg]}, {}), idx))
+            # output_vars.extend(op_desc.output_arg_names())
 
     list([op_descs.insert(p[1], p[0]) for p in reversed(to_insert)])
 
@@ -262,6 +273,7 @@ def _append_backward_ops_(block,
                           no_grad_dict,
                           grad_to_var,
                           callbacks=None,
+                          not_benn_used_vars=None,
                           input_grad_names_set=None):
     """
     Create all grad ops, and insert them into given block
@@ -298,7 +310,7 @@ def _append_backward_ops_(block,
             pre_input_grad_names_set = copy.copy(input_grad_names_set)
             input_grad_names_set = None
             _append_backward_ops_(sub_block, sub_block.ops, grad_sub_block,
-                                  no_grad_dict, grad_to_var, callbacks,
+                                  no_grad_dict, grad_to_var, callbacks, None,
                                   input_grad_names_set)
             input_grad_names_set = pre_input_grad_names_set
 
@@ -339,8 +351,8 @@ def _append_backward_ops_(block,
 
     grad_op_descs = _addup_repetitive_outputs_(grad_op_descs)
 
-    grad_op_descs = _remove_no_grad_branch_(grad_op_descs,
-                                            no_grad_dict[block.idx])
+    grad_op_descs = _remove_no_grad_branch_(
+        grad_op_descs, no_grad_dict[block.idx], not_benn_used_vars)
 
     # append op_desc in grad_op_descs to target_block
     op_role_attr_name = core.op_proto_and_checker_maker.kOpRoleAttrName()
@@ -551,7 +563,10 @@ def append_backward(loss, parameter_list=None, no_grad_set=None,
 
     block_no_grad_set = set(map(_strip_grad_suffix_, no_grad_dict[0]))
     op_path = _find_op_path_(root_block, [loss], [], block_no_grad_set)
-
+    not_benn_used_vars = _find_been_used_var_(op_path, [loss],
+                                              block_no_grad_set)
+    block_no_grad_set.update(not_benn_used_vars)
+    print("######", not_benn_used_vars)
     no_grad_dict[0].update(list(map(_append_grad_suffix_, block_no_grad_set)))
 
     input_grad_names_set = None
@@ -560,6 +575,12 @@ def append_backward(loss, parameter_list=None, no_grad_set=None,
     if program._appending_grad_times > 1:
         input_grad_names_set = set([_append_grad_suffix_(loss.name)])
 
+    # grad_ops_input_set = set()
+    # def _get_gradient_ops_input(block, context):
+    #     op_desc = context["__current_op_desc__"]
+    #     grad_ops_input_set.update(op_desc.input_arg_names())
+    # callbacks.append(_get_gradient_ops_input)
+
     _append_backward_ops_(
         root_block,
         op_path,
@@ -567,7 +588,10 @@ def append_backward(loss, parameter_list=None, no_grad_set=None,
         no_grad_dict,
         grad_to_var,
         callbacks,
+        not_benn_used_vars=not_benn_used_vars,
         input_grad_names_set=input_grad_names_set)
+
+    # print("ssss,", grad_ops_input_set)
 
     # Because calc_gradient may be called multiple times,
     # we need rename the internal gradient variables so that they have
@@ -627,6 +651,21 @@ def _as_list(x):
     if x is None:
         return []
     return list(x) if isinstance(x, collections.Sequence) else [x]
+
+
+def _find_been_used_var_(op_path, targets, no_grad_set):
+    output_names = set([out.name for out in targets])
+    no_grad_var = []
+    for i, op in reversed(list(enumerate(op_path))):
+        # if op.has_attr("sub_block"): continue
+        for out_var in op.desc.output_arg_names():
+            if out_var not in output_names:
+                no_grad_var.append(out_var)
+        for name in op.desc.input_arg_names():
+            if name not in no_grad_set:
+                output_names.add(name)
+    no_grad_var = set(no_grad_var)
+    return no_grad_var
 
 
 def _find_op_path_(block, outputs, inputs, no_grad_set):
@@ -752,6 +791,7 @@ def calc_gradient(targets, inputs, target_gradients=None, no_grad_set=None):
 
     block_no_grad_set = set(map(_strip_grad_suffix_, no_grad_dict[0]))
     op_path = _find_op_path_(block, targets, inputs, block_no_grad_set)
+
     no_grad_dict[0].update(list(map(_append_grad_suffix_, block_no_grad_set)))
     grad_to_var = dict()
     grad_info_map = dict()
