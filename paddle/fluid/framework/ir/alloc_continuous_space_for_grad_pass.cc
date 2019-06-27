@@ -349,7 +349,7 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
         "SetGroupAccordingToMemorySize(memory_size: %f):", group_memory_size);
 
     if (VLOG_IS_ON(10)) {
-      PrintGroupInfo(var_nodes, group_grads_params);
+      PrintGroupInfo(var_nodes, group_params_grads);
     }
   }
 
