@@ -19,6 +19,7 @@ limitations under the License. */
 #include <set>
 #include <unordered_set>
 #include "glog/logging.h"
+#include "paddle/fluid/framework/selected_rows.h"
 #include "paddle/fluid/framework/threadpool.h"
 #include "paddle/fluid/string/printf.h"
 
@@ -156,6 +157,8 @@ std::string Scope::Rename(const std::string& origin_name) const {
   return new_name;
 }
 
+std::list<Scope*> Scope::GetLocalScope() const { return kids_; }
+
 Variable* Scope::VarInternal(const std::string& name) {
   auto* v = FindVarLocally(name);
   if (v != nullptr) return v;
@@ -239,6 +242,79 @@ std::string GenScopeTreeDebugInfo(Scope* root) {
   }
 
   return os.str();
+}
+
+struct TensorVisitor {
+  std::vector<memory::Allocation*> operator()(const LoDTensor& lod_tensor) {
+    if (lod_tensor.IsInitialized()) {
+      return {lod_tensor.Holder().get()};
+    }
+    return {};
+  }
+  std::vector<memory::Allocation*> operator()(
+      const SelectedRows& selectedrows) {
+    if (selectedrows.value().IsInitialized()) {
+      return {selectedrows.value().Holder().get()};
+    }
+    return {};
+  }
+  std::vector<memory::Allocation*> operator()(const LoDTensorArray& array) {
+    std::vector<memory::Allocation*> result;
+    result.reserve(array.size());
+    for (auto& tensor : array) {
+      if (tensor.IsInitialized()) {
+        result.emplace_back(tensor.Holder().get());
+      }
+    }
+    return result;
+  }
+};
+
+template <typename Func>
+static std::vector<memory::Allocation*> VisitVariable(Variable* var,
+                                                      Func* func) {
+  if (var->IsType<LoDTensor>()) {
+    return (*func)(var->Get<LoDTensor>());
+  } else if (var->IsType<SelectedRows>()) {
+    return (*func)(var->Get<SelectedRows>());
+  } else if (var->IsType<LoDTensorArray>()) {
+    return (*func)(var->Get<LoDTensorArray>());
+  }
+  return {};
+}
+
+size_t AnalysisScope(const Scope& sub_scope) {
+  auto var_names = sub_scope.LocalVarNames();
+  VLOG(1) << "var_names: " << var_names.size();
+  std::set<memory::Allocation*> allocations;
+  for (auto v_name : var_names) {
+    auto var = sub_scope.FindVar(v_name);
+    PADDLE_ENFORCE_NOT_NULL(var, "%s should not be nullptr.", v_name);
+    TensorVisitor tensor_visitor;
+    auto allocation = VisitVariable(var, &tensor_visitor);
+    allocations.insert(allocation.begin(), allocation.end());
+  }
+  VLOG(1) << "allocation num: " << allocations.size();
+  size_t bytes = 0;
+  for (auto& allocation : allocations) {
+    if (allocation) {
+      bytes += allocation->size();
+    }
+  }
+  VLOG(1) << "scope " << &sub_scope << " bytes: " << bytes;
+  return bytes;
+}
+
+size_t PrintMemoryUsage(const Scope* scope) {
+  size_t bytes = AnalysisScope(*scope);
+  std::list<Scope*> sub_scopes = scope->GetLocalScope();
+  VLOG(1) << "This scope contain sub_scopes:" << sub_scopes.size();
+  size_t sub_scope_idx = 0;
+  for (auto& sub_scope : sub_scopes) {
+    VLOG(2) << "sub scope : " << sub_scope_idx++;
+    bytes += PrintMemoryUsage(sub_scope);
+  }
+  return bytes;
 }
 
 }  // namespace framework
