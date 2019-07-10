@@ -41,7 +41,10 @@ limitations under the License. */
 #include "paddle/fluid/operators/ngraph/ngraph_engine.h"
 DEFINE_bool(use_ngraph, false, "Use NGRAPH to run");
 #endif
-
+#ifdef PADDLE_WITH_CUDA
+#include "paddle/fluid/platform/cuda_device_guard.h"
+#include "paddle/fluid/platform/gpu_info.h"
+#endif
 DECLARE_bool(benchmark);
 DEFINE_bool(use_mkldnn, false, "Use MKLDNN to run");
 
@@ -173,10 +176,34 @@ void Executor::Run(const ProgramDesc& pdesc, Scope* scope, int block_id,
                    bool create_local_scope, bool create_vars,
                    const std::vector<std::string>& skip_ref_cnt_vars,
                    bool force_disable_gc) {
+  VLOG(1) << "Executor::Run before: " << scope;
+  size_t bytes = PrintMemoryUsage(scope);
+  VLOG(1) << "!!!!!!!!! " << scope
+          << " bytes: " << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0
+          << " GB";
+  // #ifdef PADDLE_WITH_CUDA
+  //  if (platform::is_gpu_place(place_)) {
+  //    platform::CUDADeviceGuard(boost::get<platform::CUDAPlace>(place_).device);
+  //    size_t avail, total;
+  //    platform::GpuMemoryUsage(&avail, &total);
+  //    VLOG(1) << place_ << " avail: "
+  //            << static_cast<double>(avail) / 1024.0 / 1024.0 / 1024.0 << "
+  //            GB"
+  //            << " ,total"
+  //            << static_cast<double>(total) / 1024.0 / 1024.0 / 1024.0 << "
+  //            GB";
+  //  }
+  // #endif
+
   platform::RecordBlock b(block_id);
   if (FLAGS_use_mkldnn) EnableMKLDNN(pdesc);
   auto ctx = Prepare(pdesc, block_id, skip_ref_cnt_vars, force_disable_gc);
   RunPreparedContext(ctx.get(), scope, create_local_scope, create_vars);
+  VLOG(1) << "Executor::Run after: " << scope;
+  bytes = PrintMemoryUsage(scope);
+  VLOG(1) << "!!!!!!!!! " << scope
+          << " bytes: " << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0
+          << " GB";
 }
 
 // Check whether the block already has feed operators and feed_holder.

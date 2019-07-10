@@ -104,6 +104,7 @@ class Scope {
 
   // Rename variable to a new name and return the new name
   std::string Rename(const std::string& origin_name) const;
+  std::list<Scope*> GetLocalScope() const;
 
  protected:
   struct KeyHasher {
@@ -149,6 +150,9 @@ class Scope {
 // Generate some debug string about the inherience structure of scope, quite
 // naive.
 std::string GenScopeTreeDebugInfo(Scope*);
+
+size_t AnalysisScope(const Scope& sub_scope);
+size_t PrintMemoryUsage(const Scope*);
 
 }  // namespace framework
 }  // namespace paddle
