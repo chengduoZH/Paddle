@@ -159,17 +159,19 @@ void Executor::Run(const ProgramDesc& pdesc, Scope* scope, int block_id,
   VLOG(1) << "!!!!!!!!! " << scope
           << " bytes: " << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0
           << " GB";
-#ifdef PADDLE_WITH_CUDA
-  if (platform::is_gpu_place(place_)) {
-    platform::CUDADeviceGuard(boost::get<platform::CUDAPlace>(place_).device);
-    size_t avail, total;
-    platform::GpuMemoryUsage(&avail, &total);
-    VLOG(1) << place_ << " avail: "
-            << static_cast<double>(avail) / 1024.0 / 1024.0 / 1024.0 << " GB"
-            << " ,total"
-            << static_cast<double>(total) / 1024.0 / 1024.0 / 1024.0 << " GB";
-  }
-#endif
+  // #ifdef PADDLE_WITH_CUDA
+  //  if (platform::is_gpu_place(place_)) {
+  //    platform::CUDADeviceGuard(boost::get<platform::CUDAPlace>(place_).device);
+  //    size_t avail, total;
+  //    platform::GpuMemoryUsage(&avail, &total);
+  //    VLOG(1) << place_ << " avail: "
+  //            << static_cast<double>(avail) / 1024.0 / 1024.0 / 1024.0 << "
+  //            GB"
+  //            << " ,total"
+  //            << static_cast<double>(total) / 1024.0 / 1024.0 / 1024.0 << "
+  //            GB";
+  //  }
+  // #endif
 
   platform::RecordBlock b(block_id);
   if (FLAGS_use_mkldnn) EnableMKLDNN(pdesc);

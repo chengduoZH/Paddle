@@ -49,18 +49,20 @@ static void CaculateAllocations(const std::vector<Scope *> &local_scopes,
     bytes = PrintMemoryUsage(scope);
     VLOG(1) << "!!!!!!!!! " << scope << "  bytes(included local scope): "
             << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0 << " GB";
-#ifdef PADDLE_WITH_CUDA
-    if (platform::is_gpu_place(places[scope_idx])) {
-      platform::CUDADeviceGuard(
-          boost::get<platform::CUDAPlace>(places[scope_idx]).device);
-      size_t avail, total;
-      platform::GpuMemoryUsage(&avail, &total);
-      VLOG(1) << place_ << " avail: "
-              << static_cast<double>(avail) / 1024.0 / 1024.0 / 1024.0 << " GB"
-              << " ,total"
-              << static_cast<double>(total) / 1024.0 / 1024.0 / 1024.0 << " GB";
-    }
-#endif
+    // #ifdef PADDLE_WITH_CUDA
+    //    if (platform::is_gpu_place(places[scope_idx])) {
+    //      platform::CUDADeviceGuard(
+    //          boost::get<platform::CUDAPlace>(places[scope_idx]).device);
+    //      size_t avail, total;
+    //      platform::GpuMemoryUsage(&avail, &total);
+    //      VLOG(1) << places[scope_idx] << " avail: "
+    //              << static_cast<double>(avail) / 1024.0 / 1024.0 / 1024.0 <<
+    //              " GB"
+    //              << " ,total"
+    //              << static_cast<double>(total) / 1024.0 / 1024.0 / 1024.0 <<
+    //              " GB";
+    //    }
+    // #endif
     scope_idx++;
     auto local_exe_scope_var =
         scope->FindLocalVar(details::kLocalExecScopeName);
