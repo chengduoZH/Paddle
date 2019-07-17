@@ -62,7 +62,7 @@ void SetFuseParameterMemorySize(double memory_size) {
 
 double GetFuseParameterMemorySize() { return FLAGS_fuse_parameter_memory_size; }
 
-class AllocContinuousSpaceForGradPass : public ir::Pass {
+class CoalescedGradTensorPass : public ir::Pass {
  protected:
   void ApplyImpl(ir::Graph *graph) const {
     ir::Graph &result = *graph;
@@ -508,6 +508,6 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
 }  // namespace paddle
 
 REGISTER_PASS(coalesced_grad_tensor_pass,
-              paddle::framework::ir::AllocContinuousSpaceForGradPass)
+              paddle::framework::ir::CoalescedGradTensorPass)
     .RequirePassAttr(paddle::framework::details::kPlaces)
     .RequirePassAttr(paddle::framework::details::kLocalScopes);
