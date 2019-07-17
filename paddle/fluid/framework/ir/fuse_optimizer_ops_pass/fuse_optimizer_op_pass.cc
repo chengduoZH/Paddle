@@ -371,7 +371,7 @@ void FuseOptimizerOpPass::AppendAllocContinuousSpace(
     const std::vector<std::string> &out_args, const std::string &fused_out_arg,
     BlockDesc *global_block, bool copy_data, bool check_name) const {
   auto op_desc = global_block->AppendOp();
-  op_desc->SetType("alloc_continuous_space");
+  op_desc->SetType("coalesced_tensor");
   op_desc->SetInput("Input", in_args);
   op_desc->SetOutput("Output", out_args);
   op_desc->SetOutput("FusedOutput", {fused_out_arg});

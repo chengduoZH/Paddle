@@ -497,7 +497,7 @@ class CoalescedGradTensorPass : public ir::Pass {
                                  const std::string &fused_var_name,
                                  BlockDesc *global_block) const {
     auto op_desc = global_block->AppendOp();
-    op_desc->SetType("alloc_continuous_space");
+    op_desc->SetType("coalesced_tensor");
     op_desc->SetInput("Input", params_name);
     op_desc->SetOutput("Output", grads_name);
     op_desc->SetOutput("FusedOutput", {fused_var_name});
