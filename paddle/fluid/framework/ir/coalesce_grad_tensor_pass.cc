@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/fluid/framework/ir/coalesced_grad_tensor_pass.h"
+#include "paddle/fluid/framework/ir/coalesce_grad_tensor_pass.h"
 #include <algorithm>
 #include <map>
 #include <string>
@@ -62,7 +62,7 @@ void SetFuseParameterMemorySize(double memory_size) {
 
 double GetFuseParameterMemorySize() { return FLAGS_fuse_parameter_memory_size; }
 
-class CoalescedGradTensorPass : public ir::Pass {
+class CoalesceGradTensorPass : public ir::Pass {
  protected:
   void ApplyImpl(ir::Graph *graph) const {
     ir::Graph &result = *graph;
@@ -497,7 +497,7 @@ class CoalescedGradTensorPass : public ir::Pass {
                                  const std::string &fused_var_name,
                                  BlockDesc *global_block) const {
     auto op_desc = global_block->AppendOp();
-    op_desc->SetType("coalesced_tensor");
+    op_desc->SetType("coalesce_tensor");
     op_desc->SetInput("Input", params_name);
     op_desc->SetOutput("Output", grads_name);
     op_desc->SetOutput("FusedOutput", {fused_var_name});
@@ -507,7 +507,7 @@ class CoalescedGradTensorPass : public ir::Pass {
 }  // namespace framework
 }  // namespace paddle
 
-REGISTER_PASS(coalesced_grad_tensor_pass,
-              paddle::framework::ir::CoalescedGradTensorPass)
+REGISTER_PASS(coalesce_grad_tensor_pass,
+              paddle::framework::ir::CoalesceGradTensorPass)
     .RequirePassAttr(paddle::framework::details::kPlaces)
     .RequirePassAttr(paddle::framework::details::kLocalScopes);
