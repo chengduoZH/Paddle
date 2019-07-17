@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/fluid/framework/ir/alloc_continuous_space_for_grad_pass.h"
+#include "paddle/fluid/framework/ir/coalesced_grad_tensor_pass.h"
 #include <algorithm>
 #include <map>
 #include <string>
@@ -507,7 +507,7 @@ class AllocContinuousSpaceForGradPass : public ir::Pass {
 }  // namespace framework
 }  // namespace paddle
 
-REGISTER_PASS(alloc_continuous_space_for_grad_pass,
+REGISTER_PASS(coalesced_grad_tensor_pass,
               paddle::framework::ir::AllocContinuousSpaceForGradPass)
     .RequirePassAttr(paddle::framework::details::kPlaces)
     .RequirePassAttr(paddle::framework::details::kLocalScopes);

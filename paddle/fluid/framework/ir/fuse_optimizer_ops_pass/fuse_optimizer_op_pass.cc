@@ -112,7 +112,7 @@ void FuseOptimizerOpPass::ApplyImpl(ir::Graph *graph) const {
     if (new_grad_idx.size() == 0) {
       if (!result.Has(details::kFusedGrads)) {
         PADDLE_THROW(
-            "The alloc_continuous_space_for_grad_pass should "
+            "The coalesced_grad_tensor_pass should "
             "be called before this pass.");
       }
       auto &fused_grad = result.Get<details::FusedGrads>(details::kFusedGrads);
