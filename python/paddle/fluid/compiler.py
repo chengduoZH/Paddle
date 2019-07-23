@@ -288,8 +288,10 @@ class CompiledProgram(object):
 
         if self._program:
             self._build_strategy.nccl_comm_num = self._program._nccl_comm_num
-            self._build_strategy.use_hierarchical_allreduce = self._program._use_hierarchical_allreduce
-            self._build_strategy.hierarchical_allreduce_inter_nranks = self._program._hierarchical_allreduce_inter_nranks
+            self._build_strategy.use_hierarchical_allreduce = \
+                self._program._use_hierarchical_allreduce
+            self._build_strategy.hierarchical_allreduce_inter_nranks = \
+                self._program._hierarchical_allreduce_inter_nranks
 
         if self._build_strategy.sync_batch_norm:
             self._build_strategy.enable_sequential_execution = True
@@ -337,7 +339,7 @@ class CompiledProgram(object):
 
         self._scope = scope
         self._place = place
-        if self._is_data_parallel:
+        if self._program is None or self._is_data_parallel:
             self._executor = self._compile_data_parallel(
                 use_cuda=isinstance(self._place, core.CUDAPlace),
                 scope=self._scope)
