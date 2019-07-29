@@ -160,7 +160,7 @@ class Node {
   boost::any wrapper_;
   std::function<void(void)> wrapper_deleter_;
   std::type_index wrapper_type_ = std::type_index(typeid(void));
-
+  int64_t depth{-1};
   DISABLE_COPY_AND_ASSIGN(Node);
 };
 

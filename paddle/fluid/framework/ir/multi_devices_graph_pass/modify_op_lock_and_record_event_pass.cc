@@ -15,7 +15,7 @@
 #include "paddle/fluid/framework/details/computation_op_handle.h"
 #include "paddle/fluid/framework/details/multi_devices_helper.h"
 #include "paddle/fluid/framework/ir/graph_helper.h"
-#include "paddle/fluid/framework/ir/memory_optimize_pass/op_graph_view.h"
+#include "paddle/fluid/framework/ir/op_graph_view.h"
 
 namespace paddle {
 namespace framework {

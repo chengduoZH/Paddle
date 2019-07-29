@@ -3,13 +3,16 @@ cc_library(modify_op_lock_and_record_event_pass SRCS modify_op_lock_and_record_e
 cc_library(multi_devices_graph_print_pass SRCS multi_devices_graph_print_pass.cc DEPS multi_devices_helper)
 cc_library(multi_devices_graph_check_pass SRCS multi_devices_graph_check_pass.cc DEPS multi_devices_helper)
 
+cc_library(add_depth_in_op_node_pass SRCS add_depth_in_op_node_pass.cc DEPS multi_devices_helper op_graph_view)
+
 set(ALL_REDUCE_OP_HANDLES all_reduce_op_handle)
 if(WITH_GPU AND WITH_DGC)
   list(APPEND ALL_REDUCE_OP_HANDLES sparse_all_reduce_op_handle)
 endif()
 
 cc_library(multi_devices_graph_pass SRCS multi_devices_graph_pass.cc DEPS multi_devices_helper computation_op_handle
-        scale_loss_grad_op_handle rpc_op_handle fetch_barrier_op_handle ${ALL_REDUCE_OP_HANDLES} reduce_op_handle broadcast_op_handle fused_broadcast_op_handle)
+        scale_loss_grad_op_handle rpc_op_handle fetch_barrier_op_handle ${ALL_REDUCE_OP_HANDLES}
+        reduce_op_handle broadcast_op_handle fused_broadcast_op_handle add_depth_in_op_node_pass)
 cc_library(sequential_execution_pass SRCS sequential_execution_pass.cc DEPS graph graph_helper pass)
 
 cc_library(fuse_all_reduce_op_pass SRCS fuse_all_reduce_op_pass.cc DEPS graph graph_helper fused_all_reduce_op_handle)

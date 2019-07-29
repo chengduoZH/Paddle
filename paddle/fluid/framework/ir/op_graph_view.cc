@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/fluid/framework/ir/memory_optimize_pass/op_graph_view.h"
+#include "paddle/fluid/framework/ir/op_graph_view.h"
 #include <queue>
 #include <utility>
 

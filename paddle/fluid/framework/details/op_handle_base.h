@@ -113,6 +113,10 @@ class OpHandleBase {
   void SetLocalExecScopes(
       const std::unordered_map<Scope *, Scope *> &scope_map);
 
+  int64_t Depth() const { return depth_; }
+
+  void SetDepth(int64_t depth) { depth_ = depth; }
+
  protected:
   virtual std::vector<Scope *> GetLocalScopes() = 0;
 
@@ -131,7 +135,7 @@ class OpHandleBase {
   std::map<platform::Place, platform::DeviceContext *> dev_ctxes_;
 
   std::vector<Scope *> local_exec_scopes_;
-
+  int64_t depth_;
 #ifdef PADDLE_WITH_CUDA
   std::unordered_map<int, cudaEvent_t> events_;
 #endif

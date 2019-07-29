@@ -27,8 +27,8 @@
 #include "paddle/fluid/framework/ir/graph.h"
 #include "paddle/fluid/framework/ir/graph_helper.h"
 #include "paddle/fluid/framework/ir/memory_optimize_pass/memory_optimization_var_info.h"
-#include "paddle/fluid/framework/ir/memory_optimize_pass/op_graph_view.h"
 #include "paddle/fluid/framework/ir/memory_optimize_pass/reference_count_pass_helper.h"
+#include "paddle/fluid/framework/ir/op_graph_view.h"
 #include "paddle/fluid/framework/ir/pass.h"
 
 namespace paddle {

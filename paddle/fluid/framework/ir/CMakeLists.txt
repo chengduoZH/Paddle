@@ -44,6 +44,7 @@ cc_library(pass SRCS pass.cc DEPS graph node graph_helper)
 cc_library(graph_traits SRCS graph_traits.cc DEPS graph)
 cc_library(graph_pattern_detector SRCS graph_pattern_detector.cc DEPS graph graph_helper graph_traits)
 cc_library(fuse_pass_base SRCS fuse_pass_base.cc DEPS pass)
+cc_library(op_graph_view SRCS op_graph_view.cc DEPS op_handle_base)
 
 cc_library(coalesce_grad_tensor_pass SRCS coalesce_grad_tensor_pass.cc DEPS graph graph_helper)
 

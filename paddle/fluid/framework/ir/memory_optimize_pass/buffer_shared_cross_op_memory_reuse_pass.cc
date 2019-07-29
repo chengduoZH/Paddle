@@ -22,8 +22,8 @@
 #include "paddle/fluid/framework/details/share_tensor_buffer_op_handle.h"
 #include "paddle/fluid/framework/ir/memory_optimize_pass/memory_optimization_var_info.h"
 #include "paddle/fluid/framework/ir/memory_optimize_pass/memory_reuse_pass.h"
-#include "paddle/fluid/framework/ir/memory_optimize_pass/op_graph_view.h"
 #include "paddle/fluid/framework/ir/memory_optimize_pass/reference_count_pass_helper.h"
+#include "paddle/fluid/framework/ir/op_graph_view.h"
 #include "paddle/fluid/framework/ir/pass.h"
 
 namespace paddle {
