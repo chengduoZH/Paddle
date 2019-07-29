@@ -68,7 +68,7 @@ struct BuildStrategy {
   GradientScaleStrategy gradient_scale_{GradientScaleStrategy::kCoeffNumDevice};
 
   std::string debug_graphviz_path_{""};
-
+  bool add_depth_{false};
   // Add dependency between backward ops and optimization ops, make sure that
   // all the backward ops are finished before running the optimization ops.
   // It might make the training speed of data parallelism faster.
