@@ -227,9 +227,11 @@ class DataParallel(layers.Layer):
         grad_var_groups = OrderedDict()
         for g_var in grad_vars:
             if memory_counter < kMB:
-                memory_counter += np.prod(g_var.shape)
+                memory_counter += np.prod(g_var.shape) * core.size_of_dtype(
+                    g_var.dtype())
             else:
-                memory_counter = np.prod(g_var.shape)
+                memory_counter = np.prod(g_var.shape) * core.size_of_dtype(
+                    g_var.dtype())
                 group_idx += 1
             grad_var_groups.setdefault(group_idx, []).append(g_var)
 
