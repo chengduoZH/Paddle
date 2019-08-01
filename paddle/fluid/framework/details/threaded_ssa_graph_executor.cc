@@ -11,8 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/fluid/framework/details/threaded_ssa_graph_executor.h"
+#include <map>
 #include "paddle/fluid/framework/ir/graph_helper.h"
 #include "paddle/fluid/platform/profiler.h"
 
@@ -96,6 +96,10 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
     };
     // Clean run context
     run_op_futures_.clear();
+
+    std::map<int, std::unordered_set<OpHandleBase *>> refined_ready_ops;
+
+    refined_ready_ops[0].emplace(ready_ops);
 
     while (!pending_vars.empty()) {
       // 1. Run All Ready ops
