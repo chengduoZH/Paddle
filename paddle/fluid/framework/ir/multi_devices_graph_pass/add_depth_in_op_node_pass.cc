@@ -106,5 +106,5 @@ class AddDepthInOpNodePass : public ir::Pass {
 }  // namespace framework
 }  // namespace paddle
 
-REGISTER_PASS(add_depth_in_no_node_pass,
+REGISTER_PASS(add_depth_in_op_node_pass,
               paddle::framework::ir::AddDepthInOpNodePass);
