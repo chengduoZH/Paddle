@@ -104,6 +104,10 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
     while (!pending_vars.empty()) {
       // 1. Run All Ready ops
       // Keep loop until all vars are ready.
+      PADDLE_ENFORCE(!refined_ready_ops.empty());
+      auto iter = refined_ready_ops.begin();
+      std::swap(ready_ops, iter->second);
+      refined_ready_ops.erase(iter);
       run_all_ops(ready_ops);
 
       // 2. Find ready variable
@@ -128,7 +132,8 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
           auto &deps = pending_ops[op];
           --deps;
           if (deps == 0) {
-            ready_ops.insert(op);
+            refined_ready_ops[op->Depth()].insert(op);
+            //            ready_ops.insert(op);
           }
         }
       }
