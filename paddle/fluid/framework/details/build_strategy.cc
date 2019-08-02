@@ -76,6 +76,8 @@ class ParallelExecutorPassBuilder : public ir::PassBuilder {
     // Note: This pass is used to check whether the multi_device_graph is right.
     AppendPass("multi_devices_check_pass");
 
+    AppendPassWithCheck(strategy_.add_depth_, "add_depth_in_op_node_pass");
+
     SetCollectiveContext();
   }
 
@@ -380,6 +382,7 @@ USE_PASS(fuse_momentum_op_pass);
 USE_PASS(fuse_all_reduce_op_pass);
 USE_PASS(runtime_context_cache_pass);
 USE_PASS(record_skip_memory_opt_vars_pass);
+USE_PASS(add_depth_in_op_node_pass);
 #ifdef PADDLE_WITH_MKLDNN
 USE_PASS(mkldnn_placement_pass);
 #endif

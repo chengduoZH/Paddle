@@ -12,7 +12,7 @@ endif()
 
 cc_library(multi_devices_graph_pass SRCS multi_devices_graph_pass.cc DEPS multi_devices_helper computation_op_handle
         scale_loss_grad_op_handle rpc_op_handle fetch_barrier_op_handle ${ALL_REDUCE_OP_HANDLES}
-        reduce_op_handle broadcast_op_handle fused_broadcast_op_handle add_depth_in_op_node_pass)
+        reduce_op_handle broadcast_op_handle fused_broadcast_op_handle)
 cc_library(sequential_execution_pass SRCS sequential_execution_pass.cc DEPS graph graph_helper pass)
 
 cc_library(fuse_all_reduce_op_pass SRCS fuse_all_reduce_op_pass.cc DEPS graph graph_helper fused_all_reduce_op_handle)

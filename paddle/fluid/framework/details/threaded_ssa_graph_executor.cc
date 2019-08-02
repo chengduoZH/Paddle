@@ -99,15 +99,23 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
 
     std::map<int, std::unordered_set<OpHandleBase *>> refined_ready_ops;
     refined_ready_ops[0].insert(ready_ops.begin(), ready_ops.end());
-    ready_ops.clear();
+    if (VLOG_IS_ON(10)) {
+      std::stringstream out;
+      for (auto &depth_iter : refined_ready_ops) {
+        out << "depth: " << depth_iter.first << ", ";
+        std::for_each(
+            depth_iter.second.begin(), depth_iter.second.end(),
+            [&out](const OpHandleBase *op) { out << op->Name() << ", "; });
+        out << "\n";
+      }
+      VLOG(10) << out.str();
+    }
+
+    refined_ready_ops.clear();
 
     while (!pending_vars.empty()) {
       // 1. Run All Ready ops
       // Keep loop until all vars are ready.
-      PADDLE_ENFORCE(!refined_ready_ops.empty());
-      auto iter = refined_ready_ops.begin();
-      std::swap(ready_ops, iter->second);
-      refined_ready_ops.erase(iter);
       run_all_ops(ready_ops);
 
       // 2. Find ready variable
@@ -137,16 +145,23 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
           }
         }
       }
-      if (VLOG_IS_ON(10)) {
-        std::stringstream out;
-        for (auto &depth_iter : refined_ready_ops) {
-          out << "depth: " << depth_iter.first << ", ";
-          std::for_each(
-              depth_iter.second.begin(), depth_iter.second.end(),
-              [&out](const OpHandleBase *op) { out << op->Name() << ", "; });
-          out << "\n";
+
+      if (!refined_ready_ops.empty()) {
+        auto iter2 = refined_ready_ops.begin();
+        std::swap(ready_ops, iter2->second);
+        refined_ready_ops.erase(iter2);
+
+        if (VLOG_IS_ON(10)) {
+          std::stringstream out;
+          for (auto &depth_iter : refined_ready_ops) {
+            out << "depth: " << depth_iter.first << ", ";
+            std::for_each(
+                depth_iter.second.begin(), depth_iter.second.end(),
+                [&out](const OpHandleBase *op) { out << op->Name() << ", "; });
+            out << "\n";
+          }
+          VLOG(10) << out.str();
         }
-        VLOG(10) << out.str();
       }
     }
     PADDLE_ENFORCE(ready_ops.empty());

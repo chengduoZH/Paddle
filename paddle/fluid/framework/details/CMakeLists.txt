@@ -92,6 +92,6 @@ cc_library(build_strategy SRCS build_strategy.cc DEPS
         multi_devices_graph_print_pass multi_devices_graph_check_pass
         fuse_elewise_add_act_pass multi_batch_merge_pass 
         fuse_relu_depthwise_conv_pass
-        memory_optimize_pass lock_free_optimize_pass
+        memory_optimize_pass lock_free_optimize_pass add_depth_in_op_node_pass
         coalesce_grad_tensor_pass fuse_all_reduce_op_pass backward_optimizer_op_deps_pass
         fuse_adam_op_pass fuse_sgd_op_pass fuse_momentum_op_pass record_skip_memory_opt_vars_pass)

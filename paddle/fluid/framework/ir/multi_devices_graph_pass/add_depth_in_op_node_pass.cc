@@ -38,24 +38,24 @@ class AddDepthInOpNodePass : public ir::Pass {
     size_t op_num = op_deps.size();
 
     std::unordered_set<details::OpHandleBase *> visited_ops;
-    std::queue<details::OpHandleBase *> ready_ops;
+    std::vector<details::OpHandleBase *> ready_ops;
     for (auto iter = op_deps.begin(); iter != op_deps.end();) {
       if (iter->second != 0) {
         ++iter;
         continue;
       }
-      ready_ops.push(iter->first);
+      ready_ops.emplace_back(iter->first);
       visited_ops.insert(iter->first);
       iter->first->SetDepth(depth);
       op_deps.erase(iter++);
     }
 
     while (true) {
-      std::queue<details::OpHandleBase *> next_ready_ops;
+      std::vector<details::OpHandleBase *> next_ready_ops;
       ++depth;
       while (!ready_ops.empty()) {
-        auto *cur_op = ready_ops.front();
-        ready_ops.pop();
+        auto *cur_op = ready_ops.back();
+        ready_ops.pop_back();
 
         auto &pending_ops = graph_view.PendingOps(cur_op);
         for (auto *pending_op : pending_ops) {
@@ -67,10 +67,18 @@ class AddDepthInOpNodePass : public ir::Pass {
             visited_ops.insert(pending_op);
             pending_op->SetDepth(depth);
             op_deps.erase(pending_op);
-            next_ready_ops.push(pending_op);
+            next_ready_ops.emplace_back(pending_op);
           }
         }
       }
+      {
+        std::stringstream out;
+        for (auto next_op : next_ready_ops) {
+          out << next_op->Name() << ", ";
+        }
+        VLOG(10) << depth - 1 << " : " << out.str();
+      }
+
       if (next_ready_ops.size() > 0) {
         std::swap(ready_ops, next_ready_ops);
       } else {
