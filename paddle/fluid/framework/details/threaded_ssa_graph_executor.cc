@@ -137,6 +137,17 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
           }
         }
       }
+      if (VLOG_IS_ON(10)) {
+        std::stringstream out;
+        for (auto &depth_iter : refined_ready_ops) {
+          out << "depth: " << depth_iter.first << ", ";
+          std::for_each(
+              depth_iter.second.begin(), depth_iter.second.end(),
+              [&out](const OpHandleBase *op) { out << op->Name() << ", "; });
+          out << "\n";
+        }
+        VLOG(10) << out.str();
+      }
     }
     PADDLE_ENFORCE(ready_ops.empty());
   }
