@@ -98,8 +98,8 @@ inline FeedFetchList ThreadedSSAGraphExecutor::RunImpl(
     run_op_futures_.clear();
 
     std::map<int, std::unordered_set<OpHandleBase *>> refined_ready_ops;
-
-    refined_ready_ops[0].emplace(ready_ops);
+    refined_ready_ops[0].insert(ready_ops.begin(), ready_ops.end());
+    ready_ops.clear();
 
     while (!pending_vars.empty()) {
       // 1. Run All Ready ops
