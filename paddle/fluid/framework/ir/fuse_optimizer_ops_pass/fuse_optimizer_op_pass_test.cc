@@ -44,7 +44,7 @@ TEST(GraphTest, TestFuseSGDOps) {
   prog.MutableBlock(0)->Var("d")->SetType(proto::VarType::LOD_TENSOR);
   prog.MutableBlock(0)->Var("e")->SetType(proto::VarType::LOD_TENSOR);
 
-  std::unique_ptr<ir::Graph> g(new ir::Graph(prog));
+  std::unique_ptr<ir::Graph> graph(new ir::Graph(prog));
 
   auto pass = PassRegistry::Instance().Get("fuse_sgd_op_pass");
 
