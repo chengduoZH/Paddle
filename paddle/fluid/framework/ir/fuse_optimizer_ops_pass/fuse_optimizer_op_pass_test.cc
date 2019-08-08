@@ -14,6 +14,7 @@
 
 #include <gtest/gtest.h>
 #include "paddle/fluid/framework/ir/graph.h"
+#include "paddle/fluid/framework/ir/pass.h"
 #include "paddle/fluid/framework/op_proto_maker.h"
 #include "paddle/fluid/platform/enforce.h"
 namespace paddle {
