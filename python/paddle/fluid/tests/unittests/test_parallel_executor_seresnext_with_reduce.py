@@ -25,11 +25,11 @@ class TestResnetWithReduce(TestParallelExecutorBase):
         if use_cuda and not core.is_compiled_with_cuda():
             return
 
-        model = partial(
-            seresnext_net.model, remove_bn=True, remove_dropout=True)
+        # model = partial(
+        #     seresnext_net.model, remove_bn=True, remove_dropout=True)
 
         all_reduce_first_loss, all_reduce_last_loss = self.check_network_convergence(
-            model,
+            seresnext_net.model,
             feed_dict=seresnext_net.feed_dict(use_cuda),
             iter=seresnext_net.iter(use_cuda),
             batch_size=seresnext_net.batch_size(),
@@ -37,7 +37,7 @@ class TestResnetWithReduce(TestParallelExecutorBase):
             use_reduce=False,
             optimizer=seresnext_net.optimizer)
         reduce_first_loss, reduce_last_loss = self.check_network_convergence(
-            model,
+            seresnext_net.model,
             feed_dict=seresnext_net.feed_dict(use_cuda),
             iter=seresnext_net.iter(use_cuda),
             batch_size=seresnext_net.batch_size(),

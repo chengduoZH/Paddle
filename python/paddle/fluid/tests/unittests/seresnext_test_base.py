@@ -22,7 +22,7 @@ from functools import partial
 
 class TestResnetBase(TestParallelExecutorBase):
     def _compare_result_with_origin_model(self,
-                                          check_func_2,
+                                          check_func,
                                           use_cuda,
                                           delta2=1e-5,
                                           compare_seperately=True,
@@ -31,15 +31,15 @@ class TestResnetBase(TestParallelExecutorBase):
         if use_cuda and not core.is_compiled_with_cuda():
             return
 
-        remove_bn = rm_bn or use_cuda
-        remove_dropout = rm_drop_out
-        model = partial(
-            seresnext_net.model,
-            remove_bn=remove_bn,
-            remove_dropout=remove_dropout)
+        # remove_bn = rm_bn or use_cuda
+        # remove_dropout = rm_drop_out
+        # model = partial(
+        #     ,
+        #     remove_bn=remove_bn,
+        #     remove_dropout=remove_dropout)
 
         func_1_first_loss, func_1_last_loss = self.check_network_convergence(
-            model,
+            seresnext_net.model,
             feed_dict=seresnext_net.feed_dict(use_cuda),
             iter=seresnext_net.iter(use_cuda),
             batch_size=seresnext_net.batch_size(),
@@ -48,8 +48,8 @@ class TestResnetBase(TestParallelExecutorBase):
             optimizer=seresnext_net.optimizer)
 
         # func_1_first_loss, func_1_last_loss = get_origin_result(use_cuda)
-        func_2_first_loss, func_2_last_loss = check_func_2(
-            model,
+        func_2_first_loss, func_2_last_loss = check_func(
+            seresnext_net.model,
             feed_dict=seresnext_net.feed_dict(use_cuda),
             iter=seresnext_net.iter(use_cuda),
             batch_size=seresnext_net.batch_size(),

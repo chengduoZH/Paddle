@@ -35,6 +35,9 @@ remove_dropout = False
 # and Executor is different.
 remove_bn = False
 
+remove_dropout = True
+remove_bn = True
+
 
 def squeeze_excitation(input, num_channels, reduction_ratio):
     # pool = fluid.layers.pool2d(
@@ -55,13 +58,8 @@ def squeeze_excitation(input, num_channels, reduction_ratio):
     return scale
 
 
-def conv_bn_layer(input,
-                  num_filters,
-                  filter_size,
-                  stride=1,
-                  groups=1,
-                  act=None,
-                  remove_bn=False):
+def conv_bn_layer(input, num_filters, filter_size, stride=1, groups=1,
+                  act=None):
     conv = fluid.layers.conv2d(
         input=input,
         num_filters=num_filters,
@@ -75,21 +73,19 @@ def conv_bn_layer(input,
         input=conv, act=act, momentum=0.1)
 
 
-def shortcut(input, ch_out, stride, remove_bn):
+def shortcut(input, ch_out, stride):
     ch_in = input.shape[1]
     if ch_in != ch_out:
         if stride == 1:
             filter_size = 1
         else:
             filter_size = 3
-        return conv_bn_layer(
-            input, ch_out, filter_size, stride, remove_bn=remove_bn)
+        return conv_bn_layer(input, ch_out, filter_size, stride)
     else:
         return input
 
 
-def bottleneck_block(input, num_filters, stride, cardinality, reduction_ratio,
-                     remove_bn):
+def bottleneck_block(input, num_filters, stride, cardinality, reduction_ratio):
     # The number of first 1x1 convolutional channels for each bottleneck build block
     # was halved to reduce the compution cost.
     conv0 = conv_bn_layer(
@@ -108,7 +104,7 @@ def bottleneck_block(input, num_filters, stride, cardinality, reduction_ratio,
         num_channels=num_filters * 2,
         reduction_ratio=reduction_ratio)
 
-    short = shortcut(input, num_filters * 2, stride, remove_bn=remove_bn)
+    short = shortcut(input, num_filters * 2, stride)
 
     return fluid.layers.elementwise_add(x=short, y=scale, act='relu')
 
@@ -116,9 +112,7 @@ def bottleneck_block(input, num_filters, stride, cardinality, reduction_ratio,
 img_shape = [3, 224, 224]
 
 
-def SE_ResNeXt50Small(use_feed,
-                      remove_dropout=remove_dropout,
-                      remove_bn=remove_bn):
+def SE_ResNeXt50Small(use_feed):
 
     img = fluid.layers.data(name='image', shape=img_shape, dtype='float32')
     label = fluid.layers.data(name='label', shape=[1], dtype='int64')
@@ -144,8 +138,7 @@ def SE_ResNeXt50Small(use_feed,
                 num_filters=num_filters[block],
                 stride=2 if i == 0 and block != 0 else 1,
                 cardinality=cardinality,
-                reduction_ratio=reduction_ratio,
-                remove_bn=remove_bn)
+                reduction_ratio=reduction_ratio)
 
     shape = conv.shape
     reshape = fluid.layers.reshape(
