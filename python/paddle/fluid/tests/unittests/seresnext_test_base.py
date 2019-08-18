@@ -17,7 +17,6 @@ import seresnext_net
 import paddle.fluid.core as core
 from parallel_executor_test_base import TestParallelExecutorBase
 import numpy as np
-from functools import partial
 
 
 class TestResnetBase(TestParallelExecutorBase):
@@ -25,18 +24,9 @@ class TestResnetBase(TestParallelExecutorBase):
                                           check_func,
                                           use_cuda,
                                           delta2=1e-5,
-                                          compare_seperately=True,
-                                          rm_drop_out=False,
-                                          rm_bn=False):
+                                          compare_seperately=True):
         if use_cuda and not core.is_compiled_with_cuda():
             return
-
-        # remove_bn = rm_bn or use_cuda
-        # remove_dropout = rm_drop_out
-        # model = partial(
-        #     ,
-        #     remove_bn=remove_bn,
-        #     remove_dropout=remove_dropout)
 
         func_1_first_loss, func_1_last_loss = self.check_network_convergence(
             seresnext_net.model,
@@ -47,7 +37,6 @@ class TestResnetBase(TestParallelExecutorBase):
             use_reduce=False,
             optimizer=seresnext_net.optimizer)
 
-        # func_1_first_loss, func_1_last_loss = get_origin_result(use_cuda)
         func_2_first_loss, func_2_last_loss = check_func(
             seresnext_net.model,
             feed_dict=seresnext_net.feed_dict(use_cuda),

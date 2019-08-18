@@ -17,16 +17,12 @@ import unittest
 from parallel_executor_test_base import TestParallelExecutorBase
 import seresnext_net
 import paddle.fluid.core as core
-from functools import partial
 
 
 class TestResnetWithReduce(TestParallelExecutorBase):
     def _compare_reduce_and_allreduce(self, use_cuda, delta2=1e-5):
         if use_cuda and not core.is_compiled_with_cuda():
             return
-
-        # model = partial(
-        #     seresnext_net.model, remove_bn=True, remove_dropout=True)
 
         all_reduce_first_loss, all_reduce_last_loss = self.check_network_convergence(
             seresnext_net.model,

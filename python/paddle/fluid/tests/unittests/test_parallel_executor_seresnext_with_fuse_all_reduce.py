@@ -19,7 +19,6 @@ fluid.core._set_fuse_parameter_memory_size(131072)
 
 import unittest
 import seresnext_net
-import paddle.fluid.core as core
 from seresnext_test_base import TestResnetBase
 from functools import partial
 
@@ -28,18 +27,15 @@ class TestResnetWithFuseAllReduce(TestResnetBase):
     def test_seresnext_with_fused_all_reduce(self):
         # NOTE(zcd): In order to make the program faster,
         # this unit test remove drop_out and batch_norm.
+        # rm_drop_out=True,
+        # rm_bn=True,
         check_func = partial(
             self.check_network_convergence,
             optimizer=seresnext_net.optimizer,
             fuse_all_reduce_ops=True)
+        self._compare_result_with_origin_model(check_func, use_cuda=False)
         self._compare_result_with_origin_model(
-            check_func, use_cuda=False, rm_drop_out=True, rm_bn=True)
-        self._compare_result_with_origin_model(
-            check_func,
-            use_cuda=True,
-            rm_drop_out=True,
-            rm_bn=True,
-            delta2=1e-2)
+            check_func, use_cuda=True, delta2=1e-2)
 
 
 if __name__ == '__main__':
