@@ -26,12 +26,9 @@ from functools import partial
 
 
 def _get_result_of_origin_model(use_cuda):
-    global remove_bn
-    global remove_dropout
-    remove_bn = True
-    remove_dropout = True
+    model = partial(seresnext_net.model, remove_bn=True, remove_dropout=True)
     first_loss, last_loss = TestParallelExecutorBase.check_network_convergence(
-        seresnext_net.model,
+        model,
         feed_dict=seresnext_net.feed_dict(use_cuda),
         iter=seresnext_net.iter(use_cuda),
         batch_size=seresnext_net.batch_size(),
@@ -66,14 +63,16 @@ class TestResnet(TestParallelExecutorBase):
         if use_cuda and not core.is_compiled_with_cuda():
             return
 
-        global remove_bn
-        global remove_dropout
         remove_bn = rm_bn or use_cuda
         remove_dropout = rm_drop_out
+        model = partial(
+            seresnext_net.model,
+            remove_bn=remove_bn,
+            remove_dropout=remove_dropout)
 
         func_1_first_loss, func_1_last_loss = get_origin_result(use_cuda)
         func_2_first_loss, func_2_last_loss = check_func_2(
-            seresnext_net.model,
+            model,
             feed_dict=seresnext_net.feed_dict(use_cuda),
             iter=seresnext_net.iter(use_cuda),
             batch_size=seresnext_net.batch_size(),

@@ -16,8 +16,8 @@ from __future__ import print_function
 import unittest
 from parallel_executor_test_base import TestParallelExecutorBase
 import seresnext_net
-import paddle
 import paddle.fluid.core as core
+from functools import partial
 
 
 class TestResnetWithReduce(TestParallelExecutorBase):
@@ -25,13 +25,11 @@ class TestResnetWithReduce(TestParallelExecutorBase):
         if use_cuda and not core.is_compiled_with_cuda():
             return
 
-        global remove_bn
-        global remove_dropout
-        remove_bn = True
-        remove_dropout = True
+        model = partial(
+            seresnext_net.model, remove_bn=True, remove_dropout=True)
 
         all_reduce_first_loss, all_reduce_last_loss = self.check_network_convergence(
-            seresnext_net.model,
+            model,
             feed_dict=seresnext_net.feed_dict(use_cuda),
             iter=seresnext_net.iter(use_cuda),
             batch_size=seresnext_net.batch_size(),
@@ -39,7 +37,7 @@ class TestResnetWithReduce(TestParallelExecutorBase):
             use_reduce=False,
             optimizer=seresnext_net.optimizer)
         reduce_first_loss, reduce_last_loss = self.check_network_convergence(
-            seresnext_net.model,
+            model,
             feed_dict=seresnext_net.feed_dict(use_cuda),
             iter=seresnext_net.iter(use_cuda),
             batch_size=seresnext_net.batch_size(),
