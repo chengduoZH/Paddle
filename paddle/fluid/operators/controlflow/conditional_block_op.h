@@ -70,8 +70,23 @@ class ConditionalOp : public framework::OperatorBase {
     if (platform::is_gpu_place(ips[0]->place())) {
 #ifdef PADDLE_WITH_CUDA
       framework::LoDTensor cpu_tensor;
-      framework::TensorCopy(*ips[0], platform::CPUPlace(), &cpu_tensor);
-      platform::DeviceContextPool::Instance().Get(ips[0]->place())->Wait();
+      platform::CPUPlace dst_cpu_place;
+      cpu_tensor.Resize(ips[0]->dims());
+      cpu_tensor.set_layout(ips[0]->layout());
+      auto dst_ptr = cpu_tensor.mutable_data(dst_cpu_place, ips[0]->type());
+
+      auto src_ptr = ips[0]->data<void>();
+      auto size = ips[0]->numel() * SizeOfType(ips[0]->type());
+
+      auto ctx = reinterpret_cast<const platform::CUDADeviceContext &>(
+          platform::DeviceContextPool::Instance().Get(ips[0]->place()));
+
+      memory::Copy(dst_cpu_place, dst_ptr, ips[0]->place(), src_ptr, size,
+                   ctx.copy_stream());
+      ctx.WaitCopy();
+      //      framework::TensorCopy(*ips[0], platform::CPUPlace(), &cpu_tensor);
+      //      platform::DeviceContextPool::Instance().Get(ips[0]->place())->Wait();
+
       res = cpu_tensor.data<bool>()[0];
 #endif
     } else {

@@ -116,6 +116,8 @@ class DeviceContext {
   virtual Place GetPlace() const = 0;
 
   virtual void Wait() const {}
+
+  virtual void WaitCopy() const {}
 };
 
 class CPUDeviceContext : public DeviceContext {
@@ -248,6 +250,9 @@ class CUDADeviceContext : public DeviceContext {
   /*! \brief  Wait for all operations completion in the stream. */
   void Wait() const override;
 
+  /*! \brief  Wait for all operations completion in the stream. */
+  void WaitCopy() const override;
+
   /*! \brief  Return place in the device context. */
   Place GetPlace() const override;
 
@@ -295,6 +300,9 @@ class CUDADeviceContext : public DeviceContext {
   /*! \brief  Return cuda stream in the device context. */
   cudaStream_t stream() const;
 
+  /*! \brief  Return cuda copy stream in the device context. */
+  cudaStream_t copy_stream() const;
+
 #if !defined(_WIN32)
   /*! \brief  Return nccl communicators. */
   ncclComm_t nccl_comm() const { return nccl_comm_; }
@@ -325,6 +333,7 @@ class CUDADeviceContext : public DeviceContext {
   std::unique_ptr<EigenCudaStreamDevice> eigen_stream_;
   mutable std::unique_ptr<CudnnHolder> cudnn_holder_;
   cudaStream_t stream_;
+  cudaStream_t copy_stream_;
 
   std::unique_ptr<CublasHandleHolder> cublas_handle_;
   std::unique_ptr<CublasHandleHolder> cublas_tensor_core_handle_;
