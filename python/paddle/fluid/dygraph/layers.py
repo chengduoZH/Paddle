@@ -24,6 +24,7 @@ from paddle.fluid import core
 from .layer_object_helper import LayerObjectHelper
 from paddle.fluid import framework
 from ..param_attr import ParamAttr
+from .base import _switch_tracer_mode_guard_
 
 __all__ = ['Layer']
 
@@ -157,7 +158,9 @@ class Layer(core.Layer):
         if not self._built:
             self._build_once(*inputs)
             if parallel_helper._is_data_parallel_mode():
-                parallel_helper._broadcast_parameters(self._parameters.values())
+                with _switch_tracer_mode_guard_(is_train=False):
+                    parallel_helper._broadcast_parameters(
+                        self._parameters.values())
 
         outputs = self.forward(*inputs)
         self._built = True
