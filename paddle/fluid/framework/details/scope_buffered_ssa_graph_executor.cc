@@ -46,6 +46,7 @@ ScopeBufferedSSAGraphExecutor::ScopeBufferedSSAGraphExecutor(
 }
 
 static void CaculateAllocations(const std::vector<Scope *> &local_scopes,
+                                const std::vector<Scope *> &local_exe_scopes,
                                 const std::vector<platform::Place> &places) {
   size_t scope_idx = 0;
   for (auto &scope : local_scopes) {
@@ -70,16 +71,12 @@ static void CaculateAllocations(const std::vector<Scope *> &local_scopes,
     //              " GB";
     //    }
     // #endif
+    auto local_exe_scope = local_exe_scopes[scope_idx];
+    VLOG(1) << "local_exe_scope " << local_exe_scope;
+    bytes = PrintMemoryUsage(local_exe_scope);
+    VLOG(1) << "!!!!!!!!! " << local_exe_scope << " bytes: "
+            << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0 << " GB";
     scope_idx++;
-    auto local_exe_scope_var =
-        scope->FindLocalVar(details::kLocalExecScopeName);
-    if (local_exe_scope_var) {
-      auto local_exe_scope = local_exe_scope_var->Get<Scope *>();
-      VLOG(1) << "local_exe_scope " << local_exe_scope;
-      bytes = PrintMemoryUsage(local_exe_scope);
-      VLOG(1) << "!!!!!!!!! " << local_exe_scope << " bytes: "
-              << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0 << " GB";
-    }
   }
 }
 
@@ -98,12 +95,12 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
     eptr = std::current_exception();
   }
 
-  CaculateAllocations(local_scopes_, places_);
+  CaculateAllocations(local_scopes_, local_exec_scopes_, places_);
   ++drop_scope_counter_;
   if (drop_scope_counter_ == strategy_.num_iteration_per_drop_scope_) {
     DropLocalExeScopes();
     VLOG(1) << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DropLocalExeScopes";
-    CaculateAllocations(local_scopes_, places_);
+    CaculateAllocations(local_scopes_, local_exec_scopes_, places_);
   }
   if (eptr) {
     std::rethrow_exception(eptr);
