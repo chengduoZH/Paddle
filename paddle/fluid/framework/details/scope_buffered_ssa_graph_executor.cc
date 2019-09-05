@@ -23,10 +23,6 @@
 #include "paddle/fluid/framework/selected_rows.h"
 #include "paddle/fluid/framework/variable_helper.h"
 #include "paddle/fluid/platform/profiler.h"
-#ifdef PADDLE_WITH_CUDA
-#include "paddle/fluid/platform/cuda_device_guard.h"
-#include "paddle/fluid/platform/gpu_info.h"
-#endif
 namespace paddle {
 namespace framework {
 namespace details {
@@ -57,20 +53,6 @@ static void CaculateAllocations(const std::vector<Scope *> &local_scopes,
     bytes = PrintMemoryUsage(scope);
     VLOG(1) << "!!!!!!!!! " << scope << "  bytes(included local scope): "
             << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0 << " GB";
-    // #ifdef PADDLE_WITH_CUDA
-    //    if (platform::is_gpu_place(places[scope_idx])) {
-    //      platform::CUDADeviceGuard(
-    //          boost::get<platform::CUDAPlace>(places[scope_idx]).device);
-    //      size_t avail, total;
-    //      platform::GpuMemoryUsage(&avail, &total);
-    //      VLOG(1) << places[scope_idx] << " avail: "
-    //              << static_cast<double>(avail) / 1024.0 / 1024.0 / 1024.0 <<
-    //              " GB"
-    //              << " ,total"
-    //              << static_cast<double>(total) / 1024.0 / 1024.0 / 1024.0 <<
-    //              " GB";
-    //    }
-    // #endif
     auto local_exe_scope = local_exe_scopes[scope_idx];
     VLOG(1) << "local_exe_scope " << local_exe_scope;
     bytes = PrintMemoryUsage(local_exe_scope);
@@ -99,7 +81,7 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
   ++drop_scope_counter_;
   if (drop_scope_counter_ == strategy_.num_iteration_per_drop_scope_) {
     DropLocalExeScopes();
-    VLOG(1) << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DropLocalExeScopes";
+    VLOG(1) << "DropLocalExeScopes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~";
     CaculateAllocations(local_scopes_, local_exec_scopes_, places_);
   }
   if (eptr) {
