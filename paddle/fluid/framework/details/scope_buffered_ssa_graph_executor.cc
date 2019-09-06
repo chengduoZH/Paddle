@@ -46,18 +46,46 @@ static void CaculateAllocations(const std::vector<Scope *> &local_scopes,
                                 const std::vector<platform::Place> &places) {
   size_t scope_idx = 0;
   for (auto &scope : local_scopes) {
-    VLOG(1) << "scope " << scope << " " << scope_idx;
-    size_t bytes = AnalysisScope(*scope);
+    VLOG(1) << "scope " << scope << ", scope_idx " << scope_idx
+            << ", local scopes num " << scope->kids().size();
+    size_t cpu_bytes = 0, gpu_bytes = 0;
+    AnalysisScope(*scope, &cpu_bytes, &gpu_bytes);
     VLOG(1) << "!!!!!!!!! " << scope << "  bytes: "
-            << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0 << " GB";
-    bytes = PrintMemoryUsage(scope);
+            << static_cast<double>(cpu_bytes + gpu_bytes) / 1024.0 / 1024.0 /
+                   1024.0
+            << " GB"
+            << "  cpu bytes: "
+            << static_cast<double>(cpu_bytes) / 1024.0 / 1024.0 / 1024.0
+            << " GB"
+            << "  gpu bytes: "
+            << static_cast<double>(gpu_bytes) / 1024.0 / 1024.0 / 1024.0
+            << " GB";
+    cpu_bytes = 0, gpu_bytes = 0;
+    PrintMemoryUsage(scope, &cpu_bytes, &gpu_bytes);
     VLOG(1) << "!!!!!!!!! " << scope << "  bytes(included local scope): "
-            << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0 << " GB";
+            << static_cast<double>(cpu_bytes + gpu_bytes) / 1024.0 / 1024.0 /
+                   1024.0
+            << " GB"
+            << "  cpu bytes: "
+            << static_cast<double>(cpu_bytes) / 1024.0 / 1024.0 / 1024.0
+            << " GB"
+            << "  gpu bytes: "
+            << static_cast<double>(gpu_bytes) / 1024.0 / 1024.0 / 1024.0
+            << " GB";
     auto local_exe_scope = local_exe_scopes[scope_idx];
     VLOG(1) << "local_exe_scope " << local_exe_scope;
-    bytes = PrintMemoryUsage(local_exe_scope);
+    cpu_bytes = 0, gpu_bytes = 0;
+    PrintMemoryUsage(local_exe_scope, &cpu_bytes, &gpu_bytes);
     VLOG(1) << "!!!!!!!!! " << local_exe_scope << " bytes: "
-            << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0 << " GB";
+            << static_cast<double>(cpu_bytes + gpu_bytes) / 1024.0 / 1024.0 /
+                   1024.0
+            << " GB"
+            << "  cpu bytes: "
+            << static_cast<double>(cpu_bytes) / 1024.0 / 1024.0 / 1024.0
+            << " GB"
+            << "  gpu bytes: "
+            << static_cast<double>(gpu_bytes) / 1024.0 / 1024.0 / 1024.0
+            << " GB";
     scope_idx++;
   }
 }

@@ -177,10 +177,17 @@ void Executor::Run(const ProgramDesc& pdesc, Scope* scope, int block_id,
                    const std::vector<std::string>& skip_ref_cnt_vars,
                    bool force_disable_gc) {
   VLOG(1) << "Executor::Run before: " << scope;
-  size_t bytes = PrintMemoryUsage(scope);
-  VLOG(1) << "!!!!!!!!! " << scope
-          << " bytes: " << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0
-          << " GB";
+  size_t cpu_bytes = 0, gpu_bytes = 0;
+  PrintMemoryUsage(scope, &cpu_bytes, &gpu_bytes);
+  VLOG(1) << "!!!!!!!!! " << scope << "  bytes(included local scope): "
+          << static_cast<double>(cpu_bytes + gpu_bytes) / 1024.0 / 1024.0 /
+                 1024.0
+          << " GB"
+          << "  cpu bytes: "
+          << static_cast<double>(cpu_bytes) / 1024.0 / 1024.0 / 1024.0 << " GB"
+          << "  gpu bytes: "
+          << static_cast<double>(gpu_bytes) / 1024.0 / 1024.0 / 1024.0 << " GB";
+
   // #ifdef PADDLE_WITH_CUDA
   //  if (platform::is_gpu_place(place_)) {
   //    platform::CUDADeviceGuard(boost::get<platform::CUDAPlace>(place_).device);
@@ -200,10 +207,16 @@ void Executor::Run(const ProgramDesc& pdesc, Scope* scope, int block_id,
   auto ctx = Prepare(pdesc, block_id, skip_ref_cnt_vars, force_disable_gc);
   RunPreparedContext(ctx.get(), scope, create_local_scope, create_vars);
   VLOG(1) << "Executor::Run after: " << scope;
-  bytes = PrintMemoryUsage(scope);
-  VLOG(1) << "!!!!!!!!! " << scope
-          << " bytes: " << static_cast<double>(bytes) / 1024.0 / 1024.0 / 1024.0
-          << " GB";
+  cpu_bytes = 0, gpu_bytes = 0;
+  PrintMemoryUsage(scope, &cpu_bytes, &gpu_bytes);
+  VLOG(1) << "!!!!!!!!! " << scope << "  bytes(included local scope): "
+          << static_cast<double>(cpu_bytes + gpu_bytes) / 1024.0 / 1024.0 /
+                 1024.0
+          << " GB"
+          << "  cpu bytes: "
+          << static_cast<double>(cpu_bytes) / 1024.0 / 1024.0 / 1024.0 << " GB"
+          << "  gpu bytes: "
+          << static_cast<double>(gpu_bytes) / 1024.0 / 1024.0 / 1024.0 << " GB";
 }
 
 // Check whether the block already has feed operators and feed_holder.

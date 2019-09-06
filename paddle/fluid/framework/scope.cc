@@ -157,7 +157,19 @@ std::string Scope::Rename(const std::string& origin_name) const {
   return new_name;
 }
 
-std::list<Scope*> Scope::GetLocalScope() const { return kids_; }
+std::list<Scope*> Scope::RecursiveGetLocalScope() const {
+  SCOPE_VARS_READER_LOCK
+  std::list<Scope*> local_scopes;
+  auto get_local_scope = [&local_scopes](const Scope* scope) {
+    for (auto& sub_scope : scope->kids()) {
+      local_scopes.emplace_back(sub_scope);
+      get_local_scope(sub_scope);
+    }
+  };
+
+  get_local_scope(this);
+  return local_scopes;
+}
 
 Variable* Scope::VarInternal(const std::string& name) {
   auto* v = FindVarLocally(name);
@@ -294,7 +306,8 @@ static std::vector<memory::Allocation*> VisitVariable(Variable* var,
   return {};
 }
 
-size_t AnalysisScope(const Scope& sub_scope) {
+void AnalysisScope(const Scope& sub_scope, size_t* cpu_bytes,
+                   size_t* gpu_bytes) {
   auto var_names = sub_scope.LocalVarNames();
   VLOG(1) << "var_names: " << var_names.size();
   std::set<memory::Allocation*> allocations;
@@ -309,23 +322,29 @@ size_t AnalysisScope(const Scope& sub_scope) {
   size_t bytes = 0;
   for (auto& allocation : allocations) {
     if (allocation) {
+      if (platform::is_gpu_place(allocation->place())) {
+        *gpu_bytes += allocation->size();
+      } else if (platform::is_cpu_place(allocation->place())) {
+        *cpu_bytes += allocation->size();
+      }
+
       bytes += allocation->size();
     }
   }
-  VLOG(1) << "scope " << &sub_scope << " bytes: " << bytes;
-  return bytes;
+  VLOG(1) << "scope " << &sub_scope << " bytes: " << bytes
+          << " [ cpu_bytes:" << *cpu_bytes << ", gpu_bytes:" << *gpu_bytes;
 }
 
-size_t PrintMemoryUsage(const Scope* scope) {
-  size_t bytes = AnalysisScope(*scope);
-  std::list<Scope*> sub_scopes = scope->GetLocalScope();
+void PrintMemoryUsage(const Scope* scope, size_t* cpu_bytes,
+                      size_t* gpu_bytes) {
+  AnalysisScope(*scope, cpu_bytes, gpu_bytes);
+  std::list<Scope*> sub_scopes = scope->kids();
   VLOG(1) << "This scope contain sub_scopes:" << sub_scopes.size();
   size_t sub_scope_idx = 0;
   for (auto& sub_scope : sub_scopes) {
     VLOG(2) << "sub scope : " << sub_scope_idx++;
-    bytes += PrintMemoryUsage(sub_scope);
+    PrintMemoryUsage(sub_scope, cpu_bytes, gpu_bytes);
   }
-  return bytes;
 }
 
 }  // namespace framework

@@ -104,7 +104,7 @@ class Scope {
 
   // Rename variable to a new name and return the new name
   std::string Rename(const std::string& origin_name) const;
-  std::list<Scope*> GetLocalScope() const;
+  std::list<Scope*> RecursiveGetLocalScope() const;
 
  protected:
   struct KeyHasher {
@@ -151,8 +151,9 @@ class Scope {
 // naive.
 std::string GenScopeTreeDebugInfo(Scope*);
 
-size_t AnalysisScope(const Scope& sub_scope);
-size_t PrintMemoryUsage(const Scope*);
+void AnalysisScope(const Scope& sub_scope, size_t* cpu_bytes,
+                   size_t* gpu_bytes);
+void PrintMemoryUsage(const Scope*, size_t* cpu_bytes, size_t* gpu_bytes);
 
 }  // namespace framework
 }  // namespace paddle
