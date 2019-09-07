@@ -38,6 +38,9 @@ ScopeBufferedSSAGraphExecutor::ScopeBufferedSSAGraphExecutor(
       var_infos_(std::move(var_infos)),
       places_(std::move(places)) {
   PADDLE_ENFORCE_EQ(local_scopes_.size(), local_exec_scopes_.size());
+  pre_local_exec_scopes_.reserve(local_exec_scopes_.size());
+  post_local_exec_scopes_.reserve(local_exec_scopes_.size());
+  incr_local_exec_scopes_.reserve(local_exec_scopes_.size());
   PrepareLocalExeScopes();
 }
 
@@ -92,11 +95,58 @@ static void CaculateAllocations(const std::vector<Scope *> &local_scopes,
   }
 }
 
+struct TensorVisitor {
+  void operator()(LoDTensor *lod_tensor) {
+    if (lod_tensor->IsInitialized()) {
+      if (platform::is_cpu_place(lod_tensor->place())) {
+        lod_tensor->clear();
+      }
+    }
+  }
+
+  void operator()(SelectedRows *selectedrows) {
+    if (selectedrows->value().IsInitialized()) {
+      if (platform::is_cpu_place(selectedrows->value().place())) {
+        selectedrows->mutable_value()->clear();
+      }
+    }
+  }
+
+  void operator()(LoDTensorArray *array) {
+    std::vector<memory::Allocation *> result;
+    for (auto &tensor : *array) {
+      if (tensor.IsInitialized()) {
+        if (platform::is_cpu_place(tensor.place())) {
+          tensor.clear();
+        }
+      }
+    }
+  }
+}
+
+template <typename Func>
+void VisitVariable(Variable *var, Func *func) {
+  if (var->IsType<LoDTensor>()) {
+    (*func)(var->GetMutable<LoDTensor>());
+  } else if (var->IsType<SelectedRows>()) {
+    (*func)(var->GetMutable<SelectedRows>());
+  } else if (var->IsType<LoDTensorArray>()) {
+    (*func)(var->GetMutable<LoDTensorArray>());
+  }
+}
+
 FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
     const std::vector<std::string> &fetch_tensors) {
   if (drop_scope_counter_ == 0) {
     platform::RecordEvent e("InitLocalVars");
     InitVariables();
+  }
+
+  // collect local execution scope
+  for (size_t scope_id = 0; scope_id < local_exec_scopes_.size(); ++scope_id) {
+    pre_local_exec_scopes_.at(scope_id).clear();
+    auto scopes = local_exec_scopes_.at(scope_id)->RecursiveGetLocalScope();
+    pre_local_exec_scopes_.at(scope_id).insert(scopes.begin(), scopes.end());
   }
 
   std::vector<framework::LoDTensor> fetch_data;
@@ -105,6 +155,34 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
     fetch_data = underlying_executor_->Run(fetch_tensors);
   } catch (...) {
     eptr = std::current_exception();
+  }
+
+  // collect local execution scope
+  for (size_t scope_id = 0; scope_id < local_exec_scopes_.size(); ++scope_id) {
+    post_local_exec_scopes_.at(scope_id).clear();
+    auto scopes = local_exec_scopes_.at(scope_id)->RecursiveGetLocalScope();
+    post_local_exec_scopes_.at(scope_id).insert(scopes.begin(), scopes.end());
+  }
+
+  for (size_t scope_id = 0; scope_id < local_exec_scopes_.size(); ++scope_id) {
+    incr_local_exec_scopes_.at(scope_id).clear();
+
+    std::set_difference(post_local_exec_scopes_.at(scope_id).begin(),
+                        post_local_exec_scopes_.at(scope_id).end(),
+                        pre_local_exec_scopes_.at(scope_id).begin(),
+                        pre_local_exec_scopes_.at(scope_id).end(),
+                        incr_local_exec_scopes_.at(scope_id).begin());
+
+    TensorVisitor tensor_visitor;
+    for (auto &scope : incr_local_exec_scopes_.at(scope_id)) {
+      if (local_exec_scopes_.at(scope_id)->HasKid(scope)) {
+        auto var_set = scope->GetLocalVars();
+        for (auto &var : var_set) {
+          PADDLE_ENFORCE(var->IsInitialized());
+          VisitVariable(var, &tensor_visitor);
+        }
+      }
+    }
   }
 
   CaculateAllocations(local_scopes_, local_exec_scopes_, places_);

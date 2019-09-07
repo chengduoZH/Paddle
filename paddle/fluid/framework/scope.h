@@ -105,6 +105,7 @@ class Scope {
   // Rename variable to a new name and return the new name
   std::string Rename(const std::string& origin_name) const;
   std::list<Scope*> RecursiveGetLocalScope() const;
+  std::unordered_set<Variable*> GetLocalVars() const;
 
  protected:
   struct KeyHasher {

@@ -65,6 +65,10 @@ class ScopeBufferedSSAGraphExecutor : public SSAGraphExecutor {
   std::unique_ptr<SSAGraphExecutor> underlying_executor_;
   std::vector<Scope*> local_scopes_;
 
+  std::vector<std::unordered_set<Scope*>> pre_local_exec_scopes_;
+  std::vector<std::unordered_set<Scope*>> post_local_exec_scopes_;
+  std::vector<std::unordered_set<Scope*>> incr_local_exec_scopes_;
+
   std::vector<Scope*> local_exec_scopes_;
   std::vector<std::unordered_set<Variable*>> preserve_vars_;
   std::vector<std::vector<std::pair<Variable*, proto::VarType::Type>>>

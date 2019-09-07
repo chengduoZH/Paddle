@@ -172,6 +172,16 @@ std::list<Scope*> Scope::RecursiveGetLocalScope() const {
   return local_scopes;
 }
 
+std::unordered_set<Variable*> Scope::GetLocalVars() const {
+  SCOPE_VARS_READER_LOCK
+  std::unordered_set<Variable*> var_set;
+  var_set.reserve(vars_.size());
+  for (auto& p : vars_) {
+    var_set.insert(p.second.get());
+  }
+  return var_set;
+}
+
 Variable* Scope::VarInternal(const std::string& name) {
   auto* v = FindVarLocally(name);
   if (v != nullptr) return v;
