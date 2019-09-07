@@ -47,7 +47,9 @@ static void CaculateAllocations(const std::vector<Scope *> &local_scopes,
   size_t scope_idx = 0;
   for (auto &scope : local_scopes) {
     VLOG(1) << "scope " << scope << ", scope_idx " << scope_idx
-            << ", local scopes num " << scope->kids().size();
+            << ", local scopes num " << scope->kids().size()
+            << ", Recursive local scope num: "
+            << scope->RecursiveGetLocalScope().size();
     size_t cpu_bytes = 0, gpu_bytes = 0;
     AnalysisScope(*scope, &cpu_bytes, &gpu_bytes);
     VLOG(1) << "!!!!!!!!! " << scope << "  bytes: "

@@ -160,13 +160,14 @@ std::string Scope::Rename(const std::string& origin_name) const {
 std::list<Scope*> Scope::RecursiveGetLocalScope() const {
   SCOPE_VARS_READER_LOCK
   std::list<Scope*> local_scopes;
-  auto get_local_scope = [&local_scopes](const Scope* scope) {
+  std::function<void(const Scope*)> get_local_scope;
+  get_local_scope = [&get_local_scope,
+                     &local_scopes](const Scope* scope) -> void {
     for (auto& sub_scope : scope->kids()) {
       local_scopes.emplace_back(sub_scope);
       get_local_scope(sub_scope);
     }
   };
-
   get_local_scope(this);
   return local_scopes;
 }
