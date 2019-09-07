@@ -122,7 +122,7 @@ struct TensorVisitor {
       }
     }
   }
-}
+};
 
 template <typename Func>
 void VisitVariable(Variable *var, Func *func) {
