@@ -174,7 +174,8 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
         pre_local_exec_scopes_.at(scope_id).end(),
         std::inserter(incr_local_exec_scopes.at(scope_id),
                       incr_local_exec_scopes.at(scope_id).begin()));
-
+    post_local_exec_scopes_.at(scope_id).clear();
+    pre_local_exec_scopes_.at(scope_id).clear();
     std::stringstream out;
     out << scope_id << " kids: ";
     for (auto &scope : incr_local_exec_scopes.at(scope_id)) {
