@@ -38,9 +38,8 @@ ScopeBufferedSSAGraphExecutor::ScopeBufferedSSAGraphExecutor(
       var_infos_(std::move(var_infos)),
       places_(std::move(places)) {
   PADDLE_ENFORCE_EQ(local_scopes_.size(), local_exec_scopes_.size());
-  pre_local_exec_scopes_.reserve(local_exec_scopes_.size());
-  post_local_exec_scopes_.reserve(local_exec_scopes_.size());
-  incr_local_exec_scopes_.reserve(local_exec_scopes_.size());
+  pre_local_exec_scopes_.resize(local_exec_scopes_.size());
+  post_local_exec_scopes_.resize(local_exec_scopes_.size());
   PrepareLocalExeScopes();
 }
 
@@ -145,7 +144,7 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
   // collect local execution scope
   for (size_t scope_id = 0; scope_id < local_exec_scopes_.size(); ++scope_id) {
     pre_local_exec_scopes_.at(scope_id).clear();
-    auto scopes = local_exec_scopes_.at(scope_id)->RecursiveGetLocalScope();
+    auto scopes = local_exec_scopes_.at(scope_id)->kids();
     pre_local_exec_scopes_.at(scope_id).insert(scopes.begin(), scopes.end());
   }
 
@@ -160,30 +159,55 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
   // collect local execution scope
   for (size_t scope_id = 0; scope_id < local_exec_scopes_.size(); ++scope_id) {
     post_local_exec_scopes_.at(scope_id).clear();
-    auto scopes = local_exec_scopes_.at(scope_id)->RecursiveGetLocalScope();
+    auto scopes = local_exec_scopes_.at(scope_id)->kids();
     post_local_exec_scopes_.at(scope_id).insert(scopes.begin(), scopes.end());
   }
 
+  history_local_exec_scopes_.emplace_back();
+  auto &incr_local_exec_scopes = history_local_exec_scopes_.back();
+  incr_local_exec_scopes.resize(local_exec_scopes_.size());
   for (size_t scope_id = 0; scope_id < local_exec_scopes_.size(); ++scope_id) {
-    incr_local_exec_scopes_.at(scope_id).clear();
+    std::set_difference(
+        post_local_exec_scopes_.at(scope_id).begin(),
+        post_local_exec_scopes_.at(scope_id).end(),
+        pre_local_exec_scopes_.at(scope_id).begin(),
+        pre_local_exec_scopes_.at(scope_id).end(),
+        std::inserter(incr_local_exec_scopes.at(scope_id),
+                      incr_local_exec_scopes.at(scope_id).begin()));
 
-    std::set_difference(post_local_exec_scopes_.at(scope_id).begin(),
-                        post_local_exec_scopes_.at(scope_id).end(),
-                        pre_local_exec_scopes_.at(scope_id).begin(),
-                        pre_local_exec_scopes_.at(scope_id).end(),
-                        incr_local_exec_scopes_.at(scope_id).begin());
+    std::stringstream out;
+    out << scope_id << " kids: ";
+    for (auto &scope : incr_local_exec_scopes.at(scope_id)) {
+      out << scope << ", ";
+    }
+    VLOG(1) << out.str();
 
     TensorVisitor tensor_visitor;
-    for (auto &scope : incr_local_exec_scopes_.at(scope_id)) {
-      if (local_exec_scopes_.at(scope_id)->HasKid(scope)) {
-        auto var_set = scope->GetLocalVars();
-        for (auto &var : var_set) {
-          PADDLE_ENFORCE(var->IsInitialized());
-          VisitVariable(var, &tensor_visitor);
-        }
+    for (auto &scope : incr_local_exec_scopes.at(scope_id)) {
+      auto var_set = scope->GetLocalVars();
+      for (auto &var : var_set) {
+        PADDLE_ENFORCE(var->IsInitialized());
+        VisitVariable(var, &tensor_visitor);
       }
     }
   }
+
+  size_t history_step = history_local_exec_scopes_.size();
+  if (fetch_tensors.size() && history_step >= 2) {
+    VLOG(1) << "fetch_tensors.size() && history_step >= 2; " << history_step;
+    for (size_t i = 0; i < history_step - 1; ++i) {
+      auto &pre_incr_local_exec_scopes = history_local_exec_scopes_.front();
+      for (size_t scope_idx = 0; scope_idx < pre_incr_local_exec_scopes.size();
+           ++scope_idx) {
+        for (auto scope : pre_incr_local_exec_scopes[scope_idx]) {
+          VLOG(1) << "delete: " << scope;
+          local_exec_scopes_.at(scope_idx)->DeleteScope(scope);
+        }
+      }
+      history_local_exec_scopes_.pop_front();
+    }
+  }
+  VLOG(1) << "history_local_exec_scopes_";
 
   CaculateAllocations(local_scopes_, local_exec_scopes_, places_);
   ++drop_scope_counter_;

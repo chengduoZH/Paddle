@@ -14,6 +14,7 @@
 
 #pragma once
 #include <ThreadPool.h>
+#include <deque>
 #include <list>
 #include <memory>
 #include <string>
@@ -67,7 +68,8 @@ class ScopeBufferedSSAGraphExecutor : public SSAGraphExecutor {
 
   std::vector<std::unordered_set<Scope*>> pre_local_exec_scopes_;
   std::vector<std::unordered_set<Scope*>> post_local_exec_scopes_;
-  std::vector<std::unordered_set<Scope*>> incr_local_exec_scopes_;
+  std::deque<std::vector<std::unordered_set<Scope*>>>
+      history_local_exec_scopes_;
 
   std::vector<Scope*> local_exec_scopes_;
   std::vector<std::unordered_set<Variable*>> preserve_vars_;
