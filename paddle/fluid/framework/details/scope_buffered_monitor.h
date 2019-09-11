@@ -24,10 +24,10 @@ namespace details {
 
 class ScopeBufferedMonitor {
  public:
-  ScopeBufferedMonitor(const std::vector<platform::Place> places,
+  ScopeBufferedMonitor(const std::vector<platform::Place> &places,
                        const std::vector<Scope *> &local_exec_scopes);
 
-  void Run(const std::function<void()> &callback, bool has_fetch);
+  void Apply(const std::function<void()> &callback, bool has_fetch);
 
   void ClearHistoryLocalExecScopes();
 

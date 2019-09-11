@@ -50,12 +50,12 @@ static void GetTensors(Scope *scope, std::unordered_set<Tensor *> *tensor_set) {
   }
 }
 
-static size_t ClearCPUTensorAndGPUTensorMemorySize(Scope *scope) {
+static size_t GetTensorMemorySize(Scope *scope, bool clear_cpu_tensor) {
   std::unordered_set<Tensor *> tensor_set;
   GetTensors(scope, &tensor_set);
   size_t memory_size = 0;
   for (auto *tensor : tensor_set) {
-    if (platform::is_cpu_place(tensor->place())) {
+    if (clear_cpu_tensor && platform::is_cpu_place(tensor->place())) {
       tensor->clear();
     } else {
       memory_size += tensor->Holder()->size();
@@ -75,15 +75,15 @@ size_t GetScopeVarMemorySize(Scope *scope) {
 }
 
 ScopeBufferedMonitor::ScopeBufferedMonitor(
-    const std::vector<platform::Place> places,
+    const std::vector<platform::Place> &places,
     const std::vector<Scope *> &local_exec_scopes)
     : places_(places), local_exec_scopes_(local_exec_scopes) {
   pre_local_exec_scopes_.resize(local_exec_scopes_.size());
   post_local_exec_scopes_.resize(local_exec_scopes_.size());
 }
 
-void ScopeBufferedMonitor::Run(const std::function<void()> &callback,
-                               bool has_fetch) {
+void ScopeBufferedMonitor::Apply(const std::function<void()> &callback,
+                                 bool has_fetch) {
   std::unique_ptr<platform::RecordEvent> pre_local_exec_scopes_event(
       new platform::RecordEvent(
           "ScopeBufferedMonitor::pre_local_exec_scopes process."));
@@ -133,10 +133,14 @@ void ScopeBufferedMonitor::Run(const std::function<void()> &callback,
   for (auto &scope_vec : history_local_exec_scopes_) {
     for (auto &scope_set : scope_vec) {
       for (auto &scope : scope_set) {
-        gpu_memory_size += ClearCPUTensorAndGPUTensorMemorySize(scope);
+        gpu_memory_size +=
+            GetTensorMemorySize(scope, /*clear cpu tensor*/ true);
       }
     }
   }
+
+  VLOG(8) << "history local exec scopes contains "
+          << string::HumanReadableSize(gpu_memory_size) << ".";
 
   size_t history_step = history_local_exec_scopes_.size();
   if (gpu_memory_size > 1024 * 1024 * 1024) {
@@ -146,8 +150,7 @@ void ScopeBufferedMonitor::Run(const std::function<void()> &callback,
     ClearHistoryLocalScopes(history_step);
   } else {
     if (has_fetch && history_step >= 2) {
-      history_step -= 1;
-      ClearHistoryLocalScopes(history_step);
+      ClearHistoryLocalScopes(history_step - 1);
     }
   }
 }
