@@ -23,8 +23,8 @@ namespace paddle {
 namespace framework {
 namespace details {
 
-static void CollectUniqueAllocations(Variable *var,
-                                     std::unordered_set<Tensor *> *tensor_set) {
+static void GetTensors(Variable *var,
+                       std::unordered_set<Tensor *> *tensor_set) {
   if (var->IsType<LoDTensor>() && var->Get<LoDTensor>().IsInitialized()) {
     tensor_set->insert(var->GetMutable<LoDTensor>());
   } else if (var->IsType<SelectedRows>() &&
@@ -40,20 +40,19 @@ static void CollectUniqueAllocations(Variable *var,
   }
 }
 
-static void CollectUniqueAllocations(Scope *scope,
-                                     std::unordered_set<Tensor *> *tensor_set) {
+static void GetTensors(Scope *scope, std::unordered_set<Tensor *> *tensor_set) {
   for (auto &var_name : scope->LocalVarNames()) {
-    CollectUniqueAllocations(scope->FindVar(var_name), tensor_set);
+    GetTensors(scope->FindVar(var_name), tensor_set);
   }
 
   for (auto *kid : scope->kids()) {
-    CollectUniqueAllocations(kid, tensor_set);
+    GetTensors(kid, tensor_set);
   }
 }
 
 static size_t GetScopeVarMemorySize(Scope *scope) {
   std::unordered_set<Tensor *> tensor_set;
-  CollectUniqueAllocations(scope, &tensor_set);
+  GetTensors(scope, &tensor_set);
   size_t memory_size = 0;
   for (auto *tensor : tensor_set) {
     if (platform::is_cpu_place(tensor->place())) {
