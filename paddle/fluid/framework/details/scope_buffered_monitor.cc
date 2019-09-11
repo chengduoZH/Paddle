@@ -50,7 +50,7 @@ static void GetTensors(Scope *scope, std::unordered_set<Tensor *> *tensor_set) {
   }
 }
 
-static size_t GetScopeVarMemorySize(Scope *scope) {
+static size_t ClearCPUTensorAndGPUTensorMemorySize(Scope *scope) {
   std::unordered_set<Tensor *> tensor_set;
   GetTensors(scope, &tensor_set);
   size_t memory_size = 0;
@@ -64,9 +64,20 @@ static size_t GetScopeVarMemorySize(Scope *scope) {
   return memory_size;
 }
 
+size_t GetScopeVarMemorySize(Scope *scope) {
+  std::unordered_set<Tensor *> tensor_set;
+  GetTensors(scope, &tensor_set);
+  size_t memory_size = 0;
+  for (auto *tensor : tensor_set) {
+    memory_size += tensor->Holder()->size();
+  }
+  return memory_size;
+}
+
 ScopeBufferedMonitor::ScopeBufferedMonitor(
+    const std::vector<platform::Place> places,
     const std::vector<Scope *> &local_exec_scopes)
-    : local_exec_scopes_(local_exec_scopes) {
+    : places_(places), local_exec_scopes_(local_exec_scopes) {
   pre_local_exec_scopes_.resize(local_exec_scopes_.size());
   post_local_exec_scopes_.resize(local_exec_scopes_.size());
 }
@@ -117,30 +128,41 @@ void ScopeBufferedMonitor::Run(const std::function<void()> &callback,
     }
   }
 
-  size_t history_step = history_local_exec_scopes_.size();
-  if (has_fetch && history_step >= 2) {
-    VLOG(10) << "delete pre_incr_local_exec_scopes.";
-    for (size_t i = 0; i < history_step - 1; ++i) {
-      auto &pre_incr_local_exec_scopes = history_local_exec_scopes_.front();
-      for (size_t scope_idx = 0; scope_idx < pre_incr_local_exec_scopes.size();
-           ++scope_idx) {
-        for (auto scope : pre_incr_local_exec_scopes[scope_idx]) {
-          local_exec_scopes_.at(scope_idx)->DeleteScope(scope);
-        }
-      }
-      history_local_exec_scopes_.pop_front();
-    }
-  }
-
   // Delete CPU Memory
+  size_t gpu_memory_size = 0;
   for (auto &scope_vec : history_local_exec_scopes_) {
     for (auto &scope_set : scope_vec) {
       for (auto &scope : scope_set) {
-        VLOG(5) << "Left "
-                << string::HumanReadableSize(GetScopeVarMemorySize(*scope))
-                << " on scope " << scope << " before deleting";
+        gpu_memory_size += ClearCPUTensorAndGPUTensorMemorySize(scope);
       }
     }
+  }
+
+  size_t history_step = history_local_exec_scopes_.size();
+  if (gpu_memory_size > 1024 * 1024 * 1024) {
+    for (auto &p : places_) {
+      platform::DeviceContextPool::Instance().Get(p)->Wait();
+    }
+    ClearHistoryLocalScopes(history_step);
+  } else {
+    if (has_fetch && history_step >= 2) {
+      history_step -= 1;
+      ClearHistoryLocalScopes(history_step);
+    }
+  }
+}
+
+void ScopeBufferedMonitor::ClearHistoryLocalScopes(size_t history_step) {
+  VLOG(10) << "delete pre_incr_local_exec_scopes.";
+  for (size_t i = 0; i < history_step; ++i) {
+    auto &pre_incr_local_exec_scopes = history_local_exec_scopes_.front();
+    for (size_t scope_idx = 0; scope_idx < pre_incr_local_exec_scopes.size();
+         ++scope_idx) {
+      for (auto scope : pre_incr_local_exec_scopes[scope_idx]) {
+        local_exec_scopes_.at(scope_idx)->DeleteScope(scope);
+      }
+    }
+    history_local_exec_scopes_.pop_front();
   }
 }
 

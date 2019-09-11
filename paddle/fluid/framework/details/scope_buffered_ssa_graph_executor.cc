@@ -36,7 +36,7 @@ ScopeBufferedSSAGraphExecutor::ScopeBufferedSSAGraphExecutor(
       local_exec_scopes_(std::move(local_exec_scopes)),
       var_infos_(std::move(var_infos)),
       places_(std::move(places)),
-      scope_monitor_(local_exec_scopes_) {
+      scope_monitor_(places_, local_exec_scopes_) {
   PADDLE_ENFORCE_EQ(local_scopes_.size(), local_exec_scopes_.size());
   PrepareLocalExeScopes();
 }
@@ -61,9 +61,25 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
       },
       fetch_tensors.size() > 0);
 
+  if (VLOG_IS_ON(5)) {
+    for (auto *scope : local_exec_scopes_) {
+      VLOG(5) << "Left "
+              << string::HumanReadableSize(GetScopeVarMemorySize(scope))
+              << " on scope " << scope << " before deleting";
+    }
+  }
+
   ++drop_scope_counter_;
   if (drop_scope_counter_ == strategy_.num_iteration_per_drop_scope_) {
     DropLocalExeScopes();
+  }
+
+  if (VLOG_IS_ON(5)) {
+    for (auto *scope : local_exec_scopes_) {
+      VLOG(5) << "Left "
+              << string::HumanReadableSize(GetScopeVarMemorySize(scope))
+              << " on scope " << scope << " after deleting";
+    }
   }
 
   if (eptr) {
