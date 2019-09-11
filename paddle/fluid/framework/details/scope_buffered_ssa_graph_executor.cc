@@ -51,15 +51,19 @@ FeedFetchList ScopeBufferedSSAGraphExecutor::Run(
   std::vector<framework::LoDTensor> fetch_data;
   std::exception_ptr eptr = nullptr;
 
-  scope_monitor_.Apply(
-      [&]() {
-        try {
-          fetch_data = underlying_executor_->Run(fetch_tensors);
-        } catch (...) {
-          eptr = std::current_exception();
-        }
-      },
-      fetch_tensors.size() > 0);
+  auto exe_run_func = [&]() {
+    try {
+      fetch_data = underlying_executor_->Run(fetch_tensors);
+    } catch (...) {
+      eptr = std::current_exception();
+    }
+  };
+
+  if (strategy_.num_iteration_per_drop_scope_ == 1) {
+    exe_run_func();
+  } else {
+    scope_monitor_.Apply(exe_run_func, fetch_tensors.size() > 0);
+  }
 
   if (VLOG_IS_ON(5)) {
     for (auto *scope : local_exec_scopes_) {
