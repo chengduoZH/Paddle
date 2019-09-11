@@ -16,10 +16,54 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "paddle/fluid/framework/lod_tensor_array.h"
+#include "paddle/fluid/framework/selected_rows.h"
 #include "paddle/fluid/platform/profiler.h"
 namespace paddle {
 namespace framework {
 namespace details {
+
+static void CollectUniqueAllocations(Variable *var,
+                                     std::unordered_set<Tensor *> *tensor_set) {
+  if (var->IsType<LoDTensor>() && var->Get<LoDTensor>().IsInitialized()) {
+    tensor_set->insert(var->GetMutable<LoDTensor>());
+  } else if (var->IsType<SelectedRows>() &&
+             var->Get<SelectedRows>().value().IsInitialized()) {
+    tensor_set->insert(var->GetMutable<SelectedRows>()->mutable_value());
+  } else if (var->IsType<LoDTensorArray>()) {
+    auto *tensor_arr = var->GetMutable<LoDTensorArray>();
+    for (auto &t : *tensor_arr) {
+      if (t.IsInitialized()) {
+        tensor_set->insert(&t);
+      }
+    }
+  }
+}
+
+static void CollectUniqueAllocations(Scope *scope,
+                                     std::unordered_set<Tensor *> *tensor_set) {
+  for (auto &var_name : scope->LocalVarNames()) {
+    CollectUniqueAllocations(scope->FindVar(var_name), tensor_set);
+  }
+
+  for (auto *kid : scope->kids()) {
+    CollectUniqueAllocations(kid, tensor_set);
+  }
+}
+
+static size_t GetScopeVarMemorySize(Scope *scope) {
+  std::unordered_set<Tensor *> tensor_set;
+  CollectUniqueAllocations(scope, &tensor_set);
+  size_t memory_size = 0;
+  for (auto *tensor : tensor_set) {
+    if (platform::is_cpu_place(tensor->place())) {
+      tensor->clear();
+    } else {
+      memory_size += tensor->Holder()->size();
+    }
+  }
+  return memory_size;
+}
 
 ScopeBufferedMonitor::ScopeBufferedMonitor(
     const std::vector<Scope *> &local_exec_scopes)
@@ -86,6 +130,17 @@ void ScopeBufferedMonitor::Run(const std::function<void()> &callback,
         }
       }
       history_local_exec_scopes_.pop_front();
+    }
+  }
+
+  // Delete CPU Memory
+  for (auto &scope_vec : history_local_exec_scopes_) {
+    for (auto &scope_set : scope_vec) {
+      for (auto &scope : scope_set) {
+        VLOG(5) << "Left "
+                << string::HumanReadableSize(GetScopeVarMemorySize(*scope))
+                << " on scope " << scope << " before deleting";
+      }
     }
   }
 }
