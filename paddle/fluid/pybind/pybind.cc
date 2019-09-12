@@ -1546,7 +1546,8 @@ All parameter, weight, gradient are variables in Paddle.
           )DOC")
       .def_property("fuse_broadcast_ops",
                     [](const BuildStrategy &self) {
-                      return self.fuse_broadcast_ops_ == true;
+                      return self.fuse_broadcast_ops_ == true ||
+                             self.fuse_broadcast_ops_ == boost::none;
                     },
                     [](BuildStrategy &self, bool b) {
                       PADDLE_ENFORCE(!self.IsFinalized(),
@@ -1561,7 +1562,8 @@ All parameter, weight, gradient are variables in Paddle.
                       for NCCLReduce operations for a period of time. Default False.)DOC")
       .def_property("fuse_all_optimizer_ops",
                     [](const BuildStrategy &self) {
-                      return self.fuse_all_optimizer_ops_ == true;
+                      return self.fuse_all_optimizer_ops_ == true ||
+                             self.fuse_all_optimizer_ops_ == boost::none;
                     },
                     [](BuildStrategy &self, bool b) {
                       PADDLE_ENFORCE(!self.IsFinalized(),
@@ -1640,7 +1642,8 @@ All parameter, weight, gradient are variables in Paddle.
       .def_property(
           "fuse_all_reduce_ops",
           [](const BuildStrategy &self) {
-            return self.fuse_all_reduce_ops_ == true;
+            return self.fuse_all_reduce_ops_ == true ||
+                   self.fuse_all_reduce_ops_ == boost::none;
           },
           [](BuildStrategy &self, bool b) { self.fuse_all_reduce_ops_ = b; })
       .def_property("enable_backward_optimizer_op_deps",
